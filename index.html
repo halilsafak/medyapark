@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medyapark Adana — Reklam Alanları</title>
+<link rel="stylesheet" href="assets/theme.css">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<header class="nav">
+  <div class="nav-in">
+    <a href="#" class="brand" id="brand" onclick="goHome();return false;">medya<span>park</span></a>
+    <div class="navsearch"><input id="search" placeholder="Ara…" oninput="onSearch(this.value)"></div>
+    <div class="nav-actions">
+      <a class="iconbtn" id="pdfBtn" title="Katalog (PDF)" style="display:none" download>⬇</a>
+      <button class="iconbtn" title="Teklif Sepeti" onclick="toggleCart()">🛒<span class="cbadge" id="cbadge" style="display:none">0</span></button>
+      <div class="menuwrap">
+        <button class="iconbtn" onclick="toggleMenu(event)">☰</button>
+        <div class="menupanel" id="menu">
+          <a href="#" onclick="goHome();closeMenu();return false;">Katalog</a>
+          <a href="#" onclick="openPage('biz-kimiz');closeMenu();return false;">Biz Kimiz</a>
+          <a href="#" onclick="openPage('neler-yapiyoruz');closeMenu();return false;">Neler Yapıyoruz</a>
+          <a href="#" onclick="openPage('iletisim');closeMenu();return false;">İletişim</a>
+          <hr style="border:0;border-top:1px solid var(--line2);margin:6px 8px;">
+          <a href="admin.html" style="color:var(--ink3);font-size:13px;">⚙ Yönetim Paneli</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="app"><div class="loading">Yükleniyor…</div></main>
+
+<footer class="foot"><div class="foot-in">
+  <span class="brand" id="footBrand">medya<span>park</span></span>
+  <div class="foot-c"><a id="footPhone" href="#"></a><a id="footMail" href="#"></a></div>
+</div></footer>
+
+<div class="overlay" id="overlay" onclick="toggleCart()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dhead"><h3>Teklif Sepeti</h3><button class="iconbtn" onclick="toggleCart()">✕</button></div>
+  <div class="dbody" id="cartBody"></div>
+  <div class="dfoot" id="cartFoot"></div>
+</aside>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>
