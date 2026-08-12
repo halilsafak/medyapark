@@ -11,6 +11,12 @@ const prod=id=>D.products.find(p=>String(p.id)===String(id))||{};
 const mec=id=>D.mecralar.find(m=>String(m.id)===String(id));
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const vis=(m,key,has)=> ((m.visible&&m.visible[key])!==false) && has;
+function hexToRgb(h){ if(!h)return '63,111,99'; h=String(h).replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join(''); if(h.length!==6)return '63,111,99'; const n=parseInt(h,16); return `${(n>>16)&255},${(n>>8)&255},${n&255}`; }
+function cardTile(onclick,title,sub,image,theme,label){ const rgb=hexToRgb(theme); const bg=image?`background-image:url('${esc(image)}')`:'';
+  return `<a class="tile" href="#" onclick="${onclick};return false;" style="--tc-rgb:${rgb}">
+    <div class="bg" style="${bg}"></div><div class="ov"></div>
+    <div class="ct"><h3>${esc(title)}</h3>${sub?`<p class="tsub">${esc(sub)}</p>`:''}
+      <div class="xp"><b>${esc(label)}</b><span class="arw">→</span></div></div></a>`; }
 function perMonth(p){ const pr=p.prices||{}; if(typeof pr['1 Ay']==='number')return pr['1 Ay'];
   for(const v of Object.values(pr)){ if(typeof v==='number')return v; } return 0; }
 
@@ -60,12 +66,8 @@ function renderHome(q){
   const list=D.mecralar.filter(m=>!q||m.name.toLowerCase().includes(q)||(m.units||[]).some(u=>u.name.toLowerCase().includes(q)));
   const h=D.settings.hero||{};
   const tiles=list.map(m=>{
-    const bg=m.image?`background-image:url('${esc(m.image)}')`:`background:linear-gradient(140deg,${esc(m.theme_color)}2e,${esc(m.theme_color)}0d)`;
-    const stat=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).map(x=>esc(x)).join('<br>');
-    return `<a class="tile" href="#" onclick="openMec('${m.id}');return false;">
-      <div class="media" style="${bg}">${m.badge?`<span class="badge">${esc(m.badge)}</span>`:''}</div>
-      <div class="body"><h3>${esc(m.name)}</h3><p class="tsub">${stat||esc(m.stats||'')}</p>
-      <span class="cta">Keşfet <span class="arw">›</span></span></div></a>`;}).join('');
+    const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ')||m.stats||'';
+    return cardTile(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet');}).join('');
   app().innerHTML=`<section class="hero"><span class="eyebrow">${esc(h.eyebrow||'')}</span>
     <h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>
     <div class="grid">${tiles||'<p class="muted">Sonuç yok.</p>'}</div>`;
@@ -79,11 +81,8 @@ function renderMec(){
   const aciklama = vis(m,'aciklama',!!m.aciklama) ? `<p>${esc(m.aciklama)}</p>` : '';
   const cards=pids.map(id=>{ const p=prod(id);
     const n=(m.units||[]).filter(u=>String(u.product_id)===id).length;
-    const bg=m.image?`background-image:url('${esc(m.image)}')`:`background:linear-gradient(140deg,${esc(m.theme_color)}2e,${esc(m.theme_color)}0d)`;
-    return `<a class="tile" href="#" onclick="openProduct('${m.id}','${id}');return false;">
-      <div class="media" style="${bg}"><span class="badge">${esc(p.name||'Ürün')}</span></div>
-      <div class="body"><h3>${esc(p.name||'')}</h3><p class="tsub">${esc(p.olcu||'')}${n>1?` · ${n} pozisyon`:''}</p>
-      <span class="cta">Detaya gir <span class="arw">›</span></span></div></a>`; }).join('');
+    const sub=[p.olcu,(n>1?n+' pozisyon':'')].filter(Boolean).join(' · ');
+    return cardTile(`openProduct('${m.id}','${id}')`, p.name||'', sub, m.image, m.theme_color, 'Detaya gir'); }).join('');
   app().innerHTML=`<div class="crumbs"><a href="#" onclick="goHome();return false;">Katalog</a> › <span>${esc(m.name)}</span></div>
     <div class="sechead">${baslik}${aciklama}</div>
     <div class="grid">${cards||'<p class="muted">Ürün yok.</p>'}</div>`;

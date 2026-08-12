@@ -240,7 +240,7 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
     <div class="row2"><div class="field"><label class="flabel">İsim (kart başlığı)</label><input class="inp" id="mname" value="${esc(m.name)}"></div>
     <div class="field"><label class="flabel">Rozet</label><input class="inp" id="mbadge" value="${esc(m.badge)}"></div></div>
     <div class="row2"><div class="field"><label class="flabel">İstatistik</label><input class="inp" id="mstats" value="${esc(m.stats)}"></div>
-    <div class="field"><label class="flabel">Tema rengi</label><div class="colorwrap"><input type="color" id="mcolor" value="${esc(m.theme_color||'#3f6f63')}"><input class="inp" id="mcolor2" value="${esc(m.theme_color)}" oninput="document.getElementById('mcolor').value=this.value"></div></div></div>
+    <div class="field"><label class="flabel">Tema rengi</label><div class="colorwrap"><input type="color" id="mcolor" value="${esc(m.theme_color||'#3f6f63')}" oninput="document.getElementById('mcolor2').value=this.value"><input class="inp" id="mcolor2" value="${esc(m.theme_color)}" oninput="document.getElementById('mcolor').value=this.value"></div></div></div>
     <div class="field"><label class="flabel">Görsel (yükle veya URL)</label>
       <div style="display:flex;gap:8px"><input class="inp" id="mimage" value="${esc(m.image)}" placeholder="uploads/...jpg veya https://">
       <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mimage').value=u;})">Yükle</button></div></div>
