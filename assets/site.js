@@ -1,18 +1,16 @@
-/* ============ MEDYAPARK — ÖN YÜZ (wireframe) ============ */
 const MONTHS_SHORT=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
 const MONTHS_LONG=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 let D={settings:{},pages:[],products:[],mecralar:[]};
 let view={type:'home'}, calYear=new Date().getFullYear(), cart=[];
 
 const app=()=>document.getElementById('app');
-const money=n=>{const x=Number(n);return isFinite(x)&&n!==''&&n!=null?x.toLocaleString('tr-TR')+' ₺':(n||'');};
+const money=n=> typeof n==='number'? n.toLocaleString('tr-TR')+' ₺' : (n||'');
 const pad=n=>String(n).padStart(2,'0');
 const curYm=()=> new Date().getFullYear()+'-'+pad(new Date().getMonth()+1);
 const prod=id=>D.products.find(p=>String(p.id)===String(id))||{};
 const mec=id=>D.mecralar.find(m=>String(m.id)===String(id));
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-/* İçerik varsa VE visible[key] açıkça false değilse göster */
-const vis=(m,key,has)=> !!has && ((m.visible&&m.visible[key])!==false);
+const vis=(m,key,has)=> ((m.visible&&m.visible[key])!==false) && has;
 function perMonth(p){ const pr=p.prices||{}; if(typeof pr['1 Ay']==='number')return pr['1 Ay'];
   for(const v of Object.values(pr)){ if(typeof v==='number')return v; } return 0; }
 
@@ -46,12 +44,13 @@ async function load(){
 }
 function logo(t){ t=t||'medyapark'; return String(t).toLowerCase().startsWith('medya')?('medya<span>'+esc(String(t).slice(5))+'</span>'):esc(t); }
 
-function render(){ if(view.type==='home')renderHome(); else if(view.type==='mec')renderMec(); else renderPage(view.slug); window.scrollTo({top:0,behavior:'smooth'}); }
+function render(){ if(view.type==='home')renderHome(); else if(view.type==='prod')renderProduct(); else if(view.type==='prod')renderProduct(); else renderPage(view.slug); window.scrollTo({top:0,behavior:'smooth'}); }
 function goHome(){ view={type:'home'}; const s=document.getElementById('search'); if(s)s.value=''; render(); }
-function openMec(id){ view={type:'mec',id, tab:null, gsub:null, gidx:0}; calYear=new Date().getFullYear(); render(); }
-function openMecTab(pid){ view.tab=pid; renderMec(); }
-function gSub(s){ view.gsub=s; view.gidx=0; renderMec(); }
-function gPick(i){ view.gidx=i; renderMec(); }
+function openMec(id){ view={type:'mec',id}; calYear=new Date().getFullYear(); render(); }
+function openProduct(mecId,pid){ view={type:'prod',mecId,pid,gsub:'galeri',gidx:0}; calYear=new Date().getFullYear(); render(); }
+function openMecTab(pid){ view.pid=pid; view.gidx=0; renderProduct(); }
+function gSub(s){ view.gsub=s; renderProduct(); }
+function gPick(i){ view.gidx=i; renderProduct(); }
 function openPage(slug){ view={type:'page',slug}; render(); }
 function onSearch(q){ view={type:'home'}; renderHome(q); }
 
@@ -61,55 +60,60 @@ function renderHome(q){
   const list=D.mecralar.filter(m=>!q||m.name.toLowerCase().includes(q)||(m.units||[]).some(u=>u.name.toLowerCase().includes(q)));
   const h=D.settings.hero||{};
   const tiles=list.map(m=>{
-    const bg=m.image?`background-image:url('${esc(m.image)}')`:`background:linear-gradient(140deg,${esc(m.theme_color||'#3f6f63')}2e,${esc(m.theme_color||'#3f6f63')}0d)`;
-    const showGos=vis(m,'gosterim', !!(m.gunluk_gosterim||m.toplam_alan));
-    const stat=showGos ? [m.gunluk_gosterim,m.toplam_alan].filter(Boolean).map(esc).join('<br>') : esc(m.stats||'');
+    const bg=m.image?`background-image:url('${esc(m.image)}')`:`background:linear-gradient(140deg,${esc(m.theme_color)}2e,${esc(m.theme_color)}0d)`;
+    const stat=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).map(x=>esc(x)).join('<br>');
     return `<a class="tile" href="#" onclick="openMec('${m.id}');return false;">
       <div class="media" style="${bg}">${m.badge?`<span class="badge">${esc(m.badge)}</span>`:''}</div>
-      <div class="body"><h3>${esc(m.name)}</h3><p class="tsub">${stat}</p>
+      <div class="body"><h3>${esc(m.name)}</h3><p class="tsub">${stat||esc(m.stats||'')}</p>
       <span class="cta">Keşfet <span class="arw">›</span></span></div></a>`;}).join('');
   app().innerHTML=`<section class="hero"><span class="eyebrow">${esc(h.eyebrow||'')}</span>
     <h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>
     <div class="grid">${tiles||'<p class="muted">Sonuç yok.</p>'}</div>`;
 }
 
-/* ---------- MECRA DETAY (tek sayfa) ---------- */
+/* ---------- MECRA: ürün seçimi (M1 AVM → 3 kart) ---------- */
 function renderMec(){
   const m=mec(view.id); if(!m)return goHome();
+  const pids=[]; (m.units||[]).forEach(u=>{const k=String(u.product_id); if(!pids.includes(k))pids.push(k);});
+  const baslik = vis(m,'baslik',!!(m.baslik||m.name)) ? `<h1>${esc(m.baslik||m.name)}</h1>` : `<h1>${esc(m.name)}</h1>`;
+  const aciklama = vis(m,'aciklama',!!m.aciklama) ? `<p>${esc(m.aciklama)}</p>` : '';
+  const cards=pids.map(id=>{ const p=prod(id);
+    const n=(m.units||[]).filter(u=>String(u.product_id)===id).length;
+    const bg=m.image?`background-image:url('${esc(m.image)}')`:`background:linear-gradient(140deg,${esc(m.theme_color)}2e,${esc(m.theme_color)}0d)`;
+    return `<a class="tile" href="#" onclick="openProduct('${m.id}','${id}');return false;">
+      <div class="media" style="${bg}"><span class="badge">${esc(p.name||'Ürün')}</span></div>
+      <div class="body"><h3>${esc(p.name||'')}</h3><p class="tsub">${esc(p.olcu||'')}${n>1?` · ${n} pozisyon`:''}</p>
+      <span class="cta">Detaya gir <span class="arw">›</span></span></div></a>`; }).join('');
+  app().innerHTML=`<div class="crumbs"><a href="#" onclick="goHome();return false;">Katalog</a> › <span>${esc(m.name)}</span></div>
+    <div class="sechead">${baslik}${aciklama}</div>
+    <div class="grid">${cards||'<p class="muted">Ürün yok.</p>'}</div>`;
+}
+
+/* ---------- ÜRÜN DETAY (galeri, maps, avantajlar, fiyat/teknik, matris) ---------- */
+function renderProduct(){
+  const m=mec(view.mecId); if(!m)return goHome();
   const units=m.units||[];
   const pids=[]; units.forEach(u=>{ const k=String(u.product_id); if(!pids.includes(k))pids.push(k); });
-  let selId=view.tab!=null?String(view.tab):(pids[0]||null);
+  let selId=view.pid!=null?String(view.pid):(pids[0]||null);
   if(!pids.includes(selId)) selId=pids[0]||null;
   const selP=prod(selId);
   const uOfP=units.filter(u=>String(u.product_id)===String(selId));
-  const short=(m.name||'').split(' ')[0];
 
   const tabs=pids.map(id=>{const p=prod(id);
     return `<button class="mtab ${id===String(selId)?'on':''}" onclick="openMecTab('${id}')">${esc(p.name||'')}</button>`;}).join('');
 
-  /* Galeri / Yerleşim — görünürlüğe saygı */
-  const gal=Array.isArray(m.galeri)?m.galeri:[];
-  const showGal=vis(m,'galeri', gal.length>0);
-  const showYer=vis(m,'yerlesim', !!m.yerlesim_plani);
-  const subs=[]; if(showGal)subs.push('galeri'); if(showYer)subs.push('yerlesim');
-  let gsub=view.gsub; if(!subs.includes(gsub)) gsub=subs[0]||null;
+  const gsub=view.gsub||'galeri'; const gal=Array.isArray(m.galeri)?m.galeri:[];
+  const gidx=Math.min(view.gidx||0, Math.max(0,gal.length-1));
   let media;
-  if(gsub==='yerlesim'){ media=`<div class="gmain" style="background-image:url('${esc(m.yerlesim_plani)}')"></div>`; }
-  else if(gsub==='galeri'){ const gidx=Math.min(view.gidx||0,Math.max(0,gal.length-1));
-    media=`<div class="gmain" style="background-image:url('${esc(gal[gidx])}')"></div>
-      ${gal.length>1?`<div class="gthumbs">${gal.map((g,i)=>`<div class="gth ${i===gidx?'on':''}" style="background-image:url('${esc(g)}')" onclick="gPick(${i})"></div>`).join('')}</div>`:''}`; }
-  else { media=`<div class="gmain muted">Görsel eklenmemiş</div>`; }
-  const subtabsHTML=subs.length>1?`<div class="subtabs">${subs.map(s=>`<button class="${s===gsub?'on':''}" onclick="gSub('${s}')">${s==='galeri'?'Galeri':'Yerleşim Planı'}</button>`).join('')}</div>`:'';
-  const galBlock=`<div class="panel-b" style="padding:14px">${subtabsHTML}${media}</div>`;
+  if(gsub==='yerlesim'){ media = m.yerlesim_plani?`<div class="gmain" style="background-image:url('${esc(m.yerlesim_plani)}')"></div>`:`<div class="gmain">Yerleşim planı yok</div>`; }
+  else { media = gal.length?`<div class="gmain" style="background-image:url('${esc(gal[gidx])}')"></div>
+      ${gal.length>1?`<div class="gthumbs">${gal.map((g,i)=>`<div class="gth ${i===gidx?'on':''}" style="background-image:url('${esc(g)}')" onclick="gPick(${i})"></div>`).join('')}</div>`:''}`:`<div class="gmain">Görsel yok</div>`; }
+  const galBlock=`<div class="subtabs"><button class="${gsub==='galeri'?'on':''}" onclick="gSub('galeri')">Galeri</button><button class="${gsub==='yerlesim'?'on':''}" onclick="gSub('yerlesim')">Yerleşim Planı</button></div>${media}`;
 
-  /* Maps + Avantajlar */
-  const showMaps=vis(m,'maps', !!m.maps);
-  const mapsBlock = showMaps ? `<div class="mapbox">${m.maps}</div>` : '';
+  const mapsBlock = vis(m,'maps',!!m.maps) ? `<div class="mapbox">${m.maps}</div>` : `<div class="mapbox">Google Maps</div>`;
   const adv=(Array.isArray(m.avantajlar)?m.avantajlar:[]).slice(0,4);
   const advBlock = vis(m,'avantajlar',adv.length>0) ? `<div class="adv-grid">${adv.map(a=>`<div class="adv"><b>${esc(a.t||a.title||'')}</b><span>${esc(a.d||a.desc||'')}</span></div>`).join('')}</div>` : '';
-  const rightCol = (mapsBlock||advBlock) ? `<div>${mapsBlock}${advBlock}</div>` : '<div></div>';
 
-  /* Fiyatlar + Teknik açılırlar */
   const prices=Object.entries(selP.prices||{});
   const priceAcc=`<details class="acc" open><summary>Fiyatlar</summary><div>${prices.map(([k,v])=>`<div class="priceitem"><span class="muted">${esc(k)}</span><span class="amt">${money(v)}</span></div>`).join('')||'<p class="muted">—</p>'}
     <p class="muted" style="font-size:12px;margin-top:8px">Belediye vergi/harç dahil, dijital baskı hariç · KDV hariç.</p></div></details>`;
@@ -117,28 +121,28 @@ function renderMec(){
     .filter(x=>x[1]&&x[1]!=='—').map(x=>`<div class="spec"><span class="k">${esc(x[0])}</span><span class="v">${esc(x[1])}</span></div>`).join('');
   const specAcc=`<details class="acc"><summary>Teknik Özellikler</summary><div>${specRows||'<p class="muted">—</p>'}</div></details>`;
 
-  const showLogo=vis(m,'logo', !!m.logo);
-  const logoBlock = showLogo ? `<img class="mlogo" src="${esc(m.logo)}" alt="logo">` : '';
-  const baslik = vis(m,'baslik',!!(m.baslik||m.name))?`<h1>${esc(m.baslik||m.name)}</h1>`:'';
-  const aciklama = vis(m,'aciklama',!!m.aciklama)?`<p class="muted" style="max-width:760px">${esc(m.aciklama)}</p>`:'';
-
   const related=D.mecralar.filter(x=>x.id!==m.id).map(x=>`<a class="rcard" href="#" onclick="openMec('${x.id}');return false;">${esc(x.name)}<span class="arw">›</span></a>`).join('');
 
   app().innerHTML=`
-    <div class="crumbs"><a href="#" onclick="goHome();return false;">Katalog</a> › <span>${esc(m.name)}</span></div>
-    <div class="sechead" style="align-items:center;gap:14px">${logoBlock}<div>${baslik}${aciklama}</div></div>
-    ${tabs?`<div class="mtabs">${tabs}</div>`:''}
-    <div class="u-grid">${galBlock}${rightCol}</div>
+    <div class="crumbs"><a href="#" onclick="goHome();return false;">Katalog</a> › <a href="#" onclick="openMec('${m.id}');return false;">${esc(m.name)}</a> › <span>${esc(selP.name||'')}</span></div>
+    <div class="sechead"><h1>${esc(selP.name||'')}</h1></div>
+    <div class="mtabs">${tabs}</div>
+    <div class="u-grid">
+      <div class="panel-b" style="padding:14px">${galBlock}</div>
+      <div>${mapsBlock}${advBlock}</div>
+    </div>
     <div style="margin-top:14px">${priceAcc}${specAcc}</div>
     <div class="book" style="margin-top:18px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h4 style="margin:0">${esc(m.name)} — Doluluk Durumu</h4>
+        <h4 style="margin:0">${esc(m.name)} · ${esc(selP.name||'')} — Doluluk</h4>
         <div class="year-nav" style="margin:0"><button onclick="yearNav(-1)">‹</button><span class="yr">${calYear}</span><button onclick="yearNav(1)">›</button></div>
       </div>
       <p class="muted" style="font-size:13px;margin:0 0 12px">Müsait bir aya tıklayarak teklif sepetine ekleyin (aylık: <b>${money(perMonth(selP))}</b>).</p>
       <div style="overflow-x:auto">${matrixHTML(selP.name||'Pozisyon', uOfP)}</div>
+      <div class="cal-legend"><span><i class="lg-bos"></i>Müsait</span><span><i class="lg-dolu"></i>Dolu</span><span><i class="lg-rez"></i>Rezerve</span><span><i class="lg-sel"></i>Sepette</span></div>
     </div>
-    ${related?`<p class="related-h">Diğer Lokasyonlar</p><div class="related">${related}</div>`:''}`;
+    <p class="related-h">Diğer Lokasyonlar</p>
+    <div class="related">${related}</div>`;
 }
 
 function matrixHTML(corner, units){
@@ -161,21 +165,21 @@ function matrixHTML(corner, units){
   }).join('');
   return `<table class="matrix wide"><thead><tr>${head}</tr></thead><tbody>${rows||'<tr><td class="unit muted">Ünite yok</td></tr>'}</tbody></table>`;
 }
-function yearNav(d){ calYear+=d; renderMec(); }
+function yearNav(d){ calYear+=d; renderProduct(); }
 function toggleMonth(uid,ym){
-  const m=mec(view.id); const u=(m.units||[]).find(x=>String(x.id)===String(uid)); if(!u)return; const p=prod(u.product_id);
+  const m=mec(view.mecId); const u=(m.units||[]).find(x=>String(x.id)===String(uid)); if(!u)return; const p=prod(u.product_id);
   const i=cart.findIndex(c=>String(c.unitId)===String(uid)&&c.ym===ym);
   if(i>-1){ cart.splice(i,1); }
   else{ const [y,mm]=ym.split('-'); const price=perMonth(p);
-    cart.push({unitId:u.id,mecra:m.name,unit:u.name,product:p.name,olcu:u.olcu||p.olcu||'',ym,
+    cart.push({unitId:Number(uid),mecra:m.name,unit:u.name,product:p.name,olcu:u.olcu||p.olcu||'',ym,
       monthLabel:MONTHS_LONG[+mm-1]+' '+y, price, priceLabel:money(price)}); }
-  badge(); renderCart(); renderMec();
+  badge(); renderCart(); renderProduct();
 }
 
 function renderPage(slug){
   const pg=(D.pages||[]).find(p=>p.slug===slug)||{};
   let body=`<div class="page-body">${esc(pg.body)}</div>`;
-  if(slug==='iletisim'){ const s=D.settings; body+=`<div class="panel-b" style="max-width:420px;margin-top:16px;padding:16px">
+  if(slug==='iletisim'){ const s=D.settings; body+=`<div class="panel-b" style="max-width:420px">
     <div class="spec"><span class="k">Telefon</span><span class="v">${esc(s.phone)}</span></div>
     <div class="spec"><span class="k">E-posta</span><span class="v">${esc(s.email)}</span></div>
     <div class="spec"><span class="k">Adres</span><span class="v">${esc(s.address)}</span></div></div>`; }
@@ -184,7 +188,7 @@ function renderPage(slug){
 }
 
 /* ---------- sepet ---------- */
-function removeItem(i){ cart.splice(i,1); badge(); renderCart(); if(view.type==='mec')renderMec(); }
+function removeItem(i){ cart.splice(i,1); badge(); renderCart(); if(view.type==='prod')renderProduct(); }
 function badge(){ const b=document.getElementById('cbadge'); if(cart.length){b.style.display='flex';b.textContent=cart.length;}else b.style.display='none'; }
 const cartTotal=()=>cart.reduce((s,c)=>s+(c.price||0),0);
 function renderCart(){
