@@ -18,7 +18,7 @@ function pickUpload(accept, cb){ const inp=document.createElement('input'); inp.
   inp.onchange=async()=>{ const f=inp.files[0]; if(!f)return; try{ const url=await uploadFile(f); cb(url); }catch(e){ alert('Yükleme hatası: '+(e.message||e)); } }; inp.click(); }
 
 /* ---- Veri katmanı köprüsü: eski api(action,body) -> Supabase ---- */
-const DELMAP={product_delete:'products',mecra_delete:'mecralar',unit_delete:'units',customer_delete:'customers',team_delete:'team',note_delete:'notes',quote_delete:'quotes',job_delete:'jobs'};
+const DELMAP={product_delete:'products',mecra_delete:'mecralar',alt_delete:'alt_mecralar',unit_delete:'units',customer_delete:'customers',team_delete:'team',note_delete:'notes',quote_delete:'quotes',job_delete:'jobs'};
 async function saveRow(table, body){ const id=body.id; const row={...body}; delete row.id;
   if(id){ const {error}=await sb.from(table).update(row).eq('id',id); if(error)throw error; return {id}; }
   const {data,error}=await sb.from(table).insert(row).select('id').single(); if(error)throw error; return {id:data.id}; }
@@ -58,6 +58,10 @@ async function api(action, body){
     }
     case 'mecra_save': return ok(await saveRow('mecralar',body));
     case 'unit_save': return ok(await saveRow('units',body));
+    case 'alt_all':{ const {data,error}=await sb.from('alt_mecralar').select('id,mecra_id').order('sort'); if(error)throw error; return ok(data); }
+    case 'alt_list':{ const {data,error}=await sb.from('alt_mecralar').select('*').eq('mecra_id',q.mecra_id).order('sort').order('id'); if(error)throw error; return ok(data); }
+    case 'alt_save': return ok(await saveRow('alt_mecralar',body));
+    case 'unit_list':{ const {data,error}=await sb.from('units').select('*').eq('alt_mecra_id',q.alt_id).order('sort').order('id'); if(error)throw error; return ok(data); }
 
     case 'booking_list':{ const {data,error}=await sb.from('bookings').select('ym,status').eq('unit_id',q.unit_id); if(error)throw error; return ok(data); }
     case 'booking_toggle':{
@@ -220,45 +224,88 @@ async function prodDel(id){ if(confirm('Ürün silinsin mi?')){ await api('produ
 /* ---------- MECRALAR ---------- */
 async function mecralar(c){
   const list=await api('mecra_list'); ui._mecralar=list; ui._products=await api('products_list');
-  const rows=list.map(m=>`<div class="list-item"><span class="dot" style="background:${esc(m.theme_color)}"></span><div class="nm">${esc(m.name)}</div><div class="meta">${(m.units||[]).length} ünite</div>
+  const alls=await api('alt_all'); const cnt={}; alls.forEach(a=>cnt[a.mecra_id]=(cnt[a.mecra_id]||0)+1);
+  const rows=list.map(m=>`<div class="list-item"><span class="dot" style="background:${esc(m.theme_color)}"></span><div class="nm">${esc(m.name)}</div><div class="meta">${cnt[m.id]||0} alt mecra</div>
     <button class="btn btn-outline btn-sm" onclick="mecEdit(${m.id})">Düzenle</button><button class="btn btn-danger btn-sm" onclick="mecDel(${m.id})">Sil</button></div>`).join('');
   c.innerHTML=`<div class="sec-head"><h3>Mecralar</h3><button class="btn btn-primary btn-sm" onclick="mecEdit(0)">+ Mecra ekle</button></div>${rows||'<p class="muted">Mecra yok.</p>'}<div id="mecEd"></div>`;
 }
-function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_color:'#3f6f63',units:[]};
-  const units=(m.units||[]).map(u=>`<details class="unit"><summary>${esc(u.name||'(ünite)')}<span class="pill" style="margin-left:auto">${esc((ui._products.find(p=>p.id==u.product_id)||{}).name||'ürün?')}</span></summary>
-    <div class="unit-b"><div class="row2">
-      <div class="field"><label class="flabel">Ünite adı</label><input class="inp" value="${esc(u.name)}" onchange="unitSave(${u.id},${m.id},'name',this.value)"></div>
-      <div class="field"><label class="flabel">Ürün</label><select class="inp" onchange="unitSave(${u.id},${m.id},'product_id',this.value)">${ui._products.map(p=>`<option value="${p.id}" ${p.id==u.product_id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div>
-    </div>
-    <div class="field"><label class="flabel">Ünite görseli</label>
-      <button class="btn btn-outline btn-sm" onclick="pickUpload('image/*',u=>unitSave(${u.id},${m.id},'image',u).then(()=>alert('Görsel yüklendi.')))">Görsel yükle</button>
-      ${u.image?`<span class="pill teal" style="margin-left:8px">✓ mevcut</span>`:''}</div>
-    <div class="field"><label class="flabel">Doluluk (aya tıkla: Boş → Dolu → Rezerve)</label><div id="cal-${u.id}">Yükleniyor…</div></div>
-    <button class="btn btn-danger btn-sm" onclick="unitDel(${u.id})">Üniteyi sil</button></div></details>`).join('');
+
+function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_color:'#0071e3'};
   document.getElementById('mecEd').innerHTML=`<div class="sec-card" style="margin-top:16px"><h3 style="margin:0 0 14px;font-size:16px">${id?'Mecrayı Düzenle':'Yeni Mecra'}</h3>
     <input type="hidden" id="mid" value="${id||0}">
     <div class="row2"><div class="field"><label class="flabel">İsim (kart başlığı)</label><input class="inp" id="mname" value="${esc(m.name)}"></div>
-    <div class="field"><label class="flabel">Rozet</label><input class="inp" id="mbadge" value="${esc(m.badge)}"></div></div>
-    <div class="row2"><div class="field"><label class="flabel">İstatistik</label><input class="inp" id="mstats" value="${esc(m.stats)}"></div>
-    <div class="field"><label class="flabel">Tema rengi</label><div class="colorwrap"><input type="color" id="mcolor" value="${esc(m.theme_color||'#3f6f63')}" oninput="document.getElementById('mcolor2').value=this.value"><input class="inp" id="mcolor2" value="${esc(m.theme_color)}" oninput="document.getElementById('mcolor').value=this.value"></div></div></div>
-    <div class="field"><label class="flabel">Görsel (yükle veya URL)</label>
-      <div style="display:flex;gap:8px"><input class="inp" id="mimage" value="${esc(m.image)}" placeholder="uploads/...jpg veya https://">
-      <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mimage').value=u;})">Yükle</button></div></div>
-    <div class="field"><label class="flabel">Google Maps (iframe kodu, opsiyonel)</label><textarea class="inp" id="mmaps">${esc(m.maps)}</textarea></div>
+    <div class="field"><label class="flabel">Tema rengi</label><div class="colorwrap"><input type="color" id="mcolor" value="${esc(m.theme_color||'#0071e3')}" oninput="document.getElementById('mcolor2').value=this.value"><input class="inp" id="mcolor2" value="${esc(m.theme_color)}" oninput="document.getElementById('mcolor').value=this.value"></div></div></div>
+    <div class="row2"><div class="field"><label class="flabel">Günlük gösterim</label><input class="inp" id="mgg" value="${esc(m.gunluk_gosterim)}" placeholder="≈ 250.000 gösterim"></div>
+    <div class="field"><label class="flabel">Toplam reklam alanı</label><input class="inp" id="mta" value="${esc(m.toplam_alan)}" placeholder="3 alt mecra"></div></div>
+    <div class="field"><label class="flabel">Kart görseli (yükle veya URL)</label><div style="display:flex;gap:8px"><input class="inp" id="mimage" value="${esc(m.image)}" placeholder="https://..."><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mimage').value=u;})">Yükle</button></div></div>
     <div class="field"><label class="flabel">Açıklama</label><textarea class="inp" id="macik">${esc(m.aciklama)}</textarea></div>
     <button class="btn btn-primary btn-sm" onclick="mecSave()">Mecrayı Kaydet</button>
-    ${id?`<hr style="border:0;border-top:1px solid var(--line2);margin:18px 0"><div class="sec-head"><h3 style="font-size:15px">Üniteler</h3><button class="btn btn-primary btn-sm" onclick="unitAdd(${id})">+ Ünite</button></div>${units||'<p class="muted">Ünite yok.</p>'}`:'<p class="muted" style="margin-top:12px">Üniteleri, mecrayı kaydettikten sonra ekleyebilirsiniz.</p>'}
+    ${id?`<hr style="border:0;border-top:1px solid var(--line2);margin:18px 0"><div class="sec-head"><h3 style="font-size:15px">Alt Mecralar</h3><button class="btn btn-primary btn-sm" onclick="altAdd(${id})">+ Alt Mecra</button></div><div id="altList">Yükleniyor…</div>`:'<p class="muted" style="margin-top:12px">Alt mecraları, mecrayı kaydettikten sonra ekleyebilirsiniz.</p>'}
     </div>`;
   document.getElementById('mecEd').scrollIntoView({behavior:'smooth'});
-  (m.units||[]).forEach(u=>loadUnitCal(u.id));
+  if(id) loadAltList(id);
 }
-async function mecSave(){ const color=gv('mcolor'); const id=+gv('mid');
-  const r=await api('mecra_save',{id,name:gv('mname'),badge:gv('mbadge'),stats:gv('mstats'),theme_color:color,image:gv('mimage'),maps:gv('mmaps'),aciklama:gv('macik')});
-  ui.section='mecralar'; await renderSection(); if(!id&&r&&r.id)mecEdit(r.id); }
-async function mecDel(id){ if(confirm('Mecra ve üniteleri silinsin mi?')){ await api('mecra_delete&id='+id); renderSection(); } }
-async function unitAdd(mid){ const pid=(ui._products[0]||{}).id||null; await api('unit_save',{mecra_id:mid,product_id:pid,name:'Yeni Ünite'}); ui._mecralar=await api('mecra_list'); mecEdit(mid); }
-async function unitSave(id,mid,field,value){ const body={id}; body[field]=value; await api('unit_save',body); }
-async function unitDel(id){ if(confirm('Ünite silinsin mi?')){ await api('unit_delete&id='+id); ui._mecralar=await api('mecra_list'); mecEdit(+gv('mid')); } }
+async function mecSave(){ const id=+gv('mid');
+  const r=await api('mecra_save',{id,name:gv('mname'),theme_color:gv('mcolor'),gunluk_gosterim:gv('mgg'),toplam_alan:gv('mta'),image:gv('mimage'),aciklama:gv('macik')});
+  ui._mecralar=await api('mecra_list'); mecEdit(id||(r&&r.id)||0); }
+async function mecDel(id){ if(confirm('Mecra, alt mecraları ve üniteleri silinsin mi?')){ await api('mecra_delete&id='+id); renderSection(); } }
+
+async function loadAltList(mid){ const alts=await api('alt_list&mecra_id='+mid); ui._alts=alts;
+  const box=document.getElementById('altList'); if(!box)return;
+  box.innerHTML = alts.length? alts.map(a=>`<div class="list-item"><div class="nm">${esc(a.name)}</div><div class="meta">${esc((ui._products.find(p=>p.id==a.product_id)||{}).name||'ürün?')}</div>
+    <button class="btn btn-outline btn-sm" onclick="altEdit(${a.id},${mid})">Düzenle</button><button class="btn btn-danger btn-sm" onclick="altDel(${a.id},${mid})">Sil</button></div>`).join('') : '<p class="muted">Alt mecra yok.</p>';
+}
+async function altAdd(mid){ const pid=(ui._products[0]||{}).id||null; const r=await api('alt_save',{mecra_id:mid,product_id:pid,name:'Yeni Alt Mecra'}); ui._alts=await api('alt_list&mecra_id='+mid); altEdit(r.id,mid); }
+async function altDel(id,mid){ if(confirm('Alt mecra ve üniteleri silinsin mi?')){ await api('alt_delete&id='+id); loadAltList(mid); } }
+
+async function altEdit(id,mid){
+  const alts=await api('alt_list&mecra_id='+mid); ui._alts=alts; const a=alts.find(x=>x.id===id)||{visible:{},avantajlar:[],galeri:[]};
+  const vis=a.visible||{}; const adv=Array.isArray(a.avantajlar)?a.avantajlar:[]; const gal=Array.isArray(a.galeri)?a.galeri:[];
+  const units=await api('unit_list&alt_id='+id);
+  const advInputs=[0,1,2,3].map(i=>{const x=adv[i]||{};return `<div class="row2"><div class="field"><input class="inp" id="av${i}t" value="${esc(x.t||x.title||'')}" placeholder="Avantaj ${i+1} başlık"></div><div class="field"><input class="inp" id="av${i}d" value="${esc(x.d||x.desc||'')}" placeholder="Açıklama"></div></div>`;}).join('');
+  const galRows = gal.map((g,i)=>`<div class="list-item"><div class="nm" style="font-size:12px;word-break:break-all">${esc(g)}</div><button class="btn btn-danger btn-sm" onclick="altGalDel(${id},${mid},${i})">Sil</button></div>`).join('');
+  const tog=(key,label)=>`<label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;margin:6px 0"><input type="checkbox" id="vis_${key}" ${vis[key]!==false?'checked':''}> ${label} ön yüzde göster</label>`;
+  const uHtml=units.map(u=>`<details class="unit"><summary>${esc(u.name||'(pozisyon)')}</summary>
+    <div class="unit-b">
+      <div class="field"><label class="flabel">Pozisyon adı</label><input class="inp" value="${esc(u.name)}" onchange="unitSave(${u.id},'name',this.value)"></div>
+      <div class="field"><label class="flabel">Doluluk (aya tıkla: Boş → Dolu → Rezerve)</label><div id="cal-${u.id}">Yükleniyor…</div></div>
+      <button class="btn btn-danger btn-sm" onclick="unitDel(${u.id},${id},${mid})">Pozisyonu sil</button></div></details>`).join('');
+
+  document.getElementById('mecEd').innerHTML=`<div class="sec-card" style="margin-top:16px">
+    <button class="btn btn-outline btn-sm" onclick="mecEdit(${mid})">‹ Mecraya dön</button>
+    <h3 style="margin:14px 0;font-size:16px">Alt Mecra</h3>
+    <input type="hidden" id="aid" value="${id}"><input type="hidden" id="amid" value="${mid}">
+    <div class="row2"><div class="field"><label class="flabel">Alt mecra adı</label><input class="inp" id="aname" value="${esc(a.name)}"></div>
+      <div class="field"><label class="flabel">Ürün Seç</label><select class="inp" id="aprod">${ui._products.map(p=>`<option value="${p.id}" ${p.id==a.product_id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div></div>
+    <div class="field"><label class="flabel">Başlık</label><input class="inp" id="abaslik" value="${esc(a.baslik)}"><br>${tog('baslik','Başlığı')}</div>
+    <div class="field"><label class="flabel">Açıklama</label><textarea class="inp" id="aacik">${esc(a.aciklama)}</textarea>${tog('aciklama','Açıklamayı')}</div>
+    <div class="row2"><div class="field"><label class="flabel">Günlük gösterim</label><input class="inp" id="agg" value="${esc(a.gunluk_gosterim)}"></div>
+      <div class="field"><label class="flabel">Toplam alan</label><input class="inp" id="ata" value="${esc(a.toplam_alan)}"></div></div>
+    <div class="field"><label class="flabel">Kapak görseli</label><div style="display:flex;gap:8px"><input class="inp" id="aimage" value="${esc(a.image)}"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('aimage').value=u;})">Yükle</button></div></div>
+    <div class="field"><label class="flabel">Galeri görselleri</label>${galRows||'<p class="muted" style="font-size:12px">Henüz yok.</p>'}<div><button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="pickUpload('image/*',u=>altGalAdd(${id},${mid},u))">+ Galeri görseli ekle</button></div></div>
+    <div class="field"><label class="flabel">Yerleşim planı görseli</label><div style="display:flex;gap:8px"><input class="inp" id="ayerlesim" value="${esc(a.yerlesim_plani)}"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('ayerlesim').value=u;})">Yükle</button></div></div>
+    <div class="field"><label class="flabel">Google Maps (iframe kodu)</label><textarea class="inp" id="amaps">${esc(a.maps)}</textarea>${tog('maps','Haritayı')}</div>
+    <div class="field"><label class="flabel">Avantajlar (4 mini kart)</label>${advInputs}${tog('avantajlar','Avantajları')}</div>
+    <button class="btn btn-primary btn-sm" onclick="altSave()">Alt Mecrayı Kaydet</button>
+    <hr style="border:0;border-top:1px solid var(--line2);margin:18px 0">
+    <div class="sec-head"><h3 style="font-size:15px">Pozisyonlar (üniteler)</h3><button class="btn btn-primary btn-sm" onclick="unitAdd(${id},${mid})">+ Pozisyon</button></div>
+    ${uHtml||'<p class="muted">Pozisyon yok.</p>'}
+    </div>`;
+  document.getElementById('mecEd').scrollIntoView({behavior:'smooth'});
+  units.forEach(u=>loadUnitCal(u.id));
+}
+async function altSave(){ const id=+gv('aid'), mid=+gv('amid');
+  const adv=[0,1,2,3].map(i=>({t:gv('av'+i+'t'),d:gv('av'+i+'d')})).filter(x=>x.t||x.d);
+  const visible={baslik:document.getElementById('vis_baslik').checked, aciklama:document.getElementById('vis_aciklama').checked, maps:document.getElementById('vis_maps').checked, avantajlar:document.getElementById('vis_avantajlar').checked};
+  await api('alt_save',{id,name:gv('aname'),product_id:+gv('aprod'),baslik:gv('abaslik'),aciklama:gv('aacik'),gunluk_gosterim:gv('agg'),toplam_alan:gv('ata'),image:gv('aimage'),yerlesim_plani:gv('ayerlesim'),maps:gv('amaps'),avantajlar:adv,visible});
+  alert('Alt mecra kaydedildi.'); altEdit(id,mid); }
+async function altGalAdd(id,mid,url){ const alts=await api('alt_list&mecra_id='+mid); const a=alts.find(x=>x.id===id)||{}; const gal=Array.isArray(a.galeri)?a.galeri:[]; gal.push(url); await api('alt_save',{id,galeri:gal}); altEdit(id,mid); }
+async function altGalDel(id,mid,idx){ const alts=await api('alt_list&mecra_id='+mid); const a=alts.find(x=>x.id===id)||{}; const gal=Array.isArray(a.galeri)?a.galeri:[]; gal.splice(idx,1); await api('alt_save',{id,galeri:gal}); altEdit(id,mid); }
+
+async function unitAdd(altId,mid){ const alt=(ui._alts||await api('alt_list&mecra_id='+mid)).find(x=>x.id===altId)||{};
+  await api('unit_save',{alt_mecra_id:altId,mecra_id:mid,product_id:alt.product_id,name:'Yeni Pozisyon'}); altEdit(altId,mid); }
+async function unitSave(id,field,value){ const body={id}; body[field]=value; await api('unit_save',body); }
+async function unitDel(id,altId,mid){ if(confirm('Pozisyon silinsin mi?')){ await api('unit_delete&id='+id); altEdit(altId,mid); } }
 async function loadUnitCal(uid){ try{ const bk=await api('booking_list&unit_id='+uid); const map={}; bk.forEach(b=>map[b.ym]=b.status);
   calData[uid]={map, y:new Date().getFullYear()}; drawUnitCal(uid); }catch(e){} }
 function drawUnitCal(uid){ const box=document.getElementById('cal-'+uid); if(!box)return; const st=calData[uid]; const y=st.y;
