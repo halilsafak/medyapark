@@ -40,3 +40,17 @@ details.unit{border:1px solid var(--line2);border-radius:var(--r);margin-bottom:
 .modal{background:#fff;border-radius:var(--r-xl);box-shadow:var(--sh-lg);padding:24px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;}
 .banner{background:var(--sand-soft);color:#7a601a;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:16px;}
 @media(max-width:900px){ .app{grid-template-columns:1fr;} .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;} .side .logout{margin:0;} .kanban{grid-template-columns:1fr;} .row2,.row3{grid-template-columns:1fr;} }
+
+/* ===== Mecra formu — bölüm kartları + Göster/Gizle anahtarı ===== */
+.fld-card{border:1px solid var(--line2);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:12px;background:var(--bg2)}
+.fld-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.tgl{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--ink2);user-select:none;flex:0 0 auto}
+.tgl input{appearance:none;-webkit-appearance:none;width:36px;height:20px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;transition:background .15s;margin:0}
+.tgl input:checked{background:var(--teal)}
+.tgl input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.tgl input:checked::after{left:18px}
+.gal-box{display:flex;flex-wrap:wrap;gap:10px}
+.gal-th{width:84px;height:62px;border-radius:8px;background-size:cover;background-position:center;position:relative;border:1px solid var(--line)}
+.gal-x{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;background:var(--clay);color:#fff;font-size:14px;line-height:18px;text-align:center;border:0;cursor:pointer;padding:0}
+.gal-add{width:84px;height:62px;border-radius:8px;border:1px dashed var(--line);background:#fff;color:var(--ink2);font-size:12px;cursor:pointer}
+.gal-add:hover{border-color:var(--teal);color:var(--teal)}

@@ -224,7 +224,18 @@ async function mecralar(c){
     <button class="btn btn-outline btn-sm" onclick="mecEdit(${m.id})">Düzenle</button><button class="btn btn-danger btn-sm" onclick="mecDel(${m.id})">Sil</button></div>`).join('');
   c.innerHTML=`<div class="sec-head"><h3>Mecralar</h3><button class="btn btn-primary btn-sm" onclick="mecEdit(0)">+ Mecra ekle</button></div>${rows||'<p class="muted">Mecra yok.</p>'}<div id="mecEd"></div>`;
 }
-function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_color:'#3f6f63',units:[]};
+/* Göster/Gizle yardımcıları: bir alan, visible[key] açıkça false değilse gösterilir */
+function visOn(m,key){ return !(m.visible && m.visible[key]===false); }
+function tgl(key,on){ return `<label class="tgl" title="Ön yüzde göster/gizle"><input type="checkbox" id="vis-${key}" ${on?'checked':''}><span>Göster</span></label>`; }
+function fldHead(label,key,on){ return `<div class="fld-head"><label class="flabel" style="margin:0">${label}</label>${tgl(key,on)}</div>`; }
+
+function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_color:'#3f6f63',units:[],visible:{}};
+  const V=k=>visOn(m,k);
+  ui._galeri = Array.isArray(m.galeri)? m.galeri.slice() : [];
+  const av = Array.isArray(m.avantajlar)? m.avantajlar : [];
+  const avRow=i=>{ const a=av[i]||{}; return `<div class="row2" style="margin-bottom:8px">
+    <div class="field" style="margin:0"><input class="inp" id="av-t-${i}" placeholder="Avantaj ${i+1} başlığı" value="${esc(a.t||a.title||'')}"></div>
+    <div class="field" style="margin:0"><input class="inp" id="av-d-${i}" placeholder="Kısa açıklama" value="${esc(a.d||a.desc||'')}"></div></div>`; };
   const units=(m.units||[]).map(u=>`<details class="unit"><summary>${esc(u.name||'(ünite)')}<span class="pill" style="margin-left:auto">${esc((ui._products.find(p=>p.id==u.product_id)||{}).name||'ürün?')}</span></summary>
     <div class="unit-b"><div class="row2">
       <div class="field"><label class="flabel">Ünite adı</label><input class="inp" value="${esc(u.name)}" onchange="unitSave(${u.id},${m.id},'name',this.value)"></div>
@@ -235,25 +246,71 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
       ${u.image?`<span class="pill teal" style="margin-left:8px">✓ mevcut</span>`:''}</div>
     <div class="field"><label class="flabel">Doluluk (aya tıkla: Boş → Dolu → Rezerve)</label><div id="cal-${u.id}">Yükleniyor…</div></div>
     <button class="btn btn-danger btn-sm" onclick="unitDel(${u.id})">Üniteyi sil</button></div></details>`).join('');
-  document.getElementById('mecEd').innerHTML=`<div class="sec-card" style="margin-top:16px"><h3 style="margin:0 0 14px;font-size:16px">${id?'Mecrayı Düzenle':'Yeni Mecra'}</h3>
+  document.getElementById('mecEd').innerHTML=`<div class="sec-card" style="margin-top:16px"><h3 style="margin:0 0 4px;font-size:16px">${id?'Mecrayı Düzenle':'Yeni Mecra'}</h3>
+    <p class="muted" style="margin:0 0 14px;font-size:12.5px">Her bölümü sağdaki <b>Göster</b> anahtarıyla ön yüzde açıp kapatabilirsiniz.</p>
     <input type="hidden" id="mid" value="${id||0}">
-    <div class="row2"><div class="field"><label class="flabel">İsim (kart başlığı)</label><input class="inp" id="mname" value="${esc(m.name)}"></div>
+
+    <div class="row2"><div class="field"><label class="flabel">İsim (anasayfa kart başlığı) *</label><input class="inp" id="mname" value="${esc(m.name)}"></div>
     <div class="field"><label class="flabel">Rozet</label><input class="inp" id="mbadge" value="${esc(m.badge)}"></div></div>
-    <div class="row2"><div class="field"><label class="flabel">İstatistik</label><input class="inp" id="mstats" value="${esc(m.stats)}"></div>
+    <div class="row2"><div class="field"><label class="flabel">İstatistik (kart alt satırı, opsiyonel)</label><input class="inp" id="mstats" value="${esc(m.stats)}"></div>
     <div class="field"><label class="flabel">Tema rengi</label><div class="colorwrap"><input type="color" id="mcolor" value="${esc(m.theme_color||'#3f6f63')}"><input class="inp" id="mcolor2" value="${esc(m.theme_color)}" oninput="document.getElementById('mcolor').value=this.value"></div></div></div>
-    <div class="field"><label class="flabel">Görsel (yükle veya URL)</label>
+
+    <div class="fld-card"><label class="flabel">Anasayfa kart görseli</label>
       <div style="display:flex;gap:8px"><input class="inp" id="mimage" value="${esc(m.image)}" placeholder="uploads/...jpg veya https://">
       <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mimage').value=u;})">Yükle</button></div></div>
-    <div class="field"><label class="flabel">Google Maps (iframe kodu, opsiyonel)</label><textarea class="inp" id="mmaps">${esc(m.maps)}</textarea></div>
-    <div class="field"><label class="flabel">Açıklama</label><textarea class="inp" id="macik">${esc(m.aciklama)}</textarea></div>
+
+    <div class="fld-card">${fldHead('Logo (mecra detayında marka logosu)','logo',V('logo'))}
+      <div style="display:flex;gap:8px"><input class="inp" id="mlogo" value="${esc(m.logo)}" placeholder="uploads/logo.png veya https://">
+      <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mlogo').value=u;})">Yükle</button></div></div>
+
+    <div class="fld-card">${fldHead('Detay başlığı (boşsa isim kullanılır)','baslik',V('baslik'))}
+      <input class="inp" id="mbaslik" value="${esc(m.baslik)}"></div>
+
+    <div class="fld-card">${fldHead('Gösterim bilgisi','gosterim',V('gosterim'))}
+      <div class="row2"><div class="field" style="margin:0"><input class="inp" id="mgun" value="${esc(m.gunluk_gosterim)}" placeholder="≈ 250.000 günlük gösterim"></div>
+      <div class="field" style="margin:0"><input class="inp" id="mtoplam" value="${esc(m.toplam_alan)}" placeholder="3 ürün · yüksek trafik"></div></div></div>
+
+    <div class="fld-card">${fldHead('Avantajlar (4 mini kart)','avantajlar',V('avantajlar'))}
+      ${avRow(0)}${avRow(1)}${avRow(2)}${avRow(3)}</div>
+
+    <div class="fld-card">${fldHead('Açıklama','aciklama',V('aciklama'))}
+      <textarea class="inp" id="macik" style="min-height:80px">${esc(m.aciklama)}</textarea></div>
+
+    <div class="fld-card">${fldHead('Görseller (galeri)','galeri',V('galeri'))}
+      <div class="gal-box" id="galBox"></div></div>
+
+    <div class="fld-card">${fldHead('Yerleşim planı (tek görsel)','yerlesim',V('yerlesim'))}
+      <div style="display:flex;gap:8px"><input class="inp" id="myerlesim" value="${esc(m.yerlesim_plani)}" placeholder="uploads/plan.png veya https://">
+      <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('myerlesim').value=u;})">Yükle</button></div></div>
+
+    <div class="fld-card">${fldHead('Google Maps (iframe kodu)','maps',V('maps'))}
+      <textarea class="inp" id="mmaps" style="min-height:64px" placeholder="<iframe src=... ></iframe>">${esc(m.maps)}</textarea></div>
+
+    <p class="muted" style="font-size:12.5px;margin:14px 0 10px">Teknik Özellikler ve Fiyatlar (Haftalık/1/3/6 Ay/Yıllık) ünitelere atanan üründen otomatik gelir — aşağıdan ürün atayın.</p>
+
     <button class="btn btn-primary btn-sm" onclick="mecSave()">Mecrayı Kaydet</button>
     ${id?`<hr style="border:0;border-top:1px solid var(--line2);margin:18px 0"><div class="sec-head"><h3 style="font-size:15px">Üniteler</h3><button class="btn btn-primary btn-sm" onclick="unitAdd(${id})">+ Ünite</button></div>${units||'<p class="muted">Ünite yok.</p>'}`:'<p class="muted" style="margin-top:12px">Üniteleri, mecrayı kaydettikten sonra ekleyebilirsiniz.</p>'}
     </div>`;
   document.getElementById('mecEd').scrollIntoView({behavior:'smooth'});
+  renderGaleri();
   (m.units||[]).forEach(u=>loadUnitCal(u.id));
 }
-async function mecSave(){ const color=gv('mcolor'); const id=+gv('mid');
-  const r=await api('mecra_save',{id,name:gv('mname'),badge:gv('mbadge'),stats:gv('mstats'),theme_color:color,image:gv('mimage'),maps:gv('mmaps'),aciklama:gv('macik')});
+function renderGaleri(){ const box=document.getElementById('galBox'); if(!box)return;
+  const items=(ui._galeri||[]).map((u,i)=>`<div class="gal-th" style="background-image:url('${esc(u)}')"><button class="gal-x" onclick="galRemove(${i})" title="Kaldır">×</button></div>`).join('');
+  box.innerHTML=items+`<button class="gal-add" onclick="galAdd()">+ Görsel</button>`; }
+function galAdd(){ pickUpload('image/*',u=>{ ui._galeri=ui._galeri||[]; ui._galeri.push(u); renderGaleri(); }); }
+function galRemove(i){ ui._galeri.splice(i,1); renderGaleri(); }
+
+async function mecSave(){ const id=+gv('mid');
+  const visKeys=['logo','baslik','gosterim','avantajlar','aciklama','galeri','yerlesim','maps'];
+  const visible={}; visKeys.forEach(k=>{ const el=document.getElementById('vis-'+k); visible[k]= el? el.checked : true; });
+  const avantajlar=[]; for(let i=0;i<4;i++){ const t=(gv('av-t-'+i)||'').trim(), d=(gv('av-d-'+i)||'').trim(); if(t||d)avantajlar.push({t,d}); }
+  const body={ id, name:gv('mname'), badge:gv('mbadge'), stats:gv('mstats'), theme_color:gv('mcolor'),
+    image:gv('mimage'), maps:gv('mmaps'), aciklama:gv('macik'),
+    baslik:gv('mbaslik'), gunluk_gosterim:gv('mgun'), toplam_alan:gv('mtoplam'),
+    logo:gv('mlogo'), yerlesim_plani:gv('myerlesim'),
+    avantajlar, galeri:(ui._galeri||[]), visible };
+  const r=await api('mecra_save',body);
   ui.section='mecralar'; await renderSection(); if(!id&&r&&r.id)mecEdit(r.id); }
 async function mecDel(id){ if(confirm('Mecra ve üniteleri silinsin mi?')){ await api('mecra_delete&id='+id); renderSection(); } }
 async function unitAdd(mid){ const pid=(ui._products[0]||{}).id||null; await api('unit_save',{mecra_id:mid,product_id:pid,name:'Yeni Ünite'}); ui._mecralar=await api('mecra_list'); mecEdit(mid); }
