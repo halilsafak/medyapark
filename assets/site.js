@@ -1,15 +1,18 @@
+/* ============ MEDYAPARK — ÖN YÜZ (wireframe) ============ */
 const MONTHS_SHORT=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
 const MONTHS_LONG=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 let D={settings:{},pages:[],products:[],mecralar:[]};
 let view={type:'home'}, calYear=new Date().getFullYear(), cart=[];
 
 const app=()=>document.getElementById('app');
-const money=n=> typeof n==='number'? n.toLocaleString('tr-TR')+' ₺' : (n||'');
+const money=n=>{const x=Number(n);return isFinite(x)&&n!==''&&n!=null?x.toLocaleString('tr-TR')+' ₺':(n||'');};
 const pad=n=>String(n).padStart(2,'0');
 const curYm=()=> new Date().getFullYear()+'-'+pad(new Date().getMonth()+1);
 const prod=id=>D.products.find(p=>String(p.id)===String(id))||{};
 const mec=id=>D.mecralar.find(m=>String(m.id)===String(id));
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* İçerik varsa VE visible[key] açıkça false değilse göster */
+const vis=(m,key,has)=> !!has && ((m.visible&&m.visible[key])!==false);
 function perMonth(p){ const pr=p.prices||{}; if(typeof pr['1 Ay']==='number')return pr['1 Ay'];
   for(const v of Object.values(pr)){ if(typeof v==='number')return v; } return 0; }
 
@@ -20,7 +23,7 @@ async function load(){
       sb.from('pages').select('*').order('sort'),
       sb.from('products').select('*').order('sort'),
       sb.from('mecralar').select('*').order('sort'),
-      sb.from('units').select('*').order('sort'),
+      sb.from('units').select('*').order('sort').order('id'),
       sb.from('bookings').select('unit_id,ym,status')
     ]);
     const err=stg.error||pg.error||pr.error||mc.error||un.error||bk.error;
@@ -43,92 +46,136 @@ async function load(){
 }
 function logo(t){ t=t||'medyapark'; return String(t).toLowerCase().startsWith('medya')?('medya<span>'+esc(String(t).slice(5))+'</span>'):esc(t); }
 
-function render(){ if(view.type==='home')renderHome(); else if(view.type==='mec')renderMec(); else if(view.type==='unit')renderUnit(); else renderPage(view.slug); window.scrollTo({top:0,behavior:'smooth'}); }
+function render(){ if(view.type==='home')renderHome(); else if(view.type==='mec')renderMec(); else renderPage(view.slug); window.scrollTo({top:0,behavior:'smooth'}); }
 function goHome(){ view={type:'home'}; const s=document.getElementById('search'); if(s)s.value=''; render(); }
-function openMec(id){ view={type:'mec',id}; render(); }
-function openUnit(id){ view={type:'unit',mecId:view.id,id}; calYear=new Date().getFullYear(); render(); }
+function openMec(id){ view={type:'mec',id, tab:null, gsub:null, gidx:0}; calYear=new Date().getFullYear(); render(); }
+function openMecTab(pid){ view.tab=pid; renderMec(); }
+function gSub(s){ view.gsub=s; view.gidx=0; renderMec(); }
+function gPick(i){ view.gidx=i; renderMec(); }
 function openPage(slug){ view={type:'page',slug}; render(); }
 function onSearch(q){ view={type:'home'}; renderHome(q); }
 
+/* ---------- ANASAYFA ---------- */
 function renderHome(q){
   q=(q||'').trim().toLowerCase();
   const list=D.mecralar.filter(m=>!q||m.name.toLowerCase().includes(q)||(m.units||[]).some(u=>u.name.toLowerCase().includes(q)));
   const h=D.settings.hero||{};
   const tiles=list.map(m=>{
-    const bg=m.image?`background-image:url('${esc(m.image)}')`:`background:linear-gradient(140deg,${esc(m.theme_color)}2e,${esc(m.theme_color)}0d)`;
+    const bg=m.image?`background-image:url('${esc(m.image)}')`:`background:linear-gradient(140deg,${esc(m.theme_color||'#3f6f63')}2e,${esc(m.theme_color||'#3f6f63')}0d)`;
+    const showGos=vis(m,'gosterim', !!(m.gunluk_gosterim||m.toplam_alan));
+    const stat=showGos ? [m.gunluk_gosterim,m.toplam_alan].filter(Boolean).map(esc).join('<br>') : esc(m.stats||'');
     return `<a class="tile" href="#" onclick="openMec('${m.id}');return false;">
       <div class="media" style="${bg}">${m.badge?`<span class="badge">${esc(m.badge)}</span>`:''}</div>
-      <div class="body"><h3>${esc(m.name)}</h3><p class="tsub">${esc(m.stats)}</p>
+      <div class="body"><h3>${esc(m.name)}</h3><p class="tsub">${stat}</p>
       <span class="cta">Keşfet <span class="arw">›</span></span></div></a>`;}).join('');
   app().innerHTML=`<section class="hero"><span class="eyebrow">${esc(h.eyebrow||'')}</span>
     <h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>
     <div class="grid">${tiles||'<p class="muted">Sonuç yok.</p>'}</div>`;
 }
+
+/* ---------- MECRA DETAY (tek sayfa) ---------- */
 function renderMec(){
   const m=mec(view.id); if(!m)return goHome();
-  const tiles=(m.units||[]).map(u=>{ const p=prod(u.product_id);
-    const bg=u.image?`background-image:url('${esc(u.image)}')`:`background:linear-gradient(140deg,${esc(m.theme_color)}2e,${esc(m.theme_color)}0d)`;
-    return `<a class="tile" href="#" onclick="openUnit('${u.id}');return false;">
-      <div class="media" style="${bg}"><span class="badge">${esc(p.name||'Ürün')}</span></div>
-      <div class="body"><h3>${esc(u.name)}</h3><p class="tsub">${esc(p.name||'')}${u.olcu?' · '+esc(u.olcu):''}</p>
-      <span class="cta">Takvim & detay <span class="arw">›</span></span></div></a>`;}).join('');
-  app().innerHTML=`<div class="crumbs"><a href="#" onclick="goHome();return false;">Katalog</a> › <span>${esc(m.name)}</span></div>
-    <div class="sechead"><h1>${esc(m.name)}</h1><p>${esc(m.aciklama)}</p></div>
-    <div class="grid">${tiles||'<p class="muted">Ünite yok.</p>'}</div>`;
-}
-function renderUnit(){
-  const m=mec(view.mecId), u=(m.units||[]).find(x=>String(x.id)===String(view.id)); if(!u)return renderMec();
-  const p=prod(u.product_id), olcu=u.olcu||p.olcu||'';
-  const specs=[['Ürün',p.name],['Ölçü',olcu],['Yüzey',p.yuzey],['Aydınlatma',p.isikli],['Baskı Malzemesi',p.baski_malzemesi],['Baskı Formatı',p.baski_format],['Yayın Formatı',p.yayin_format],['Baskı Ücreti',p.baski_ucreti],['Montaj Ücreti',p.montaj_ucreti]]
+  const units=m.units||[];
+  const pids=[]; units.forEach(u=>{ const k=String(u.product_id); if(!pids.includes(k))pids.push(k); });
+  let selId=view.tab!=null?String(view.tab):(pids[0]||null);
+  if(!pids.includes(selId)) selId=pids[0]||null;
+  const selP=prod(selId);
+  const uOfP=units.filter(u=>String(u.product_id)===String(selId));
+  const short=(m.name||'').split(' ')[0];
+
+  const tabs=pids.map(id=>{const p=prod(id);
+    return `<button class="mtab ${id===String(selId)?'on':''}" onclick="openMecTab('${id}')">${esc(p.name||'')}</button>`;}).join('');
+
+  /* Galeri / Yerleşim — görünürlüğe saygı */
+  const gal=Array.isArray(m.galeri)?m.galeri:[];
+  const showGal=vis(m,'galeri', gal.length>0);
+  const showYer=vis(m,'yerlesim', !!m.yerlesim_plani);
+  const subs=[]; if(showGal)subs.push('galeri'); if(showYer)subs.push('yerlesim');
+  let gsub=view.gsub; if(!subs.includes(gsub)) gsub=subs[0]||null;
+  let media;
+  if(gsub==='yerlesim'){ media=`<div class="gmain" style="background-image:url('${esc(m.yerlesim_plani)}')"></div>`; }
+  else if(gsub==='galeri'){ const gidx=Math.min(view.gidx||0,Math.max(0,gal.length-1));
+    media=`<div class="gmain" style="background-image:url('${esc(gal[gidx])}')"></div>
+      ${gal.length>1?`<div class="gthumbs">${gal.map((g,i)=>`<div class="gth ${i===gidx?'on':''}" style="background-image:url('${esc(g)}')" onclick="gPick(${i})"></div>`).join('')}</div>`:''}`; }
+  else { media=`<div class="gmain muted">Görsel eklenmemiş</div>`; }
+  const subtabsHTML=subs.length>1?`<div class="subtabs">${subs.map(s=>`<button class="${s===gsub?'on':''}" onclick="gSub('${s}')">${s==='galeri'?'Galeri':'Yerleşim Planı'}</button>`).join('')}</div>`:'';
+  const galBlock=`<div class="panel-b" style="padding:14px">${subtabsHTML}${media}</div>`;
+
+  /* Maps + Avantajlar */
+  const showMaps=vis(m,'maps', !!m.maps);
+  const mapsBlock = showMaps ? `<div class="mapbox">${m.maps}</div>` : '';
+  const adv=(Array.isArray(m.avantajlar)?m.avantajlar:[]).slice(0,4);
+  const advBlock = vis(m,'avantajlar',adv.length>0) ? `<div class="adv-grid">${adv.map(a=>`<div class="adv"><b>${esc(a.t||a.title||'')}</b><span>${esc(a.d||a.desc||'')}</span></div>`).join('')}</div>` : '';
+  const rightCol = (mapsBlock||advBlock) ? `<div>${mapsBlock}${advBlock}</div>` : '<div></div>';
+
+  /* Fiyatlar + Teknik açılırlar */
+  const prices=Object.entries(selP.prices||{});
+  const priceAcc=`<details class="acc" open><summary>Fiyatlar</summary><div>${prices.map(([k,v])=>`<div class="priceitem"><span class="muted">${esc(k)}</span><span class="amt">${money(v)}</span></div>`).join('')||'<p class="muted">—</p>'}
+    <p class="muted" style="font-size:12px;margin-top:8px">Belediye vergi/harç dahil, dijital baskı hariç · KDV hariç.</p></div></details>`;
+  const specRows=[['Ürün',selP.name],['Ölçü',selP.olcu],['Yüzey',selP.yuzey],['Aydınlatma',selP.isikli],['Baskı Malzemesi',selP.baski_malzemesi],['Baskı Formatı',selP.baski_format],['Yayın Formatı',selP.yayin_format],['Baskı Ücreti',selP.baski_ucreti],['Montaj Ücreti',selP.montaj_ucreti]]
     .filter(x=>x[1]&&x[1]!=='—').map(x=>`<div class="spec"><span class="k">${esc(x[0])}</span><span class="v">${esc(x[1])}</span></div>`).join('');
-  const prices=Object.entries(p.prices||{}).map(([k,vv])=>`<div class="priceitem"><span class="muted">${esc(k)}</span><span class="amt">${money(vv)}</span></div>`).join('');
-  const bg=u.image?`background-image:url('${esc(u.image)}')`:`background:linear-gradient(140deg,${esc(m.theme_color)}2e,${esc(m.theme_color)}0d)`;
-  app().innerHTML=`<div class="crumbs"><a href="#" onclick="goHome();return false;">Katalog</a> › <a href="#" onclick="openMec('${m.id}');return false;">${esc(m.name)}</a> › <span>${esc(u.name)}</span></div>
-    <div class="sechead"><h1>${esc(u.name)}</h1></div>
-    <div class="u-grid">
-      <div><div class="u-media" style="${bg}"></div>
-        <div class="panel-b"><h4 style="margin:0 0 6px">Teknik Özellikler</h4>${specs}</div>
-        <div class="panel-b"><h4 style="margin:0 0 6px">Fiyatlar</h4>${prices}
-          <p class="muted" style="font-size:12.5px;margin:12px 0 0">Belediye vergi/harç dahil, dijital baskı hariç · KDV hariç.</p></div>
+  const specAcc=`<details class="acc"><summary>Teknik Özellikler</summary><div>${specRows||'<p class="muted">—</p>'}</div></details>`;
+
+  const showLogo=vis(m,'logo', !!m.logo);
+  const logoBlock = showLogo ? `<img class="mlogo" src="${esc(m.logo)}" alt="logo">` : '';
+  const baslik = vis(m,'baslik',!!(m.baslik||m.name))?`<h1>${esc(m.baslik||m.name)}</h1>`:'';
+  const aciklama = vis(m,'aciklama',!!m.aciklama)?`<p class="muted" style="max-width:760px">${esc(m.aciklama)}</p>`:'';
+
+  const related=D.mecralar.filter(x=>x.id!==m.id).map(x=>`<a class="rcard" href="#" onclick="openMec('${x.id}');return false;">${esc(x.name)}<span class="arw">›</span></a>`).join('');
+
+  app().innerHTML=`
+    <div class="crumbs"><a href="#" onclick="goHome();return false;">Katalog</a> › <span>${esc(m.name)}</span></div>
+    <div class="sechead" style="align-items:center;gap:14px">${logoBlock}<div>${baslik}${aciklama}</div></div>
+    ${tabs?`<div class="mtabs">${tabs}</div>`:''}
+    <div class="u-grid">${galBlock}${rightCol}</div>
+    <div style="margin-top:14px">${priceAcc}${specAcc}</div>
+    <div class="book" style="margin-top:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h4 style="margin:0">${esc(m.name)} — Doluluk Durumu</h4>
+        <div class="year-nav" style="margin:0"><button onclick="yearNav(-1)">‹</button><span class="yr">${calYear}</span><button onclick="yearNav(1)">›</button></div>
       </div>
-      <div><div class="book"><h4 style="margin:0 0 4px">Yıllık Doluluk Takvimi</h4>
-        <p class="muted" style="font-size:13px;margin:0 0 14px">Boş bir aya tıklayarak teklif sepetine ekleyin (aylık: <b>${money(perMonth(p))}</b>).</p>
-        <div id="calBox">${yearHTML(u)}</div></div></div>
+      <p class="muted" style="font-size:13px;margin:0 0 12px">Müsait bir aya tıklayarak teklif sepetine ekleyin (aylık: <b>${money(perMonth(selP))}</b>).</p>
+      <div style="overflow-x:auto">${matrixHTML(selP.name||'Pozisyon', uOfP)}</div>
     </div>
-    <p class="related-h">Diğer Lokasyonlar</p>
-    <div class="related">${D.mecralar.filter(x=>x.id!==m.id).map(x=>`<a class="rcard" href="#" onclick="openMec('${x.id}');return false;">${esc(x.name)}<span class="arw">›</span></a>`).join('')}</div>`;
+    ${related?`<p class="related-h">Diğer Lokasyonlar</p><div class="related">${related}</div>`:''}`;
 }
-function yearHTML(u){
-  const map={}; (u.booked||[]).forEach(b=>map[b.ym]=b.status);
-  const inCart=ym=>cart.some(c=>String(c.unitId)===String(u.id)&&c.ym===ym);
+
+function matrixHTML(corner, units){
   const now=curYm();
-  const cells=MONTHS_SHORT.map((mo,i)=>{
-    const ym=calYear+'-'+pad(i+1), st=map[ym], past=ym<now, sep=inCart(ym);
-    let cls='ycell'; if(sep)cls+=' sepette'; else if(st)cls+=' '+st; else cls+=' bos';
-    if(past&&!st&&!sep)cls+=' past';
-    const clickable=!st&&!past;
-    return `<div class="${cls}" ${clickable?`onclick="toggleMonth('${u.id}','${ym}')"`:''}>
-      <span class="ml">${mo}</span><span class="ms">${sep?'Sepette':(st==='dolu'?'Dolu':st==='rezerve'?'Rezerve':(past?'—':'Boş'))}</span></div>`;
+  const head='<th class="unit">'+esc(corner)+'</th>'+MONTHS_LONG.map(x=>`<th>${esc(x.slice(0,3))}</th>`).join('');
+  const rows=units.map(u=>{
+    const map={}; (u.booked||[]).forEach(b=>map[b.ym]=b.status);
+    const cells=MONTHS_LONG.map((_,i)=>{
+      const ym=calYear+'-'+pad(i+1), st=map[ym], past=ym<now, sep=cart.some(c=>String(c.unitId)===String(u.id)&&c.ym===ym);
+      let cls='mx', txt;
+      if(sep){cls+=' sel';txt='Sepette';}
+      else if(st==='dolu'){cls+=' dolu';txt='Dolu';}
+      else if(st==='rezerve'){cls+=' rezerve';txt='Rezerve';}
+      else if(past){cls+=' past';txt='—';}
+      else {cls+=' bos';txt='Müsait';}
+      const click=(!st&&!past)?`onclick="toggleMonth('${u.id}','${ym}')"`:'';
+      return `<td><span class="${cls}" ${click}>${txt}</span></td>`;
+    }).join('');
+    return `<tr><td class="unit">${esc(u.name)}</td>${cells}</tr>`;
   }).join('');
-  return `<div class="year-nav"><button onclick="yearNav(-1)">‹</button><span class="yr">${calYear}</span><button onclick="yearNav(1)">›</button></div>
-    <div class="year-grid">${cells}</div>
-    <div class="cal-legend"><span><i class="lg-bos"></i>Boş</span><span><i class="lg-dolu"></i>Dolu</span><span><i class="lg-rez"></i>Rezerve</span><span><i class="lg-sel"></i>Sepette</span></div>`;
+  return `<table class="matrix wide"><thead><tr>${head}</tr></thead><tbody>${rows||'<tr><td class="unit muted">Ünite yok</td></tr>'}</tbody></table>`;
 }
-function yearNav(d){ calYear+=d; renderUnit(); }
+function yearNav(d){ calYear+=d; renderMec(); }
 function toggleMonth(uid,ym){
-  const m=mec(view.mecId), u=(m.units).find(x=>String(x.id)===String(uid)), p=prod(u.product_id);
+  const m=mec(view.id); const u=(m.units||[]).find(x=>String(x.id)===String(uid)); if(!u)return; const p=prod(u.product_id);
   const i=cart.findIndex(c=>String(c.unitId)===String(uid)&&c.ym===ym);
   if(i>-1){ cart.splice(i,1); }
   else{ const [y,mm]=ym.split('-'); const price=perMonth(p);
-    cart.push({unitId:Number(uid),mecra:m.name,unit:u.name,product:p.name,olcu:u.olcu||p.olcu||'',ym,
+    cart.push({unitId:u.id,mecra:m.name,unit:u.name,product:p.name,olcu:u.olcu||p.olcu||'',ym,
       monthLabel:MONTHS_LONG[+mm-1]+' '+y, price, priceLabel:money(price)}); }
-  badge(); renderCart(); renderUnit();
+  badge(); renderCart(); renderMec();
 }
 
 function renderPage(slug){
   const pg=(D.pages||[]).find(p=>p.slug===slug)||{};
   let body=`<div class="page-body">${esc(pg.body)}</div>`;
-  if(slug==='iletisim'){ const s=D.settings; body+=`<div class="panel-b" style="max-width:420px">
+  if(slug==='iletisim'){ const s=D.settings; body+=`<div class="panel-b" style="max-width:420px;margin-top:16px;padding:16px">
     <div class="spec"><span class="k">Telefon</span><span class="v">${esc(s.phone)}</span></div>
     <div class="spec"><span class="k">E-posta</span><span class="v">${esc(s.email)}</span></div>
     <div class="spec"><span class="k">Adres</span><span class="v">${esc(s.address)}</span></div></div>`; }
@@ -136,13 +183,13 @@ function renderPage(slug){
     <div class="sechead"><h1>${esc(pg.title||'')}</h1></div>${body}`;
 }
 
-/* ---- sepet ---- */
-function removeItem(i){ cart.splice(i,1); badge(); renderCart(); if(view.type==='unit')renderUnit(); }
+/* ---------- sepet ---------- */
+function removeItem(i){ cart.splice(i,1); badge(); renderCart(); if(view.type==='mec')renderMec(); }
 function badge(){ const b=document.getElementById('cbadge'); if(cart.length){b.style.display='flex';b.textContent=cart.length;}else b.style.display='none'; }
 const cartTotal=()=>cart.reduce((s,c)=>s+(c.price||0),0);
 function renderCart(){
   const b=document.getElementById('cartBody'), f=document.getElementById('cartFoot');
-  if(!cart.length){ b.innerHTML='<div class="empty">Sepetiniz boş.<br>Bir alanın yıllık takviminden boş ay(lar) seçin.</div>'; f.innerHTML=''; return; }
+  if(!cart.length){ b.innerHTML='<div class="empty">Sepetiniz boş.<br>Bir alanın doluluk matrisinden müsait ay(lar) seçin.</div>'; f.innerHTML=''; return; }
   b.innerHTML=cart.map((c,i)=>`<div class="citem"><button class="rm" onclick="removeItem(${i})">×</button>
     <div class="cl">${esc(c.unit)}</div><div class="cm">${esc(c.mecra)} · ${esc(c.product)}</div>
     <div class="cm">Dönem: ${esc(c.monthLabel)}</div><div class="camt">${c.priceLabel}</div></div>`).join('');
