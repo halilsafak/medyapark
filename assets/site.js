@@ -11,6 +11,12 @@ const mec=id=>D.mecralar.find(m=>String(m.id)===String(id));
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const vis=(o,key,has)=> ((o.visible&&o.visible[key])!==false) && has;
 function perMonth(p){ const pr=p.prices||{}; if(typeof pr['1 Ay']==='number')return pr['1 Ay']; for(const v of Object.values(pr)){ if(typeof v==='number')return v; } return 0; }
+function hexToRgb(h){ if(!h)return '63,111,99'; h=String(h).replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join(''); if(h.length!==6)return '63,111,99'; const n=parseInt(h,16); return `${(n>>16)&255},${(n>>8)&255},${n&255}`; }
+function gcard(onclick,title,sub,image,theme,label){ const rgb=hexToRgb(theme); const bg=image?`background-image:url('${esc(image)}')`:'';
+  return `<a class="tile" href="#" onclick="${onclick};return false;" style="--tc-rgb:${rgb}">
+    <div class="bg" style="${bg}"></div><div class="ov"></div>
+    <div class="ct"><h3>${esc(title)}</h3>${sub?`<p class="tsub">${esc(sub)}</p>`:''}
+      <div class="xp"><b>${esc(label||'Keşfet')}</b><span class="arw">→</span></div></div></a>`; }
 
 async function load(){
   try{
@@ -59,11 +65,8 @@ function renderHome(q){
   if(view.filter) list=list.filter(m=>(m.alts||[]).some(a=>String(a.product_id)===String(view.filter)));
   if(q) list=list.filter(m=>m.name.toLowerCase().includes(q)||(m.alts||[]).some(a=>a.name.toLowerCase().includes(q)||(a.product&&a.product.name||'').toLowerCase().includes(q)));
   const h=D.settings.hero||{};
-  const cards=list.map(m=>{
-    const has=!!m.image;
-    return `<a class="pcard ${has?'cover':'txt'}" href="#" onclick="openMec('${m.id}');return false;">
-      <div class="img" style="${has?`background-image:url('${esc(m.image)}')`:''}"></div>${has?'<div class="scrim"></div>':'<div class="ph">360×500</div>'}
-      <div class="bot"><h3>${esc(m.name)}</h3><span class="kf">Keşfet <span class="arw">→</span></span></div></a>`;}).join('');
+  const cards=list.map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
+    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet');}).join('');
   app().innerHTML=`<section class="hero"><span class="eyebrow">${esc(h.eyebrow||'')}</span><h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>
     <div class="grid3">${cards||'<p class="muted">Sonuç yok.</p>'}</div>`;
 }
@@ -72,11 +75,8 @@ function renderHome(q){
 function renderMec(){
   const m=mec(view.id); if(!m)return goHome();
   const cards=(m.alts||[]).map(a=>{ const p=a.product||{}; const n=(a.units||[]).length;
-    const top=[`${n} ${esc(p.name||'')}`, esc(a.toplam_alan||'')].filter(Boolean).join('<br>');
-    return `<a class="pcard txt" href="#" onclick="openAlt('${m.id}','${a.id}');return false;">
-      <div class="img" style="${a.image?`background-image:url('${esc(a.image)}')`:''}"></div>
-      <div class="top">${top}</div>
-      <div class="bot"><h3>${esc(p.name||a.name)}</h3><span class="kf">Keşfet <span class="arw">→</span></span></div></a>`;}).join('');
+    const sub=[`${n} pozisyon`, a.toplam_alan].filter(Boolean).join(' · ');
+    return gcard(`openAlt('${m.id}','${a.id}')`, (p.name||a.name), sub, (a.image||m.image), m.theme_color, 'Keşfet');}).join('');
   app().innerHTML=`${banner(m.kapak)}
     <div class="crumbs">Medyapark Adana / Mecralar / ${esc(m.name)}</div>
     <div class="grid3">${cards||'<p class="muted">Bu mecrada alt mecra yok.</p>'}</div>`;
@@ -131,9 +131,9 @@ function renderAlt(){
 
   // ilgili
   const rel=[];
-  alts.filter(a=>a.id!==alt.id).forEach(a=>{const pp=a.product||{};rel.push({onclick:`openAlt('${m.id}','${a.id}')`,top:`${(a.units||[]).length} ${esc(pp.name||'')}<br>${esc(a.toplam_alan||'')}`,small:esc(m.name),big:esc(pp.name||a.name)});});
-  D.mecralar.filter(x=>x.id!==m.id).forEach(x=>rel.push({onclick:`openMec('${x.id}')`,top:esc(x.gunluk_gosterim||''),small:'Lokasyon',big:esc(x.name)}));
-  const relCards=rel.map(r=>`<div class="carslide"><a class="pcard txt" href="#" onclick="${r.onclick};return false;"><div class="img"></div><div class="top">${r.top}</div><div class="bot"><div style="font-size:13px;color:var(--ink2);margin-bottom:2px">${r.small}</div><h3>${r.big}</h3><span class="kf">Keşfet <span class="arw">→</span></span></div></a></div>`).join('');
+  alts.filter(a=>a.id!==alt.id).forEach(a=>{const pp=a.product||{};rel.push({onclick:`openAlt('${m.id}','${a.id}')`,title:(pp.name||a.name),sub:[`${(a.units||[]).length} pozisyon`,a.toplam_alan].filter(Boolean).join(' · '),image:(a.image||m.image),theme:m.theme_color});});
+  D.mecralar.filter(x=>x.id!==m.id).forEach(x=>rel.push({onclick:`openMec('${x.id}')`,title:x.name,sub:(x.gunluk_gosterim||''),image:x.image,theme:x.theme_color}));
+  const relCards=rel.map(r=>`<div class="carslide">${gcard(r.onclick,r.title,r.sub,r.image,r.theme,'Keşfet')}</div>`).join('');
 
   app().innerHTML=`${banner(alt.kapak||m.kapak)}
     <div class="crumbs">Medyapark Adana / Mecralar / ${esc(m.name)} / ${esc(p.name||alt.name)}</div>
