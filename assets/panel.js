@@ -62,6 +62,7 @@ async function api(action, body){
     case 'alt_list':{ const {data,error}=await sb.from('alt_mecralar').select('*').eq('mecra_id',q.mecra_id).order('sort').order('id'); if(error)throw error; return ok(data); }
     case 'alt_save': return ok(await saveRow('alt_mecralar',body));
     case 'unit_list':{ const {data,error}=await sb.from('units').select('*').eq('alt_mecra_id',q.alt_id).order('sort').order('id'); if(error)throw error; return ok(data); }
+    case 'bookings_all':{ const {data,error}=await sb.from('bookings').select('unit_id,ym,status,customer_id'); if(error)throw error; return ok(data); }
 
     case 'booking_list':{ const {data,error}=await sb.from('bookings').select('ym,status').eq('unit_id',q.unit_id); if(error)throw error; return ok(data); }
     case 'booking_toggle':{
@@ -324,21 +325,25 @@ async function cycleMonth(uid,ym){ const st=calData[uid]; const cur=st.map[ym]; 
 async function listeler(c){
   if(!ui._lyear) ui._lyear=new Date().getFullYear();
   const y=ui._lyear;
-  const list=await api('mecra_list');
+  const [list,bks,custs]=await Promise.all([api('mecra_list'),api('bookings_all'),api('customers_list')]);
+  const cmap={}; custs.forEach(x=>cmap[x.id]=x.firma||x.ilgili_kisi||('#'+x.id));
+  const bmap={}; bks.forEach(b=>{(bmap[b.unit_id]=bmap[b.unit_id]||{})[b.ym]={s:b.status,c:b.customer_id};});
   const head='<th class="unit">Ünite</th>'+MONTHS_SHORT.map(mo=>`<th>${mo}</th>`).join('');
   let html='';
   for(const m of list){ html+=`<div class="sec-card"><div class="sec-head"><h3 style="font-size:16px">${esc(m.name)}</h3></div>`;
     if(!(m.units||[]).length){ html+='<p class="muted">Ünite yok.</p></div>'; continue; }
     html+=`<div style="overflow-x:auto"><table class="matrix"><thead><tr>${head}</tr></thead><tbody>`;
-    for(const u of m.units){ const map={}; try{ const bk=await api('booking_list&unit_id='+u.id); bk.forEach(b=>map[b.ym]=b.status); }catch(e){}
-      const cells=MONTHS_SHORT.map((mo,i)=>{ const s=map[y+'-'+pad(i+1)]||'bos';
-        return `<td><span class="mx ${s}">${s==='dolu'?'D':s==='rezerve'?'R':'·'}</span></td>`; }).join('');
+    for(const u of m.units){ const um=bmap[u.id]||{};
+      const cells=MONTHS_SHORT.map((mo,i)=>{ const rec=um[y+'-'+pad(i+1)]; const st=rec?rec.s:'bos';
+        const who=rec&&rec.c?cmap[rec.c]:''; const tip=who?` title="Kiralayan: ${esc(who)}"`:(st!=='bos'?' title="Manuel dolu/rezerve"':'');
+        const lbl= st==='bos'?'·':(who?esc(String(who).slice(0,3)).toLocaleUpperCase('tr'):(st==='dolu'?'D':'R'));
+        return `<td><span class="mx ${st}"${tip}>${lbl}</span></td>`; }).join('');
       html+=`<tr><td class="unit">${esc(u.name)}</td>${cells}</tr>`; }
     html+='</tbody></table></div></div>';
   }
   c.innerHTML=`<div class="sec-head"><h3>Yıllık Doluluk Listesi</h3>
     <div class="year-nav" style="margin:0"><button onclick="lYear(-1)">‹</button><span class="yr">${y}</span><button onclick="lYear(1)">›</button></div></div>
-    <div class="banner">D = Dolu, R = Rezerve, · = Boş. Düzenlemek için Mecralar bölümünü kullanın.</div>
+    <div class="banner">Hücrede kiralayan müşterinin kısaltması görünür; üzerine gelince tam adı çıkar. D/R = müşteri atanmadan dolu/rezerve · nokta = boş. Ön yüzde müşteriler yalnızca boş/dolu görür.</div>
     ${html||'<p class="muted">Mecra yok.</p>'}`;
 }
 function lYear(d){ ui._lyear=(ui._lyear||new Date().getFullYear())+d; renderSection(); }

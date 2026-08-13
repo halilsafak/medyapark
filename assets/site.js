@@ -58,6 +58,9 @@ function buildFilter(){ const m=document.getElementById('filterMenu');
 function toggleFilter(e){ e.stopPropagation(); document.getElementById('filterMenu').classList.toggle('open'); }
 function setFilter(pid){ view.filter=pid; buildFilter(); document.getElementById('filterMenu').classList.remove('open'); view.type='home'; renderHome(); }
 
+function animateCounters(){ document.querySelectorAll('.cnt').forEach(el=>{ const to=+el.dataset.to,dur=1200,t0=performance.now();
+  (function step(t){ const p=Math.min(1,(t-t0)/dur); el.textContent=Math.floor(p*to).toLocaleString('tr-TR'); if(p<1)requestAnimationFrame(step); })(t0); }); }
+
 /* ---- ANASAYFA ---- */
 function renderHome(q){
   q=(q||'').trim().toLowerCase();
@@ -67,8 +70,9 @@ function renderHome(q){
   const h=D.settings.hero||{};
   const cards=list.map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
     return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet');}).join('');
-  app().innerHTML=`<section class="hero"><span class="eyebrow">${esc(h.eyebrow||'')}</span><h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>
+  app().innerHTML=`<section class="hero"><div class="counters"><span><b class="cnt" data-to="250">0</b>+ Reklam Alanı</span><span><b class="cnt" data-to="1000">0</b>+ Müşteri</span><span><b class="cnt" data-to="36">0</b>+ Yıllık Tecrübe</span></div><h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>
     <div class="grid3">${cards||'<p class="muted">Sonuç yok.</p>'}</div>`;
+  animateCounters();
 }
 
 /* ---- MECRA → ALT MECRALAR ---- */
@@ -102,7 +106,8 @@ function renderAlt(){
 
   // marquee
   const mq=alt.marquee||'';
-  const marquee = mq?`<div class="marquee"><div class="track">${[0,1].map(()=>mq.split('*').map(x=>`<span>${esc(x.trim())}</span>`).join('')).join('')}</div></div>`:'';
+  let marquee='';
+  if(mq){ const seg=mq.split('*').map(x=>x.trim()).filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join(''); const group=seg.repeat(4); marquee=`<div class="marquee"><div class="track">${group+group}</div></div>`; }
 
   // rezervasyon tablosu
   const months=rollMonths(); const now=curYm();
@@ -112,22 +117,21 @@ function renderAlt(){
     const cells=months.map(mo=>{ const st=mp[mo.ym], sel=cart.some(c=>String(c.unitId)===String(u.id)&&c.ym===mo.ym), past=mo.ym<now;
       let cls='cell',txt='';
       if(sel){cls+=' sel lbl';txt='Sepette';}
-      else if(st==='dolu'){cls+=' dolu';} else if(st==='rezerve'){cls+=' rezerve';}
+      else if(st){cls+=' dolu';}
       else if(past){cls+=' past';} else {cls+=' bos';}
       const click=(!st&&!past)?`onclick="pick('${u.id}','${mo.ym}')"`:(sel?`onclick="pick('${u.id}','${mo.ym}')"`:'');
       return `<td><span class="${cls}" ${click}>${txt}</span></td>`; }).join('');
     return `<tr><td class="u">${esc(u.name)}</td>${cells}</tr>`; }).join('');
   const table=`<div class="restable"><div class="rh"><div><span class="t">Rezervasyon Tablosu</span> &nbsp;<span class="flow">Ünite Seç › Sepete Ekle › Teklif Al</span></div><div style="display:flex;align-items:center;gap:10px"><span class="yr">${yr}</span><div class="nav"><button onclick="rollNav(-1)">‹</button><button onclick="rollNav(1)">›</button></div></div></div>
     <div class="rtwrap"><table class="rt"><thead><tr>${head}</tr></thead><tbody>${rows||'<tr><td class="u muted">Pozisyon yok</td></tr>'}</tbody></table></div>
-    <div class="cal-legend" style="margin:10px 4px 4px"><span><i class="lg-bos"></i>Müsait</span><span><i class="lg-dolu"></i>Dolu</span><span><i class="lg-rez"></i>Rezerve</span><span><i class="lg-sel"></i>Sepette</span></div></div>`;
+    <div class="cal-legend" style="margin:10px 4px 4px"><span><i class="lg-bos"></i>Müsait (Boş)</span><span><i class="lg-dolu"></i>Dolu</span><span><i class="lg-sel"></i>Sepette</span></div></div>`;
 
   // yan panel
   const prices=Object.entries(p.prices||{});
   const specRows=[['Ürün',p.name],['Ölçü',p.olcu],['Yüzey',p.yuzey],['Aydınlatma',p.isikli],['Baskı Malzemesi',p.baski_malzemesi],['Baskı Formatı',p.baski_format],['Yayın Formatı',p.yayin_format]].filter(x=>x[1]&&x[1]!=='—').map(x=>`<div class="spec"><span class="k">${esc(x[0])}</span><span class="v">${esc(x[1])}</span></div>`).join('');
-  const side=`<div class="side-col">
-    <details class="acc" open><summary>Teknik Özellikler</summary><div>${specRows||'<p class="muted">—</p>'}</div></details>
-    <details class="acc" open><summary>Fiyatlar</summary><div>${prices.map(([k,v])=>`<div class="priceitem"><span class="muted">${esc(k)}</span><span class="amt">${money(v)}</span></div>`).join('')||'<p class="muted">—</p>'}<p class="muted" style="font-size:12px;margin-top:8px">Belediye vergi dahil, dijital baskı hariç · KDV hariç.</p></div></details>
-    <div class="sepetbox"><h4>Sepet</h4><div id="sepetInner"></div></div></div>`;
+  const teknikAcc=`<details class="acc" open><summary>Teknik Özellikler</summary><div>${specRows||'<p class="muted">—</p>'}</div></details>`;
+  const fiyatAcc=`<details class="acc" open><summary>Fiyatlar</summary><div>${prices.map(([k,v])=>`<div class="priceitem"><span class="muted">${esc(k)}</span><span class="amt">${money(v)}</span></div>`).join('')||'<p class="muted">—</p>'}<p class="muted" style="font-size:12px;margin-top:8px">Belediye vergi dahil, dijital baskı hariç · KDV hariç.</p></div></details>`;
+  const sepetbar=`<div class="sepetbar"><div id="sepetInfo"></div><button class="btn btn-primary btn-sm" onclick="toggleCart()">Teklif Al</button></div>`;
 
   // ilgili
   const rel=[];
@@ -137,9 +141,11 @@ function renderAlt(){
 
   app().innerHTML=`${banner(alt.kapak||m.kapak)}
     <div class="crumbs">Medyapark Adana / Mecralar / ${esc(m.name)} / ${esc(p.name||alt.name)}</div>
-    <div class="gm-row"><div class="galbox">${galInner}</div><div class="mapbox">${mapsInner}</div></div>
     ${marquee}
-    <div class="res-row"><div>${table}</div>${side}</div>
+    <div class="detail2">
+      <div class="col-l"><div class="galbox">${galInner}</div>${table}${sepetbar}</div>
+      <div class="col-r"><div class="mapbox">${mapsInner}</div>${teknikAcc}${fiyatAcc}</div>
+    </div>
     <div class="related-h">Diğer Mecralara Göz Atın</div>
     <div class="carousel"><div class="cnav l" onclick="carScroll(-1)">‹</div><div class="cartrack" id="cartrack">${relCards}</div><div class="cnav r" onclick="carScroll(1)">›</div></div>`;
   renderSepetInline();
@@ -157,12 +163,8 @@ function toggleMonth(uid,ym){
   badge(); renderCart(); renderAlt();
 }
 
-function renderSepetInline(){
-  const box=document.getElementById('sepetInner'); if(!box)return;
-  if(!cart.length){ box.innerHTML='<div class="empty2">Sepetiniz boş. Tablodan müsait ay(lar) seçtikçe liste güncellenir.</div>'; return; }
-  box.innerHTML=cart.map((c,i)=>`<div class="si-item"><div><b>${esc(c.unit)}</b> · ${esc(c.monthLabel)}<br><span class="muted" style="font-size:11px">${esc(c.mecra)} · ${esc(c.product)}</span></div><div style="text-align:right;white-space:nowrap">${c.priceLabel}<br><span class="x" onclick="removeItem(${i})">kaldır ×</span></div></div>`).join('')
-    +`<div class="tot"><span>Toplam</span><span>${money(cartTotal())}</span></div><button class="btn btn-primary" style="width:100%" onclick="toggleCart()">Teklif Al</button>`;
-}
+function renderSepetInline(){ const el=document.getElementById('sepetInfo'); if(!el)return;
+  el.innerHTML = cart.length? `<b>${cart.length}</b> ay seçildi · Toplam <b>${money(cartTotal())}</b>` : 'Sepetiniz boş — tablodan müsait ay seçin'; }
 
 /* ---- sayfalar ---- */
 function renderPage(slug){
@@ -213,7 +215,7 @@ function renderFooter(){ const s=D.settings||{};
     <div><h5>MECRALARIMIZ</h5><div class="meccols">${mecLinks}</div></div>
     <div><h5>İLETİŞİM</h5><div class="il"><b>Adres:</b> ${esc(s.address||'')}<br><br><b>Telefon:</b> ${esc(s.phone||'')}<br><br><b>E-Posta:</b> ${esc(s.email||'')}<br><br>${esc(s.socials||'')}</div></div>
     <div class="news"><h5 style="text-align:center">Kampanya ve yeniliklerden<br>haberdar olmak için;</h5><input class="inp" placeholder="E-Posta"><button class="abone" onclick="alert('Teşekkürler! Kaydınız alındı.')">Abone Ol</button></div>
-  </div><div class="ftr-bottom">Tüm hakları saklıdır. Polat Medya Tanıtım Paz. Org. San. ve Tic. Ltd. Şti.</div></div>`;
+  </div><div class="ftr-bottom"><div class="inner">Tüm hakları saklıdır. Polat Medya Tanıtım Paz. Org. San. ve Tic. Ltd. Şti.</div></div></div>`;
 }
 
 function toggleMenu(e){e.stopPropagation();document.getElementById('menu').classList.toggle('open');}
