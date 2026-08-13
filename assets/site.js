@@ -1,6 +1,7 @@
 const MONTHS_LONG=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 let D={settings:{},pages:[],products:[],mecralar:[],altById:{}};
 let view={type:'home',filter:null}, roll=0, cart=[];
+let galImgs=[], galIdx=0, galTimer=null;
 
 const app=()=>document.getElementById('app');
 const money=n=> typeof n==='number'? n.toLocaleString('tr-TR')+' ₺' : (n||'');
@@ -37,7 +38,10 @@ async function load(){
     D={settings, pages:pg.data||[], products, mecralar, altById};
   }catch(e){ app().innerHTML='<div class="loading">Veri yüklenemedi: '+esc(e.message||e)+'</div>'; return; }
   const s=D.settings||{};
-  document.getElementById('brand').innerHTML = s.logoImage?`<img src="${esc(s.logoImage)}" style="height:30px">`:logo(s.logoText);
+  document.getElementById('brand').innerHTML = s.logoImage?`<img class="brandimg" src="${esc(s.logoImage)}" alt="logo">`:logo(s.logoText);
+  if(s.seoTitle) document.title=s.seoTitle; if(s.seoDesc){ const md=document.getElementById('metaDesc'); if(md)md.setAttribute('content',s.seoDesc); }
+  const setSoc=(id,url)=>{ const el=document.getElementById(id); if(el&&url)el.href=url; };
+  setSoc('socWa',s.social_whatsapp); setSoc('socIg',s.social_instagram); setSoc('socLi',s.social_linkedin);
   if(s.catalogPdf){ const b=document.getElementById('pdfBtn'); b.href=s.catalogPdf; b.style.display='flex'; }
   buildFilter(); renderFooter(); render();
 }
@@ -61,6 +65,16 @@ function setFilter(pid){ view.filter=pid; buildFilter(); document.getElementById
 function animateCounters(){ document.querySelectorAll('.cnt').forEach(el=>{ const to=+el.dataset.to,dur=1200,t0=performance.now();
   (function step(t){ const p=Math.min(1,(t-t0)/dur); el.textContent=Math.floor(p*to).toLocaleString('tr-TR'); if(p<1)requestAnimationFrame(step); })(t0); }); }
 
+
+function galRender(){ const img=document.getElementById('galImg'); if(!img)return; img.style.backgroundImage=galImgs.length?`url('${galImgs[galIdx]}')`:''; if(galImgs.length)img.textContent=''; const dots=document.getElementById('galDots'); if(dots)[...dots.children].forEach((d,i)=>d.classList.toggle('on',i===galIdx)); }
+function galGo(d){ if(galImgs.length<2)return; galIdx=(galIdx+d+galImgs.length)%galImgs.length; galRender(); resetGalTimer(); }
+function galSet(i){ galIdx=i; galRender(); resetGalTimer(); }
+function resetGalTimer(){ clearInterval(galTimer); if(galImgs.length>1) galTimer=setInterval(()=>{ if(view.type!=='alt'){clearInterval(galTimer);return;} galIdx=(galIdx+1)%galImgs.length; galRender(); },3000); }
+function banner(obj,title,navHTML){ obj=obj||{}; const img=obj.kapak; const rgb=hexToRgb(obj.kapak_color||'#101014'); const op=(obj.kapak_opacity!=null&&obj.kapak_opacity!==''?obj.kapak_opacity:0.4);
+  const cls=img?'light':'dark'; const bg=img?` style="background-image:url('${esc(img)}')"`:''; const ov=img?`<div class="cov-ov" style="background:rgba(${rgb},${op})"></div>`:''; const ph=img?'':`<div class="cov-ph">KAPAK GÖRSELİ · 1920×600</div>`;
+  return `<div class="cover-banner"${bg}>${ph}${ov}<div class="cov-title ${cls}">${esc(title)}</div><div class="cov-nav ${cls}">${navHTML||''}</div></div>`; }
+function altPrices(alt,p){ return Object.entries((p&&p.prices)||{}); }
+
 /* ---- ANASAYFA ---- */
 function renderHome(q){
   q=(q||'').trim().toLowerCase();
@@ -81,12 +95,10 @@ function renderMec(){
   const cards=(m.alts||[]).map(a=>{ const p=a.product||{}; const n=(a.units||[]).length;
     const sub=[`${n} pozisyon`, a.toplam_alan].filter(Boolean).join(' · ');
     return gcard(`openAlt('${m.id}','${a.id}')`, (p.name||a.name), sub, (a.image||m.image), m.theme_color, 'Keşfet');}).join('');
-  app().innerHTML=`${banner(m.kapak)}
-    <div class="crumbs">Medyapark Adana / Mecralar / ${esc(m.name)}</div>
+  const nav=`<a onclick="goHome()">Medyapark Adana</a> / Mecralar / ${esc(m.name)}`;
+  app().innerHTML=`${banner(m,(m.baslik||m.name),nav)}
     <div class="grid3">${cards||'<p class="muted">Bu mecrada alt mecra yok.</p>'}</div>`;
 }
-function banner(img){ return img?`<div class="cover-banner" style="background-image:url('${esc(img)}')"></div>`
-  :`<div class="cover-banner"><div class="t">KAPAK GÖRSELİ</div><div class="s">1920×400px</div></div>`; }
 
 /* ---- ALT DETAY ---- */
 function rollMonths(){ const b=new Date(); b.setDate(1); b.setMonth(b.getMonth()+roll*12);
@@ -97,21 +109,16 @@ function renderAlt(){
   const alts=m.alts||[]; const alt=alts.find(a=>String(a.id)===String(view.altId))||alts[0]; if(!alt)return renderMec();
   const p=alt.product||{}; const uList=alt.units||[];
 
-  // galeri
-  const gal=Array.isArray(alt.galeri)?alt.galeri:[]; const gi=Math.min(view.gidx||0,Math.max(0,gal.length-1));
-  const galInner = gal.length?`<div class="gimg" style="background-image:url('${esc(gal[gi])}')"></div>
-    ${gal.length>1?`<div class="gnav l" onclick="gMove(-1)">‹</div><div class="gnav r" onclick="gMove(1)">›</div><div class="gdots">${gal.map((_,i)=>`<i class="${i===gi?'on':''}"></i>`).join('')}</div>`:''}`
-    :`<div class="gimg">GALERİ / SLIDER</div>`;
-  const mapsInner = vis(alt,'maps',!!alt.maps)?alt.maps:`Google Maps`;
+  galImgs=(Array.isArray(alt.galeri)?alt.galeri:[]).slice(); galIdx=0;
+  const galInner=`<div class="gimg" id="galImg" style="${galImgs.length?`background-image:url('${esc(galImgs[0])}')`:''}">${galImgs.length?'':'GALERİ / SLIDER'}</div>
+    ${galImgs.length>1?`<div class="gnav l" onclick="galGo(-1)">‹</div><div class="gnav r" onclick="galGo(1)">›</div><div class="gdots" id="galDots">${galImgs.map((_,i)=>`<i class="${i===0?'on':''}" onclick="galSet(${i})"></i>`).join('')}</div>`:''}`;
+  const mapsInner = vis(alt,'maps',!!alt.maps)?alt.maps:'Google Maps';
 
-  // marquee
-  const mq=alt.marquee||'';
-  let marquee='';
+  const mq=alt.marquee||''; let marquee='';
   if(mq){ const seg=mq.split('*').map(x=>x.trim()).filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join(''); const group=seg.repeat(4); marquee=`<div class="marquee"><div class="track">${group+group}</div></div>`; }
 
-  // rezervasyon tablosu
   const months=rollMonths(); const now=curYm();
-  const yr = months[0].y + (months[11].y!==months[0].y?('-'+months[11].y):'');
+  const yr=months[0].y + (months[11].y!==months[0].y?('-'+months[11].y):'');
   const head='<th class="u">ÜNİTELER</th>'+months.map(mo=>`<th>${mo.label}</th>`).join('');
   const rows=uList.map(u=>{ const mp={}; (u.booked||[]).forEach(b=>mp[b.ym]=b.status);
     const cells=months.map(mo=>{ const st=mp[mo.ym], sel=cart.some(c=>String(c.unitId)===String(u.id)&&c.ym===mo.ym), past=mo.ym<now;
@@ -126,29 +133,27 @@ function renderAlt(){
     <div class="rtwrap"><table class="rt"><thead><tr>${head}</tr></thead><tbody>${rows||'<tr><td class="u muted">Pozisyon yok</td></tr>'}</tbody></table></div>
     <div class="cal-legend" style="margin:10px 4px 4px"><span><i class="lg-bos"></i>Müsait (Boş)</span><span><i class="lg-dolu"></i>Dolu</span><span><i class="lg-sel"></i>Sepette</span></div></div>`;
 
-  // yan panel
-  const prices=Object.entries(p.prices||{});
+  const prices=altPrices(alt,p);
   const specRows=[['Ürün',p.name],['Ölçü',p.olcu],['Yüzey',p.yuzey],['Aydınlatma',p.isikli],['Baskı Malzemesi',p.baski_malzemesi],['Baskı Formatı',p.baski_format],['Yayın Formatı',p.yayin_format]].filter(x=>x[1]&&x[1]!=='—').map(x=>`<div class="spec"><span class="k">${esc(x[0])}</span><span class="v">${esc(x[1])}</span></div>`).join('');
   const teknikAcc=`<details class="acc" open><summary>Teknik Özellikler</summary><div>${specRows||'<p class="muted">—</p>'}</div></details>`;
   const fiyatAcc=`<details class="acc" open><summary>Fiyatlar</summary><div>${prices.map(([k,v])=>`<div class="priceitem"><span class="muted">${esc(k)}</span><span class="amt">${money(v)}</span></div>`).join('')||'<p class="muted">—</p>'}<p class="muted" style="font-size:12px;margin-top:8px">Belediye vergi dahil, dijital baskı hariç · KDV hariç.</p></div></details>`;
-  const sepetbar=`<div class="sepetbar"><div id="sepetInfo"></div><button class="btn btn-primary btn-sm" onclick="toggleCart()">Teklif Al</button></div>`;
+  const sepetbar=`<div class="sepetbar"><div id="sepetInfo"></div><button class="btn btn-primary btn-sm" onclick="toggleCart()">Özel Teklif İste</button></div>`;
 
-  // ilgili
   const rel=[];
   alts.filter(a=>a.id!==alt.id).forEach(a=>{const pp=a.product||{};rel.push({onclick:`openAlt('${m.id}','${a.id}')`,title:(pp.name||a.name),sub:[`${(a.units||[]).length} pozisyon`,a.toplam_alan].filter(Boolean).join(' · '),image:(a.image||m.image),theme:m.theme_color});});
   D.mecralar.filter(x=>x.id!==m.id).forEach(x=>rel.push({onclick:`openMec('${x.id}')`,title:x.name,sub:(x.gunluk_gosterim||''),image:x.image,theme:x.theme_color}));
   const relCards=rel.map(r=>`<div class="carslide">${gcard(r.onclick,r.title,r.sub,r.image,r.theme,'Keşfet')}</div>`).join('');
 
-  app().innerHTML=`${banner(alt.kapak||m.kapak)}
-    <div class="crumbs">Medyapark Adana / Mecralar / ${esc(m.name)} / ${esc(p.name||alt.name)}</div>
+  const nav=`<a onclick="goHome()">Medyapark Adana</a> / <a onclick="openMec('${m.id}')">${esc(m.name)}</a> / ${esc(p.name||alt.name)}`;
+  const bobj={kapak:(alt.kapak||m.kapak),kapak_color:(alt.kapak_color||m.kapak_color),kapak_opacity:(alt.kapak_opacity!=null?alt.kapak_opacity:m.kapak_opacity)};
+
+  app().innerHTML=`${banner(bobj,(alt.baslik||p.name||alt.name),nav)}
+    <div class="gm-row"><div class="galbox">${galInner}</div><div class="mapbox">${mapsInner}</div></div>
     ${marquee}
-    <div class="detail2">
-      <div class="col-l"><div class="galbox">${galInner}</div>${table}${sepetbar}</div>
-      <div class="col-r"><div class="mapbox">${mapsInner}</div>${teknikAcc}${fiyatAcc}</div>
-    </div>
+    <div class="res-row"><div class="col-l">${table}${sepetbar}</div><div class="side-col">${teknikAcc}${fiyatAcc}</div></div>
     <div class="related-h">Diğer Mecralara Göz Atın</div>
     <div class="carousel"><div class="cnav l" onclick="carScroll(-1)">‹</div><div class="cartrack" id="cartrack">${relCards}</div><div class="cnav r" onclick="carScroll(1)">›</div></div>`;
-  renderSepetInline();
+  renderSepetInline(); resetGalTimer();
 }
 function rollNav(d){ roll+=d; renderAlt(); }
 function carScroll(d){ const t=document.getElementById('cartrack'); if(t)t.scrollBy({left:d*340,behavior:'smooth'}); }
@@ -180,12 +185,12 @@ const cartTotal=()=>cart.reduce((s,c)=>s+(c.price||0),0);
 function renderCart(){
   const b=document.getElementById('cartBody'), f=document.getElementById('cartFoot'); if(!b)return;
   if(!cart.length){ b.innerHTML='<div class="empty">Sepetiniz boş.<br>Bir alanın rezervasyon tablosundan müsait ay(lar) seçin.</div>'; f.innerHTML=''; return; }
-  b.innerHTML=cart.map((c,i)=>`<div class="citem"><span class="rm" onclick="removeItem(${i})">×</span><div class="cl">${esc(c.unit)}</div><div class="cm">${esc(c.mecra)}${c.alt?' · '+esc(c.alt):''} · ${esc(c.product)}</div><div class="cm">Dönem: ${esc(c.monthLabel)}</div><div class="camt">${c.priceLabel}</div></div>`).join('');
+  b.innerHTML=cart.map((c,i)=>`<div class="citem"><span class="rm" onclick="removeItem(${i})">×</span><div class="cl">${esc(c.mecra)}</div><div class="cm">${esc(c.product)}${c.unit?' › '+esc(c.unit):''} · ${esc(c.monthLabel)}</div><div class="camt">${c.priceLabel}</div></div>`).join('');
   f.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:12px"><span>Tahmini toplam</span><b>${money(cartTotal())}</b></div>
     <div style="display:flex;gap:8px;margin-bottom:10px"><button class="btn btn-outline btn-sm" style="flex:1" onclick="exportPDF()">PDF</button><button class="btn btn-outline btn-sm" style="flex:1" onclick="exportExcel()">Excel</button></div>
     <input class="inp" id="qName" placeholder="Ad Soyad" style="margin-bottom:8px"><input class="inp" id="qFirma" placeholder="Firma" style="margin-bottom:8px">
     <input class="inp" id="qTel" placeholder="Telefon" style="margin-bottom:8px"><input class="inp" id="qMail" placeholder="E-posta" style="margin-bottom:10px">
-    <button class="btn btn-primary" style="width:100%" onclick="sendQuote()">Teklif Gönder</button>`;
+    <button class="btn btn-primary" style="width:100%" onclick="sendQuote()">Özel Teklif İste</button>`;
 }
 function toggleCart(){ document.getElementById('drawer').classList.toggle('open'); document.getElementById('overlay').classList.toggle('open'); renderCart(); }
 async function sendQuote(){
