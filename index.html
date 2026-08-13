@@ -4,23 +4,32 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Medyapark Adana — Açık Hava Reklam</title>
-<link rel="stylesheet" href="assets/theme.css?v=3">
-<link rel="stylesheet" href="assets/site.css?v=3">
+<link rel="stylesheet" href="assets/theme.css?v=4">
+<link rel="stylesheet" href="assets/site.css?v=4">
 </head>
 <body>
 <header class="nav">
   <div class="nav-in">
     <a href="#" class="brand" id="brand" onclick="goHome();return false;">medya<span>park</span></a>
-    <div class="navsearch"><span class="si">⌕</span><input id="search" placeholder="Ürün, Mecra, Lokasyon" oninput="onSearch(this.value)"></div>
-    <div class="filterwrap">
-      <button class="filterbtn" onclick="toggleFilter(event)">Filtrele <span class="fi">⧩</span></button>
-      <div class="filtermenu" id="filterMenu"></div>
+    <div class="navcenter">
+      <div class="navsearch">
+        <span class="si"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></span>
+        <input id="search" placeholder="Ürün, Mecra, Lokasyon" oninput="onSearch(this.value)">
+      </div>
+      <div class="filterwrap">
+        <button class="filterbtn" onclick="toggleFilter(event)">Filtrele
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" width="15" height="15"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg></button>
+        <div class="filtermenu" id="filterMenu"></div>
+      </div>
     </div>
     <div class="nav-actions">
-      <button class="iconbtn" title="Teklif Sepeti" onclick="toggleCart()">🛒<span class="cbadge" id="cbadge" style="display:none">0</span></button>
-      <a class="iconbtn" id="pdfBtn" title="PDF Katalog" style="display:none" download>⭳</a>
+      <a class="iconbtn" href="https://wa.me/908507500771" target="_blank" rel="noopener" title="WhatsApp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 20l1.2-5.2A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.6 9.2c0 3 2.2 5.2 5.2 5.2.5 0 1-.5 1-1l-1.4-1-.9.7c-.9-.4-1.6-1.1-2-2l.7-.9-1-1.4c-.6 0-1.1.5-1.1 1z"/></svg></a>
+      <a class="iconbtn" href="https://instagram.com/medyaparkadana" target="_blank" rel="noopener" title="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+      <a class="iconbtn" href="https://linkedin.com/company/medyaparkadana" target="_blank" rel="noopener" title="LinkedIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="7" y1="10.5" x2="7" y2="17"/><circle cx="7" cy="7.2" r="1" fill="currentColor" stroke="none"/><path d="M11 17v-3.5a2 2 0 0 1 4 0V17M11 10.8V17"/></svg></a>
+      <a class="iconbtn" id="pdfBtn" title="PDF Katalog" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v11m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></a>
+      <button class="iconbtn cart" title="Teklif Sepeti" onclick="toggleCart()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.3a1 1 0 0 0 1 .7h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg><span class="cbadge" id="cbadge" style="display:none">0</span></button>
       <div class="menuwrap">
-        <button class="iconbtn" onclick="toggleMenu(event)">☰</button>
+        <button class="iconbtn" onclick="toggleMenu(event)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
         <div class="menupanel" id="menu">
           <a href="#" onclick="goHome();closeMenu();return false;">Katalog</a>
           <a href="#" onclick="openPage('biz-kimiz');closeMenu();return false;">Biz Kimiz</a>
@@ -35,7 +44,6 @@
 </header>
 
 <main id="app"><div class="loading">Yükleniyor…</div></main>
-
 <footer id="foot"></footer>
 
 <div class="overlay" id="overlay" onclick="toggleCart()"></div>
@@ -47,6 +55,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/config.js"></script>
-<script src="assets/site.js?v=3"></script>
+<script src="assets/site.js?v=4"></script>
 </body>
 </html>
