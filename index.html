@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Medyapark Adana — Açık Hava Reklam</title>
 <meta name="description" id="metaDesc" content="Adana açık hava reklam alanları — megalight, megaboard, raket, LED ekran.">
-<link rel="stylesheet" href="assets/theme.css?v=5">
-<link rel="stylesheet" href="assets/site.css?v=5">
+<link rel="stylesheet" href="assets/theme.css?v=6">
+<link rel="stylesheet" href="assets/site.css?v=6">
 </head>
 <body>
 <header class="nav">
@@ -33,10 +33,7 @@
         <button class="iconbtn" onclick="toggleMenu(event)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
         <div class="menupanel" id="menu">
           <a href="#" onclick="goHome();closeMenu();return false;">Katalog</a>
-          <a href="#" onclick="openPage('biz-kimiz');closeMenu();return false;">Biz Kimiz</a>
-          <a href="#" onclick="openPage('neler-yapiyoruz');closeMenu();return false;">Neler Yapıyoruz</a>
-          <a href="#" onclick="openPage('referanslar');closeMenu();return false;">Referanslar</a>
-          <a href="#" onclick="openPage('iletisim');closeMenu();return false;">İletişim</a>
+          <span id="menuPages"></span>
           <hr><a href="admin.html" style="color:var(--ink3);font-size:13px;">⚙ Yönetim Paneli</a>
         </div>
       </div>
@@ -56,6 +53,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/config.js"></script>
-<script src="assets/site.js?v=5"></script>
+<script src="assets/site.js?v=6"></script>
 </body>
 </html>
