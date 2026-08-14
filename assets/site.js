@@ -124,9 +124,9 @@ function renderAlt(){
   const rows=uList.map(u=>{ const mp={}; (u.booked||[]).forEach(b=>mp[b.ym]=b.status);
     const cells=months.map(mo=>{ const st=mp[mo.ym], sel=cart.some(c=>String(c.unitId)===String(u.id)&&c.ym===mo.ym), past=mo.ym<now;
       let cls='cell',txt='';
-      if(sel){cls+=' sel lbl';txt='Sepette';}
-      else if(st){cls+=' dolu';}
-      else if(past){cls+=' past';} else {cls+=' bos';}
+      if(sel){cls+=' sel';txt='Sepette';}
+      else if(st){cls+=' dolu';txt='Dolu';}
+      else if(past){cls+=' past';txt='—';} else {cls+=' bos';txt='Boş';}
       const click=(!st&&!past)?`onclick="pick('${u.id}','${mo.ym}')"`:(sel?`onclick="pick('${u.id}','${mo.ym}')"`:'');
       return `<td><span class="${cls}" ${click}>${txt}</span></td>`; }).join('');
     return `<tr><td class="u">${esc(u.name)}</td>${cells}</tr>`; }).join('');
@@ -168,7 +168,7 @@ function toggleMonth(uid,ym){
     cart.push({unitId:Number(uid),mecra:m.name,alt:alt.name,unit:u.name,product:p.name,olcu:u.olcu||p.olcu||'',ym,monthLabel:MONTHS_LONG[+mm-1]+' '+y,price,priceLabel:money(price)}); }
   badge(); renderCart(); updateCell(uid,ym); renderSepetInline();
 }
-function updateCell(uid,ym){ const el=document.querySelector(`.cell[data-u='${uid}'][data-ym='${ym}']`); if(!el)return; const sel=cart.some(c=>String(c.unitId)===String(uid)&&c.ym===ym); el.classList.remove('sel','lbl','bos'); if(sel){el.classList.add('sel','lbl');el.textContent='Sepette';}else{el.classList.add('bos');el.textContent='';} }
+function updateCell(uid,ym){ const el=document.querySelector(`.cell[data-u='${uid}'][data-ym='${ym}']`); if(!el)return; const sel=cart.some(c=>String(c.unitId)===String(uid)&&c.ym===ym); el.classList.remove('sel','bos'); if(sel){el.classList.add('sel');el.textContent='Sepette';}else{el.classList.add('bos');el.textContent='Boş';} }
 
 function renderSepetInline(){ const box=document.getElementById('sepetInner'); if(!box)return;
   if(!cart.length){ box.innerHTML='<div class="empty2">Sepetiniz boş. Tablodan müsait ay seçtikçe burada güncellenir.</div>'; return; }
@@ -235,12 +235,12 @@ function renderFooter(){ const s=D.settings||{};
   const mecLinks=D.mecralar.map(m=>`<a onclick="openMec('${m.id}')">${esc(m.name)}</a>`).join('');
   const pdf=s.catalogPdf?`<a href="${esc(s.catalogPdf)}" download>PDF Katalog</a>`:`<a onclick="goHome()">PDF Katalog</a>`;
   document.getElementById('foot').innerHTML=`<div class="ftr"><div class="ftr-in">
-    <div><div class="brand">${logo(s.logoText)}</div><p style="font-size:13px;color:#8a8a90;max-width:24ch">Adana açık hava reklam çözümleri.</p></div>
+    <div><div class="brand">${logo(s.logoText)}</div><p style="font-size:13px;color:#8a8a90;max-width:26ch">${esc(s.footer_about||"Adana açık hava reklam çözümleri.")}</p></div>
     <div><h5>SAYFALAR</h5>${(D.pages||[]).filter(p=>p.in_menu!==false).map(p=>`<a onclick="openPage('${p.slug}')">${esc(p.title||p.slug)}</a>`).join('')}${pdf}</div>
     <div><h5>MECRALARIMIZ</h5><div class="meccols">${mecLinks}</div></div>
     <div><h5>İLETİŞİM</h5><div class="il"><b>Adres:</b> ${esc(s.address||'')}<br><br><b>Telefon:</b> ${esc(s.phone||'')}<br><br><b>E-Posta:</b> ${esc(s.email||'')}<br><br>${esc(s.socials||'')}</div></div>
-    <div class="news"><h5 style="text-align:center">Kampanya ve yeniliklerden<br>haberdar olmak için;</h5><input class="inp" placeholder="E-Posta"><button class="abone" onclick="alert('Teşekkürler! Kaydınız alındı.')">Abone Ol</button></div>
-  </div><div class="ftr-bottom"><div class="inner">Tüm hakları saklıdır. Polat Medya Tanıtım Paz. Org. San. ve Tic. Ltd. Şti.</div></div></div>`;
+    <div class="news"><h5 style="text-align:center">${esc(s.footer_news||"Kampanya ve yeniliklerden haberdar olmak için;")}</h5><input class="inp" placeholder="E-Posta"><button class="abone" onclick="alert('Teşekkürler! Kaydınız alındı.')">Abone Ol</button></div>
+  </div><div class="ftr-bottom"><div class="inner">${esc(s.footer_note||"Tüm hakları saklıdır. Polat Medya Tanıtım Paz. Org. San. ve Tic. Ltd. Şti.")}</div></div></div>`;
 }
 
 function toggleMenu(e){e.stopPropagation();document.getElementById('menu').classList.toggle('open');}

@@ -57,3 +57,6 @@ details.unit{border:1px solid var(--line2);border-radius:11px;margin-bottom:10px
 .addbar{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;} .addbar button{font-size:12.5px;padding:7px 12px;border-radius:9px;background:var(--teal-soft);color:var(--teal-d);font-weight:600;}
 
 @media(max-width:900px){ .app{grid-template-columns:1fr;} .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;} .side .logout{margin:0;} .kanban{grid-template-columns:1fr;} .row2,.row3{grid-template-columns:1fr;} }
+
+/* Listeler açılır-kapanır */
+.lgrp{padding:16px 20px;} .lgrp>summary{cursor:pointer;font-size:16px;font-weight:700;list-style:none;display:flex;align-items:center;gap:8px;margin-bottom:6px;} .lgrp>summary::-webkit-details-marker{display:none;} .lgrp>summary::before{content:'▸';color:var(--ink3);font-size:12px;} .lgrp[open]>summary::before{content:'▾';}
