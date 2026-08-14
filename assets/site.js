@@ -43,7 +43,7 @@ async function load(){
   const setSoc=(id,url)=>{ const el=document.getElementById(id); if(el&&url)el.href=url; };
   setSoc('socWa',s.social_whatsapp); setSoc('socIg',s.social_instagram); setSoc('socLi',s.social_linkedin);
   if(s.catalogPdf){ const b=document.getElementById('pdfBtn'); b.href=s.catalogPdf; b.style.display='flex'; }
-  buildFilter(); renderFooter(); render();
+  buildFilter(); renderFooter(); renderMenu(); render();
 }
 function logo(t){ t=t||'medyapark'; return String(t).toLowerCase().startsWith('medya')?('medya<span>'+esc(String(t).slice(5))+'</span>'):esc(t); }
 
@@ -70,10 +70,11 @@ function galRender(){ const img=document.getElementById('galImg'); if(!img)retur
 function galGo(d){ if(galImgs.length<2)return; galIdx=(galIdx+d+galImgs.length)%galImgs.length; galRender(); resetGalTimer(); }
 function galSet(i){ galIdx=i; galRender(); resetGalTimer(); }
 function resetGalTimer(){ clearInterval(galTimer); if(galImgs.length>1) galTimer=setInterval(()=>{ if(view.type!=='alt'){clearInterval(galTimer);return;} galIdx=(galIdx+1)%galImgs.length; galRender(); },3000); }
-function banner(obj,title,navHTML){ obj=obj||{}; const img=obj.kapak; const rgb=hexToRgb(obj.kapak_color||'#101014'); const op=(obj.kapak_opacity!=null&&obj.kapak_opacity!==''?obj.kapak_opacity:0.4);
-  const cls=img?'light':'dark'; const bg=img?` style="background-image:url('${esc(img)}')"`:''; const ov=img?`<div class="cov-ov" style="background:rgba(${rgb},${op})"></div>`:''; const ph=img?'':`<div class="cov-ph">KAPAK GÖRSELİ · 1920×600</div>`;
-  return `<div class="cover-banner"${bg}>${ph}${ov}<div class="cov-title ${cls}">${esc(title)}</div><div class="cov-nav ${cls}">${navHTML||''}</div></div>`; }
-function altPrices(alt,p){ return Object.entries((p&&p.prices)||{}); }
+function banner(obj,title,navHTML){ obj=obj||{}; const img=obj.kapak; const h=(obj.kapak_height||600); const rgb=hexToRgb(obj.kapak_color||'#101014'); const op=(obj.kapak_opacity!=null&&obj.kapak_opacity!==''?obj.kapak_opacity:0.4);
+  const cls=img?'light':'dark'; const style=`height:${h}px;${img?`background-image:url('${esc(img)}')`:''}`; const ov=img?`<div class="cov-ov" style="background:rgba(${rgb},${op})"></div>`:''; const ph=img?'':`<div class="cov-ph">KAPAK GÖRSELİ · ${h}px</div>`;
+  return `<div class="cover-banner" style="${style}">${ph}${ov}<div class="cov-inner"><h1 class="cov-title ${cls}">${esc(title)}</h1><div class="cov-nav ${cls}">${navHTML||''}</div></div></div>`; }
+function altPrices(alt,p){ const f=alt&&alt.fiyat; if(f&&f.baz!=null&&f.baz!==''){ const baz=+f.baz; const per=(mon,ind)=>Math.round(baz*mon*(1-(+ind||0)/100)); const rows=[]; if(f.hafta!=null&&f.hafta!=='')rows.push(['Haftalık',Math.round(+f.hafta)]); rows.push(['1 Ay',Math.round(baz)]); rows.push(['3 Ay',per(3,f.ind3)]); rows.push(['6 Ay',per(6,f.ind6)]); rows.push(['1 Yıl',per(12,f.ind12)]); return rows; } return Object.entries((p&&p.prices)||{}); }
+function altPerMonth(alt,p){ const f=alt&&alt.fiyat; if(f&&f.baz!=null&&f.baz!=='')return Math.round(+f.baz); return perMonth(p); }
 
 /* ---- ANASAYFA ---- */
 function renderHome(q){
@@ -137,7 +138,7 @@ function renderAlt(){
   const specRows=[['Ürün',p.name],['Ölçü',p.olcu],['Yüzey',p.yuzey],['Aydınlatma',p.isikli],['Baskı Malzemesi',p.baski_malzemesi],['Baskı Formatı',p.baski_format],['Yayın Formatı',p.yayin_format]].filter(x=>x[1]&&x[1]!=='—').map(x=>`<div class="spec"><span class="k">${esc(x[0])}</span><span class="v">${esc(x[1])}</span></div>`).join('');
   const teknikAcc=`<details class="acc" open><summary>Teknik Özellikler</summary><div>${specRows||'<p class="muted">—</p>'}</div></details>`;
   const fiyatAcc=`<details class="acc" open><summary>Fiyatlar</summary><div>${prices.map(([k,v])=>`<div class="priceitem"><span class="muted">${esc(k)}</span><span class="amt">${money(v)}</span></div>`).join('')||'<p class="muted">—</p>'}<p class="muted" style="font-size:12px;margin-top:8px">Belediye vergi dahil, dijital baskı hariç · KDV hariç.</p></div></details>`;
-  const sepetbar=`<div class="sepetbar"><div id="sepetInfo"></div><button class="btn btn-primary btn-sm" onclick="toggleCart()">Özel Teklif İste</button></div>`;
+  const sepetbox=`<div class="sepetbox"><h4>Sepet</h4><div id="sepetInner"></div></div>`;
 
   const rel=[];
   alts.filter(a=>a.id!==alt.id).forEach(a=>{const pp=a.product||{};rel.push({onclick:`openAlt('${m.id}','${a.id}')`,title:(pp.name||a.name),sub:[`${(a.units||[]).length} pozisyon`,a.toplam_alan].filter(Boolean).join(' · '),image:(a.image||m.image),theme:m.theme_color});});
@@ -145,13 +146,13 @@ function renderAlt(){
   const relCards=rel.map(r=>`<div class="carslide">${gcard(r.onclick,r.title,r.sub,r.image,r.theme,'Keşfet')}</div>`).join('');
 
   const nav=`<a onclick="goHome()">Medyapark Adana</a> / <a onclick="openMec('${m.id}')">${esc(m.name)}</a> / ${esc(p.name||alt.name)}`;
-  const bobj={kapak:(alt.kapak||m.kapak),kapak_color:(alt.kapak_color||m.kapak_color),kapak_opacity:(alt.kapak_opacity!=null?alt.kapak_opacity:m.kapak_opacity)};
+  const bobj={kapak:(alt.kapak||m.kapak),kapak_color:(alt.kapak_color||m.kapak_color),kapak_opacity:(alt.kapak_opacity!=null?alt.kapak_opacity:m.kapak_opacity),kapak_height:(alt.kapak_height!=null?alt.kapak_height:m.kapak_height)};
 
   app().innerHTML=`${banner(bobj,(alt.baslik||p.name||alt.name),nav)}
     <div class="gm-row"><div class="galbox">${galInner}</div><div class="mapbox">${mapsInner}</div></div>
     ${marquee}
-    <div class="res-row"><div class="col-l">${table}${sepetbar}</div><div class="side-col">${teknikAcc}${fiyatAcc}</div></div>
-    <div class="related-h">Diğer Mecralara Göz Atın</div>
+    <div class="res-row"><div class="col-l">${table}</div><div class="side-col">${teknikAcc}${fiyatAcc}${sepetbox}</div></div>
+    <div class="related-h"><a onclick="goHome()">Diğer Mecralara Göz Atın</a></div>
     <div class="carousel"><div class="cnav l" onclick="carScroll(-1)">‹</div><div class="cartrack" id="cartrack">${relCards}</div><div class="cnav r" onclick="carScroll(1)">›</div></div>`;
   renderSepetInline(); resetGalTimer();
 }
@@ -163,23 +164,42 @@ function toggleMonth(uid,ym){
   const u=(alt.units||[]).find(x=>String(x.id)===String(uid)); if(!u)return; const p=alt.product||{};
   const i=cart.findIndex(c=>String(c.unitId)===String(uid)&&c.ym===ym);
   if(i>-1){ cart.splice(i,1); }
-  else{ const [y,mm]=ym.split('-'); const price=perMonth(p);
+  else{ const [y,mm]=ym.split('-'); const price=altPerMonth(alt,p);
     cart.push({unitId:Number(uid),mecra:m.name,alt:alt.name,unit:u.name,product:p.name,olcu:u.olcu||p.olcu||'',ym,monthLabel:MONTHS_LONG[+mm-1]+' '+y,price,priceLabel:money(price)}); }
-  badge(); renderCart(); renderAlt();
+  badge(); renderCart(); updateCell(uid,ym); renderSepetInline();
 }
+function updateCell(uid,ym){ const el=document.querySelector(`.cell[data-u='${uid}'][data-ym='${ym}']`); if(!el)return; const sel=cart.some(c=>String(c.unitId)===String(uid)&&c.ym===ym); el.classList.remove('sel','lbl','bos'); if(sel){el.classList.add('sel','lbl');el.textContent='Sepette';}else{el.classList.add('bos');el.textContent='';} }
 
-function renderSepetInline(){ const el=document.getElementById('sepetInfo'); if(!el)return;
-  el.innerHTML = cart.length? `<b>${cart.length}</b> ay seçildi · Toplam <b>${money(cartTotal())}</b>` : 'Sepetiniz boş — tablodan müsait ay seçin'; }
+function renderSepetInline(){ const box=document.getElementById('sepetInner'); if(!box)return;
+  if(!cart.length){ box.innerHTML='<div class="empty2">Sepetiniz boş. Tablodan müsait ay seçtikçe burada güncellenir.</div>'; return; }
+  box.innerHTML=cart.map((c,i)=>`<div class="si-item"><div><b>${esc(c.mecra)}</b><br><span class="muted" style="font-size:11px">${esc(c.product)}${c.unit?' › '+esc(c.unit):''} · ${esc(c.monthLabel)}</span></div><div style="text-align:right;white-space:nowrap">${c.priceLabel}<br><span class="x" onclick="removeItem(${i})">kaldır ×</span></div></div>`).join('')
+    +`<div class="tot"><span>Toplam</span><span>${money(cartTotal())}</span></div><button class="btn btn-primary" style="width:100%" onclick="toggleCart()">Özel Teklif İste</button>`; }
 
 /* ---- sayfalar ---- */
+function renderBlocks(blocks){ return (blocks||[]).map(b=>{
+  if(b.type==='heading')return `<h2 class="pg-h">${esc(b.text||'')}</h2>`;
+  if(b.type==='text')return `<div class="pg-t">${(b.text||'').split('\n').map(p=>p.trim()?`<p>${esc(p)}</p>`:'').join('')}</div>`;
+  if(b.type==='image')return `<figure class="pg-img"><img src="${esc(b.url||'')}" alt="${esc(b.caption||'')}">${b.caption?`<figcaption>${esc(b.caption)}</figcaption>`:''}</figure>`;
+  if(b.type==='gallery'){ const imgs=Array.isArray(b.images)?b.images:[]; return imgs.length?`<div class="pg-gal">${imgs.map(g=>`<div class="pg-gi" style="background-image:url('${esc(g)}')"></div>`).join('')}</div>`:''; }
+  if(b.type==='features'){ const it=Array.isArray(b.items)?b.items:[]; return `<div class="pg-feat">${it.map(x=>`<div class="pg-fc"><h3>${esc(x.title||'')}</h3><p>${esc(x.desc||'')}</p></div>`).join('')}</div>`; }
+  if(b.type==='faq'){ const it=Array.isArray(b.items)?b.items:[]; return `<div class="pg-faq">${it.map(x=>`<details class="acc"><summary>${esc(x.q||'')}</summary><div>${esc(x.a||'')}</div></details>`).join('')}</div>`; }
+  if(b.type==='cta')return `<div class="pg-cta"><h3>${esc(b.title||'')}</h3>${b.label?`<a class="btn btn-primary" href="${esc(b.link||'#')}">${esc(b.label)}</a>`:''}</div>`;
+  if(b.type==='spacer')return `<div style="height:${(+b.size||40)}px"></div>`;
+  return ''; }).join(''); }
+
 function renderPage(slug){
-  const pg=(D.pages||[]).find(p=>p.slug===slug)||{}; let body=`<div class="page-body">${esc(pg.body)}</div>`;
-  if(slug==='iletisim'){ const s=D.settings; body+=`<div style="margin-top:16px;font-size:15px;line-height:1.9"><b>Telefon:</b> ${esc(s.phone)}<br><b>E-Posta:</b> ${esc(s.email)}<br><b>Adres:</b> ${esc(s.address)}</div>`; }
-  app().innerHTML=`<div class="crumbs" style="margin-top:26px">Medyapark Adana / ${esc(pg.title||'')}</div><div class="sechead"><h1>${esc(pg.title||'')}</h1></div>${body}`;
+  const pg=(D.pages||[]).find(p=>p.slug===slug)||{};
+  const nav=`<a onclick="goHome()">Medyapark Adana</a> / ${esc(pg.title||'')}`;
+  let inner;
+  if(Array.isArray(pg.blocks)&&pg.blocks.length){ inner=`<div class="pg-wrap">${renderBlocks(pg.blocks)}</div>`; }
+  else { inner=`<div class="sechead"><h1>${esc(pg.title||'')}</h1></div><div class="page-body">${esc(pg.body||'')}</div>`; }
+  if(slug==='iletisim'){ const s=D.settings; inner+=`<div class="pg-contact"><div><b>Telefon:</b> ${esc(s.phone||'')}</div><div><b>E-Posta:</b> ${esc(s.email||'')}</div><div><b>Adres:</b> ${esc(s.address||'')}</div></div>`; }
+  app().innerHTML=`<div class="pg-top"><div class="pg-crumb">${nav}</div><h1 class="pg-title">${esc(pg.title||'')}</h1></div>${inner}`;
 }
+function renderMenu(){ const el=document.getElementById('menuPages'); if(!el)return; el.innerHTML=(D.pages||[]).filter(p=>p.in_menu!==false).map(p=>`<a href="#" onclick="openPage('${p.slug}');closeMenu();return false;">${esc(p.title||p.slug)}</a>`).join(''); }
 
 /* ---- sepet çekmecesi ---- */
-function removeItem(i){ cart.splice(i,1); badge(); renderCart(); if(view.type==='alt')renderAlt(); }
+function removeItem(i){ const it=cart[i]; cart.splice(i,1); badge(); renderCart(); if(view.type==='alt'){ if(it)updateCell(it.unitId,it.ym); renderSepetInline(); } }
 function badge(){ const b=document.getElementById('cbadge'); if(!b)return; if(cart.length){b.style.display='flex';b.textContent=cart.length;}else b.style.display='none'; }
 const cartTotal=()=>cart.reduce((s,c)=>s+(c.price||0),0);
 function renderCart(){
@@ -216,7 +236,7 @@ function renderFooter(){ const s=D.settings||{};
   const pdf=s.catalogPdf?`<a href="${esc(s.catalogPdf)}" download>PDF Katalog</a>`:`<a onclick="goHome()">PDF Katalog</a>`;
   document.getElementById('foot').innerHTML=`<div class="ftr"><div class="ftr-in">
     <div><div class="brand">${logo(s.logoText)}</div><p style="font-size:13px;color:#8a8a90;max-width:24ch">Adana açık hava reklam çözümleri.</p></div>
-    <div><h5>SAYFALAR</h5><a onclick="openPage('biz-kimiz')">Biz Kimiz</a><a onclick="openPage('neler-yapiyoruz')">Neler Yapıyoruz</a>${pdf}<a onclick="openPage('referanslar')">Referanslar</a><a onclick="openPage('iletisim')">İletişim</a></div>
+    <div><h5>SAYFALAR</h5>${(D.pages||[]).filter(p=>p.in_menu!==false).map(p=>`<a onclick="openPage('${p.slug}')">${esc(p.title||p.slug)}</a>`).join('')}${pdf}</div>
     <div><h5>MECRALARIMIZ</h5><div class="meccols">${mecLinks}</div></div>
     <div><h5>İLETİŞİM</h5><div class="il"><b>Adres:</b> ${esc(s.address||'')}<br><br><b>Telefon:</b> ${esc(s.phone||'')}<br><br><b>E-Posta:</b> ${esc(s.email||'')}<br><br>${esc(s.socials||'')}</div></div>
     <div class="news"><h5 style="text-align:center">Kampanya ve yeniliklerden<br>haberdar olmak için;</h5><input class="inp" placeholder="E-Posta"><button class="abone" onclick="alert('Teşekkürler! Kaydınız alındı.')">Abone Ol</button></div>
