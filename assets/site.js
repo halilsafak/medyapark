@@ -207,7 +207,7 @@ function updateCell(uid,ym){ const el=document.querySelector(`.cell[data-u='${ui
 
 function renderSepetInline(){ const box=document.getElementById('sepetInner'); if(!box)return;
   if(!cart.length){ box.innerHTML='<div class="empty2">Sepetiniz boş. Tablodan müsait ay seçtikçe burada güncellenir.</div>'; return; }
-  box.innerHTML=cart.map((c,i)=>`<div class="si-item"><div><b>${esc(c.mecra)}</b><br><span class="muted" style="font-size:11px">${esc(c.product)}${c.unit?' › '+esc(c.unit):''} · ${esc(c.monthLabel)}</span></div><div style="text-align:right;white-space:nowrap">${showPrices()?c.priceLabel+'<br>':''}<span class="x" onclick="removeItem(${i})">kaldır ×</span></div></div>`).join('')
+  box.innerHTML=cart.map((c,i)=>`<div class="si-item"><div><b>${esc(c.mecra)}</b><br><span class="muted" style="font-size:12.5px">${esc(c.product)}${c.unit?' › '+esc(c.unit):''} · ${esc(c.monthLabel)}</span></div><div style="text-align:right;white-space:nowrap">${showPrices()?c.priceLabel+'<br>':''}<span class="x" onclick="removeItem(${i})">kaldır ×</span></div></div>`).join('')
     +`${showPrices()?`<div class="tot"><span>Toplam</span><span>${money(cartTotal())}</span></div>`:'<div style="height:10px"></div>'}<button class="btn btn-primary" style="width:100%" onclick="toggleCart()">Teklif Al</button>`; }
 
 /* ---- sayfalar ---- */
