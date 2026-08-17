@@ -181,24 +181,3 @@ body{background:#fff;overflow-x:hidden;}
 .pg-top{padding:40px 0 8px;border-bottom:1px solid var(--line2);margin-bottom:26px;}
 .pg-crumb{color:var(--ink2);font-size:14px;margin-bottom:8px;} .pg-crumb a{cursor:pointer;} .pg-crumb a:hover{color:var(--teal);}
 .pg-title{font-size:clamp(28px,3.6vw,42px);font-weight:700;letter-spacing:-.03em;margin:0;}
-
-/* ===== Ek: ürün sekmeleri, avantajlar, logo, ilgili kartlar ===== */
-.mtabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 22px;}
-.mtab{padding:11px 20px;border-radius:999px;background:#fff;font-weight:600;color:var(--ink2);border:1px solid var(--line);cursor:pointer;font-size:14px;transition:.15s;}
-.mtab:hover{border-color:var(--ink3);}
-.mtab.on{background:var(--teal);color:#fff;border-color:var(--teal);}
-.subtabs{display:inline-flex;gap:6px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-radius:999px;padding:4px;box-shadow:var(--sh);}
-.subtabs button{padding:7px 15px;font-weight:600;font-size:13px;color:var(--ink2);border-radius:999px;cursor:pointer;background:none;}
-.subtabs button.on{background:var(--teal);color:#fff;}
-.mlogo{height:56px;width:auto;border-radius:10px;flex:0 0 auto;}
-.adv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.adv{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--sh);}
-.adv b{display:block;font-size:14px;margin-bottom:3px;}
-.adv span{font-size:12.5px;color:var(--ink2);line-height:1.5;}
-.rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:64px;}
-.rcard{display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-weight:600;font-size:15px;box-shadow:var(--sh);transition:.2s;}
-.rcard:hover{transform:translateY(-3px);box-shadow:var(--sh-lg);color:var(--teal);}
-.rcard .arw{color:var(--ink3);transition:.2s;} .rcard:hover .arw{transform:translateX(3px);color:var(--teal);}
-@media(max-width:900px){.rgrid{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:760px){.adv-grid{grid-template-columns:1fr;}.mlogo{height:44px;}}
-@media(max-width:520px){.rgrid{grid-template-columns:1fr;}}
