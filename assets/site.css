@@ -57,8 +57,10 @@ body{background:#fff;overflow-x:hidden;}
 .cov-ov{position:absolute;inset:0;z-index:1;}
 .cov-inner{position:relative;z-index:2;text-align:center;padding:0 24px;}
 .cov-title{font-size:clamp(28px,4.4vw,54px);font-weight:800;letter-spacing:-.02em;margin:0;}
-.cov-nav{margin-top:16px;font-size:15px;font-weight:600;display:inline-block;padding:9px 18px;border-radius:999px;}
-.cov-nav a{cursor:pointer;} .cov-nav a:hover{text-decoration:underline;}
+.cov-nav{margin-top:0;font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;padding:11px 22px;border-radius:999px;}
+.cov-nav a{cursor:pointer;text-decoration:none;transition:opacity .15s;} .cov-nav a:hover{text-decoration:underline;opacity:.85;}
+.cov-nav a:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:4px;}
+.cov-nav i{font-style:normal;opacity:.5;} .cov-nav span{opacity:.9;}
 .cov-title.light{color:#fff;text-shadow:0 2px 22px rgba(0,0,0,.45);} .cov-nav.light{color:#fff;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
 .cov-title.dark{color:var(--ink);} .cov-nav.dark{color:var(--ink2);background:var(--bg2);} .cov-nav.dark a{color:var(--ink);}
 .cover-banner .t{font-size:clamp(22px,3vw,34px);letter-spacing:.02em;} .cover-banner .s{font-size:16px;opacity:.7;margin-top:4px;}
@@ -181,3 +183,9 @@ body{background:#fff;overflow-x:hidden;}
 .pg-top{padding:40px 0 8px;border-bottom:1px solid var(--line2);margin-bottom:26px;}
 .pg-crumb{color:var(--ink2);font-size:14px;margin-bottom:8px;} .pg-crumb a{cursor:pointer;} .pg-crumb a:hover{color:var(--teal);}
 .pg-title{font-size:clamp(28px,3.6vw,42px);font-weight:700;letter-spacing:-.03em;margin:0;}
+
+/* ---- Kapak altı tanıtım (başlık + açıklama) ---- */
+.intro{max-width:1290px;margin:0 auto;padding:44px 20px 8px;}
+.intro h1{font-size:clamp(22px,2.8vw,34px);font-weight:700;letter-spacing:-.02em;margin:0 0 12px;color:var(--ink);}
+.intro p{font-size:clamp(14.5px,1.4vw,17px);line-height:1.75;color:var(--ink2);margin:0;max-width:80ch;white-space:pre-wrap;}
+@media(max-width:760px){.intro{padding:28px 20px 4px;}}

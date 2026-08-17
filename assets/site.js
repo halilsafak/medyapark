@@ -72,7 +72,13 @@ function galSet(i){ galIdx=i; galRender(); resetGalTimer(); }
 function resetGalTimer(){ clearInterval(galTimer); if(galImgs.length>1) galTimer=setInterval(()=>{ if(view.type!=='alt'){clearInterval(galTimer);return;} galIdx=(galIdx+1)%galImgs.length; galRender(); },3000); }
 function banner(obj,title,navHTML){ obj=obj||{}; const img=obj.kapak; const h=(obj.kapak_height||600); const rgb=hexToRgb(obj.kapak_color||'#101014'); const op=(obj.kapak_opacity!=null&&obj.kapak_opacity!==''?obj.kapak_opacity:0.4);
   const cls=img?'light':'dark'; const style=`height:${h}px;${img?`background-image:url('${esc(img)}')`:''}`; const ov=img?`<div class="cov-ov" style="background:rgba(${rgb},${op})"></div>`:''; const ph=img?'':`<div class="cov-ph">KAPAK GÖRSELİ · ${h}px</div>`;
-  return `<div class="cover-banner" style="${style}">${ph}${ov}<div class="cov-inner"><h1 class="cov-title ${cls}">${esc(title)}</h1><div class="cov-nav ${cls}">${navHTML||''}</div></div></div>`; }
+  return `<div class="cover-banner" style="${style}">${ph}${ov}<div class="cov-inner"><nav class="cov-nav ${cls}" aria-label="Sayfa yolu">${navHTML||''}</nav></div></div>`; }
+const showPrices=()=> (D.settings||{}).showPrices!==false;
+/* Kapak altı: başlık + açıklama */
+function introBlock(o){ o=o||{};
+  const t=o.intro_baslik||'', d=o.aciklama||'';
+  if(!vis(o,'aciklama',!!(t||d))) return '';
+  return `<section class="intro">${t?`<h1>${esc(t)}</h1>`:''}${d?`<p>${esc(d)}</p>`:''}</section>`; }
 function altPrices(alt,p){ const f=alt&&alt.fiyat; if(f&&f.baz!=null&&f.baz!==''){ const baz=+f.baz; const per=(mon,ind)=>Math.round(baz*mon*(1-(+ind||0)/100)); const rows=[]; if(f.hafta!=null&&f.hafta!=='')rows.push(['Haftalık',Math.round(+f.hafta)]); rows.push(['1 Ay',Math.round(baz)]); rows.push(['3 Ay',per(3,f.ind3)]); rows.push(['6 Ay',per(6,f.ind6)]); rows.push(['1 Yıl',per(12,f.ind12)]); return rows; } return Object.entries((p&&p.prices)||{}); }
 function altPerMonth(alt,p){ const f=alt&&alt.fiyat; if(f&&f.baz!=null&&f.baz!=='')return Math.round(+f.baz); return perMonth(p); }
 
@@ -96,8 +102,8 @@ function renderMec(){
   const cards=(m.alts||[]).map(a=>{ const p=a.product||{}; const n=(a.units||[]).length;
     const sub=[`${n} pozisyon`, a.toplam_alan].filter(Boolean).join(' · ');
     return gcard(`openAlt('${m.id}','${a.id}')`, (p.name||a.name), sub, (a.image||m.image), m.theme_color, 'Keşfet');}).join('');
-  const nav=`<a onclick="goHome()">Medyapark Adana</a> / Mecralar / ${esc(m.name)}`;
-  app().innerHTML=`${banner(m,(m.baslik||m.name),nav)}
+  const nav=`<a href="#" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <span>${esc(m.name)}</span>`;
+  app().innerHTML=`${banner(m,(m.baslik||m.name),nav)}${introBlock(m)}
     <div class="grid3">${cards||'<p class="muted">Bu mecrada alt mecra yok.</p>'}</div>`;
 }
 
@@ -137,7 +143,7 @@ function renderAlt(){
   const prices=altPrices(alt,p);
   const specRows=[['Ürün',p.name],['Ölçü',p.olcu],['Yüzey',p.yuzey],['Aydınlatma',p.isikli],['Baskı Malzemesi',p.baski_malzemesi],['Baskı Formatı',p.baski_format],['Yayın Formatı',p.yayin_format]].filter(x=>x[1]&&x[1]!=='—').map(x=>`<div class="spec"><span class="k">${esc(x[0])}</span><span class="v">${esc(x[1])}</span></div>`).join('');
   const teknikAcc=`<details class="acc" open><summary>Teknik Özellikler</summary><div>${specRows||'<p class="muted">—</p>'}</div></details>`;
-  const fiyatAcc=`<details class="acc" open><summary>Fiyatlar</summary><div>${prices.map(([k,v])=>`<div class="priceitem"><span class="muted">${esc(k)}</span><span class="amt">${money(v)}</span></div>`).join('')||'<p class="muted">—</p>'}<p class="muted" style="font-size:12px;margin-top:8px">Belediye vergi dahil, dijital baskı hariç · KDV hariç.</p></div></details>`;
+  const fiyatAcc=!showPrices()?'':`<details class="acc" open><summary>Fiyatlar</summary><div>${prices.map(([k,v])=>`<div class="priceitem"><span class="muted">${esc(k)}</span><span class="amt">${money(v)}</span></div>`).join('')||'<p class="muted">—</p>'}<p class="muted" style="font-size:12px;margin-top:8px">Belediye vergi dahil, dijital baskı hariç · KDV hariç.</p></div></details>`;
   const sepetbox=`<div class="sepetbox"><h4>Sepet</h4><div id="sepetInner"></div></div>`;
 
   const rel=[];
@@ -145,10 +151,10 @@ function renderAlt(){
   D.mecralar.filter(x=>x.id!==m.id).forEach(x=>rel.push({onclick:`openMec('${x.id}')`,title:x.name,sub:(x.gunluk_gosterim||''),image:x.image,theme:x.theme_color}));
   const relCards=rel.map(r=>`<div class="carslide">${gcard(r.onclick,r.title,r.sub,r.image,r.theme,'Keşfet')}</div>`).join('');
 
-  const nav=`<a onclick="goHome()">Medyapark Adana</a> / <a onclick="openMec('${m.id}')">${esc(m.name)}</a> / ${esc(p.name||alt.name)}`;
+  const nav=`<a href="#" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <a href="#" onclick="openMec('${m.id}');return false;">${esc(m.name)}</a> <i>/</i> <span>${esc(p.name||alt.name)}</span>`;
   const bobj={kapak:(alt.kapak||m.kapak),kapak_color:(alt.kapak_color||m.kapak_color),kapak_opacity:(alt.kapak_opacity!=null?alt.kapak_opacity:m.kapak_opacity),kapak_height:(alt.kapak_height!=null?alt.kapak_height:m.kapak_height)};
 
-  app().innerHTML=`${banner(bobj,(alt.baslik||p.name||alt.name),nav)}
+  app().innerHTML=`${banner(bobj,(alt.baslik||p.name||alt.name),nav)}${introBlock(alt)}
     <div class="gm-row"><div class="galbox">${galInner}</div><div class="mapbox">${mapsInner}</div></div>
     ${marquee}
     <div class="res-row"><div class="col-l">${table}</div><div class="side-col">${teknikAcc}${fiyatAcc}${sepetbox}</div></div>
@@ -172,8 +178,8 @@ function updateCell(uid,ym){ const el=document.querySelector(`.cell[data-u='${ui
 
 function renderSepetInline(){ const box=document.getElementById('sepetInner'); if(!box)return;
   if(!cart.length){ box.innerHTML='<div class="empty2">Sepetiniz boş. Tablodan müsait ay seçtikçe burada güncellenir.</div>'; return; }
-  box.innerHTML=cart.map((c,i)=>`<div class="si-item"><div><b>${esc(c.mecra)}</b><br><span class="muted" style="font-size:11px">${esc(c.product)}${c.unit?' › '+esc(c.unit):''} · ${esc(c.monthLabel)}</span></div><div style="text-align:right;white-space:nowrap">${c.priceLabel}<br><span class="x" onclick="removeItem(${i})">kaldır ×</span></div></div>`).join('')
-    +`<div class="tot"><span>Toplam</span><span>${money(cartTotal())}</span></div><button class="btn btn-primary" style="width:100%" onclick="toggleCart()">Özel Teklif İste</button>`; }
+  box.innerHTML=cart.map((c,i)=>`<div class="si-item"><div><b>${esc(c.mecra)}</b><br><span class="muted" style="font-size:11px">${esc(c.product)}${c.unit?' › '+esc(c.unit):''} · ${esc(c.monthLabel)}</span></div><div style="text-align:right;white-space:nowrap">${showPrices()?c.priceLabel+'<br>':''}<span class="x" onclick="removeItem(${i})">kaldır ×</span></div></div>`).join('')
+    +`${showPrices()?`<div class="tot"><span>Toplam</span><span>${money(cartTotal())}</span></div>`:'<div style="height:10px"></div>'}<button class="btn btn-primary" style="width:100%" onclick="toggleCart()">Teklif Al</button>`; }
 
 /* ---- sayfalar ---- */
 function renderBlocks(blocks){ return (blocks||[]).map(b=>{
@@ -205,12 +211,12 @@ const cartTotal=()=>cart.reduce((s,c)=>s+(c.price||0),0);
 function renderCart(){
   const b=document.getElementById('cartBody'), f=document.getElementById('cartFoot'); if(!b)return;
   if(!cart.length){ b.innerHTML='<div class="empty">Sepetiniz boş.<br>Bir alanın rezervasyon tablosundan müsait ay(lar) seçin.</div>'; f.innerHTML=''; return; }
-  b.innerHTML=cart.map((c,i)=>`<div class="citem"><span class="rm" onclick="removeItem(${i})">×</span><div class="cl">${esc(c.mecra)}</div><div class="cm">${esc(c.product)}${c.unit?' › '+esc(c.unit):''} · ${esc(c.monthLabel)}</div><div class="camt">${c.priceLabel}</div></div>`).join('');
-  f.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:12px"><span>Tahmini toplam</span><b>${money(cartTotal())}</b></div>
+  b.innerHTML=cart.map((c,i)=>`<div class="citem"><span class="rm" onclick="removeItem(${i})">×</span><div class="cl">${esc(c.mecra)}</div><div class="cm">${esc(c.product)}${c.unit?' › '+esc(c.unit):''} · ${esc(c.monthLabel)}</div>${showPrices()?`<div class="camt">${c.priceLabel}</div>`:''}</div>`).join('');
+  f.innerHTML=`${showPrices()?`<div style="display:flex;justify-content:space-between;margin-bottom:12px"><span>Tahmini toplam</span><b>${money(cartTotal())}</b></div>`:''}
     <div style="display:flex;gap:8px;margin-bottom:10px"><button class="btn btn-outline btn-sm" style="flex:1" onclick="exportPDF()">PDF</button><button class="btn btn-outline btn-sm" style="flex:1" onclick="exportExcel()">Excel</button></div>
     <input class="inp" id="qName" placeholder="Ad Soyad" style="margin-bottom:8px"><input class="inp" id="qFirma" placeholder="Firma" style="margin-bottom:8px">
     <input class="inp" id="qTel" placeholder="Telefon" style="margin-bottom:8px"><input class="inp" id="qMail" placeholder="E-posta" style="margin-bottom:10px">
-    <button class="btn btn-primary" style="width:100%" onclick="sendQuote()">Özel Teklif İste</button>`;
+    <button class="btn btn-primary" style="width:100%" onclick="sendQuote()">Teklif Al</button>`;
 }
 function toggleCart(){ document.getElementById('drawer').classList.toggle('open'); document.getElementById('overlay').classList.toggle('open'); renderCart(); }
 async function sendQuote(){
@@ -222,12 +228,14 @@ async function sendQuote(){
   cart=[]; badge(); document.getElementById('cartBody').innerHTML='<div class="empty">✓ Teklifiniz alındı.<br>Ekibimiz en kısa sürede iletişime geçecek.</div>'; document.getElementById('cartFoot').innerHTML=''; if(view.type==='alt')renderAlt();
 }
 const val=id=>{const e=document.getElementById(id);return e?e.value:'';};
-function exportExcel(){ if(!cart.length)return; const head=['Lokasyon','Alt Mecra','Ünite','Ürün','Dönem','Fiyat'];
-  const rows=cart.map(c=>[c.mecra,c.alt||'',c.unit,c.product,c.monthLabel,c.priceLabel]); rows.push(['','','','','TOPLAM',money(cartTotal())]);
+function exportExcel(){ if(!cart.length)return; const sp=showPrices();
+  const head=['Lokasyon','Alt Mecra','Ünite','Ürün','Dönem'].concat(sp?['Fiyat']:[]);
+  const rows=cart.map(c=>[c.mecra,c.alt||'',c.unit,c.product,c.monthLabel].concat(sp?[c.priceLabel]:[]));
+  if(sp)rows.push(['','','','','TOPLAM',money(cartTotal())]);
   const csv='\uFEFF'+[head,...rows].map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(';')).join('\r\n'); dl(new Blob([csv],{type:'text/csv;charset=utf-8'}),'teklif-medyapark.csv'); }
-function exportPDF(){ if(!cart.length)return; const s=D.settings;
-  const rows=cart.map(c=>`<tr><td>${esc(c.mecra)}${c.alt?' / '+esc(c.alt):''}</td><td>${esc(c.unit)}</td><td>${esc(c.product)}</td><td>${esc(c.monthLabel)}</td><td style="text-align:right">${c.priceLabel}</td></tr>`).join('');
-  const w=window.open('','_blank'); w.document.write(`<html><head><meta charset="utf-8"><title>Teklif</title><style>body{font-family:-apple-system,Arial;padding:40px;color:#1d1d1f}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;border-bottom:1px solid #eee;text-align:left}tfoot td{font-weight:700;border-top:2px solid #1d1d1f}</style></head><body><h1>${esc(s.logoText||'Medyapark')} — Teklif</h1><p style="color:#6e6e73">${new Date().toLocaleDateString('tr-TR')} · ${esc(s.phone||'')}</p><table><thead><tr><th>Lokasyon</th><th>Ünite</th><th>Ürün</th><th>Dönem</th><th style="text-align:right">Fiyat</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4">TOPLAM</td><td style="text-align:right">${money(cartTotal())}</td></tr></tfoot></table></body></html>`); w.document.close(); setTimeout(()=>w.print(),300); }
+function exportPDF(){ if(!cart.length)return; const s=D.settings; const sp=showPrices();
+  const rows=cart.map(c=>`<tr><td>${esc(c.mecra)}${c.alt?' / '+esc(c.alt):''}</td><td>${esc(c.unit)}</td><td>${esc(c.product)}</td><td>${esc(c.monthLabel)}</td>${sp?`<td style="text-align:right">${c.priceLabel}</td>`:''}</tr>`).join('');
+  const w=window.open('','_blank'); w.document.write(`<html><head><meta charset="utf-8"><title>Teklif</title><style>body{font-family:-apple-system,Arial;padding:40px;color:#1d1d1f}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;border-bottom:1px solid #eee;text-align:left}tfoot td{font-weight:700;border-top:2px solid #1d1d1f}</style></head><body><h1>${esc(s.logoText||'Medyapark')} — Teklif</h1><p style="color:#6e6e73">${new Date().toLocaleDateString('tr-TR')} · ${esc(s.phone||'')}</p><table><thead><tr><th>Lokasyon</th><th>Ünite</th><th>Ürün</th><th>Dönem</th>${sp?'<th style="text-align:right">Fiyat</th>':''}</tr></thead><tbody>${rows}</tbody>${sp?`<tfoot><tr><td colspan="4">TOPLAM</td><td style="text-align:right">${money(cartTotal())}</td></tr></tfoot>`:''}</table></body></html>`); w.document.close(); setTimeout(()=>w.print(),300); }
 const dl=(blob,name)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);};
 
 /* ---- footer ---- */
