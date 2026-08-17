@@ -70,3 +70,20 @@ details.unit{border:1px solid var(--line2);border-radius:11px;margin-bottom:10px
 .switch input:checked + .sl::after{left:22px}
 .switch .txt{font-size:14px;font-weight:500}
 .fld-box{border:1px solid var(--line2);border-radius:12px;padding:14px;margin:14px 0;background:var(--bg2,#fafafa)}
+
+/* ---- Harita bölümü ---- */
+.hmap-grid{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:start}
+.hmap{height:560px;border-radius:14px;border:1px solid var(--line2);overflow:hidden;background:#eee;z-index:1}
+.hlist{max-height:508px;overflow-y:auto;border:1px solid var(--line2);border-radius:12px}
+.hrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line2);cursor:pointer;transition:.12s}
+.hrow:last-child{border-bottom:0}
+.hrow:hover{background:var(--bg2,#fafafa)}
+.hrow.on{background:rgba(0,113,227,.09);box-shadow:inset 3px 0 0 var(--teal,#0071e3)}
+.hdot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+.hnm{flex:1;min-width:0}
+.hnm b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hnm span{display:block;font-size:11.5px;color:var(--ink3,#86868b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hst{font-size:13px;color:var(--ink3,#86868b);flex:0 0 auto}
+.hselbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--bg2,#fafafa);border:1px solid var(--line2);border-radius:12px;padding:11px 14px;margin-bottom:12px;font-size:14px;min-height:46px}
+.hcoord{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--ink2,#6e6e73);background:#fff;border:1px solid var(--line2);border-radius:8px;padding:5px 10px}
+@media(max-width:900px){.hmap-grid{grid-template-columns:1fr}.hmap{height:420px}.hlist{max-height:260px}}

@@ -40,27 +40,28 @@ async function load(){
   const s=D.settings||{};
   document.getElementById('brand').innerHTML = s.logoImage?`<img class="brandimg" src="${esc(s.logoImage)}" alt="logo">`:logo(s.logoText);
   if(s.seoTitle) document.title=s.seoTitle; if(s.seoDesc){ const md=document.getElementById('metaDesc'); if(md)md.setAttribute('content',s.seoDesc); }
-  const setSoc=(id,url)=>{ const el=document.getElementById(id); if(el&&url)el.href=url; };
-  setSoc('socWa',s.social_whatsapp); setSoc('socIg',s.social_instagram); setSoc('socLi',s.social_linkedin);
   if(s.catalogPdf){ const b=document.getElementById('pdfBtn'); b.href=s.catalogPdf; b.style.display='flex'; }
   buildFilter(); renderFooter(); renderMenu(); render();
 }
 function logo(t){ t=t||'medyapark'; return String(t).toLowerCase().startsWith('medya')?('medya<span>'+esc(String(t).slice(5))+'</span>'):esc(t); }
 
-function render(){ if(view.type==='home')renderHome(); else if(view.type==='mec')renderMec(); else if(view.type==='alt')renderAlt(); else renderPage(view.slug); badge(); window.scrollTo({top:0,behavior:'smooth'}); }
+function render(){ if(view.type==='home')renderHome(); else if(view.type==='mec')renderMec(); else if(view.type==='alt')renderAlt(); else if(view.type==='map')renderMap(); else renderPage(view.slug); badge(); window.scrollTo({top:0,behavior:'smooth'}); }
 function goHome(){ view={type:'home',filter:view.filter||null}; const s=document.getElementById('search'); if(s)s.value=''; render(); }
 function openMec(id){ view={type:'mec',id}; render(); }
 function openAlt(mecId,altId){ view={type:'alt',mecId,altId,gidx:0}; roll=0; render(); }
 function gPick(i){ view.gidx=i; renderAlt(); }
 function gMove(d){ const a=D.altById[view.altId]; const n=(a&&Array.isArray(a.galeri)?a.galeri.length:0)||1; view.gidx=((view.gidx||0)+d+n)%n; renderAlt(); }
 function openPage(slug){ view={type:'page',slug}; render(); }
-function onSearch(q){ if(view.type!=='home')view={type:'home',filter:view.filter}; renderHome(q); }
+function onSearch(q){ if(view.type==='map'){ mapQuery=q||''; refreshPins(); return; }
+  if(view.type!=='home')view={type:'home',filter:view.filter}; renderHome(q); }
 
 /* ---- filtre (ürün türüne göre) ---- */
 function buildFilter(){ const m=document.getElementById('filterMenu');
   m.innerHTML=`<a class="${!view.filter?'on':''}" onclick="setFilter(null)">Tümü</a>`+D.products.map(p=>`<a class="${String(view.filter)===String(p.id)?'on':''}" onclick="setFilter('${p.id}')">${esc(p.name)}</a>`).join(''); }
 function toggleFilter(e){ e.stopPropagation(); document.getElementById('filterMenu').classList.toggle('open'); }
-function setFilter(pid){ view.filter=pid; buildFilter(); document.getElementById('filterMenu').classList.remove('open'); view.type='home'; renderHome(); }
+function setFilter(pid){ view.filter=pid; buildFilter(); document.getElementById('filterMenu').classList.remove('open');
+  if(view.type==='map'){ refreshPins(); return; }
+  view.type='home'; renderHome(); }
 
 function animateCounters(){ document.querySelectorAll('.cnt').forEach(el=>{ const to=+el.dataset.to,dur=1200,t0=performance.now();
   (function step(t){ const p=Math.min(1,(t-t0)/dur); el.textContent=Math.floor(p*to).toLocaleString('tr-TR'); if(p<1)requestAnimationFrame(step); })(t0); }); }
@@ -237,6 +238,77 @@ function exportPDF(){ if(!cart.length)return; const s=D.settings; const sp=showP
   const rows=cart.map(c=>`<tr><td>${esc(c.mecra)}${c.alt?' / '+esc(c.alt):''}</td><td>${esc(c.unit)}</td><td>${esc(c.product)}</td><td>${esc(c.monthLabel)}</td>${sp?`<td style="text-align:right">${c.priceLabel}</td>`:''}</tr>`).join('');
   const w=window.open('','_blank'); w.document.write(`<html><head><meta charset="utf-8"><title>Teklif</title><style>body{font-family:-apple-system,Arial;padding:40px;color:#1d1d1f}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px;border-bottom:1px solid #eee;text-align:left}tfoot td{font-weight:700;border-top:2px solid #1d1d1f}</style></head><body><h1>${esc(s.logoText||'Medyapark')} — Teklif</h1><p style="color:#6e6e73">${new Date().toLocaleDateString('tr-TR')} · ${esc(s.phone||'')}</p><table><thead><tr><th>Lokasyon</th><th>Ünite</th><th>Ürün</th><th>Dönem</th>${sp?'<th style="text-align:right">Fiyat</th>':''}</tr></thead><tbody>${rows}</tbody>${sp?`<tfoot><tr><td colspan="4">TOPLAM</td><td style="text-align:right">${money(cartTotal())}</td></tr></tfoot>`:''}</table></body></html>`); w.document.close(); setTimeout(()=>w.print(),300); }
 const dl=(blob,name)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);};
+
+
+/* ================= HARİTA SAYFASI ================= */
+const ADANA=[37.0000,35.3213];
+let mapObj=null, clusterGrp=null, mapQuery='', mapPinsCache=[];
+function openMapPage(){ view={type:'map',filter:view.filter||null}; mapQuery=''; const s=document.getElementById('search'); if(s)s.value=''; render(); }
+
+/* Tüm işaretli konumları topla (koordinatı girilmiş pozisyonlar) */
+function allPins(){ const out=[];
+  D.mecralar.forEach(m=>{ (m.alts||[]).forEach(a=>{ const p=a.product||{};
+    (a.units||[]).forEach(u=>{ const la=parseFloat(u.lat), ln=parseFloat(u.lng);
+      if(!isFinite(la)||!isFinite(ln))return;
+      out.push({lat:la,lng:ln,mecId:m.id,altId:a.id,mec:m.name,alt:a.name,product:p.name||'',productId:a.product_id,
+        unit:u.name||'',image:(u.image||a.image||m.image||''),theme:(m.theme_color||'#0071e3'),konum:(u.konum||'')}); }); }); });
+  return out; }
+
+function pinMatches(p){
+  if(view.filter && String(p.productId)!==String(view.filter)) return false;
+  const q=(mapQuery||'').trim().toLowerCase(); if(!q) return true;
+  return [p.mec,p.alt,p.product,p.unit,p.konum].some(x=>String(x||'').toLowerCase().includes(q)); }
+
+function pinIcon(color){ return L.divIcon({className:'pin-wrap',iconSize:[30,40],iconAnchor:[15,38],popupAnchor:[0,-34],
+  html:`<span class="pin" style="--pc:${color}"></span>`}); }
+
+function popupHTML(p){
+  const img=p.image?`<div class="pp-img" style="background-image:url('${esc(p.image)}')"></div>`:'';
+  const sub=[p.product,p.unit].filter(Boolean).join(' › ');
+  return `<div class="pp">${img}<div class="pp-b"><div class="pp-t">${esc(p.mec)}</div>
+    <div class="pp-s">${esc(sub)}</div>${p.konum?`<div class="pp-k">${esc(p.konum)}</div>`:''}
+    <button class="btn btn-primary btn-sm" style="width:100%;margin-top:10px" onclick="openAlt('${p.mecId}','${p.altId}')">Detaya Git →</button>
+    <a class="pp-ext" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener">Google Haritalar'da aç ↗</a></div></div>`; }
+
+function refreshPins(){
+  if(!clusterGrp)return;
+  clusterGrp.clearLayers();
+  const list=mapPinsCache.filter(pinMatches);
+  const markers=list.map(p=>L.marker([p.lat,p.lng],{icon:pinIcon(p.theme),title:p.mec+' · '+p.unit}).bindPopup(popupHTML(p),{maxWidth:280,minWidth:240}));
+  clusterGrp.addLayers(markers);
+  const c=document.getElementById('mapCount'); if(c)c.textContent=list.length;
+  const empty=document.getElementById('mapEmpty'); if(empty)empty.style.display=list.length?'none':'block';
+  if(list.length){ try{ mapObj.fitBounds(L.latLngBounds(list.map(p=>[p.lat,p.lng])).pad(0.18),{maxZoom:15}); }catch(e){} }
+}
+
+function renderMap(){
+  const nav=`<a href="#" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <span>Harita</span>`;
+  const s=D.settings||{};
+  app().innerHTML=`${banner({kapak:s.mapKapak||'',kapak_color:'#101014',kapak_opacity:0.45,kapak_height:220},'',nav)}
+    <div class="map-wrap">
+      <div class="map-head">
+        <div><h1 class="map-t">${esc(s.mapTitle||'Reklam Alanlarımız — Adana Haritası')}</h1>
+        <p class="map-d">${esc(s.mapDesc||'Üstteki arama ve Filtrele menüsü haritada da çalışır. Pinlere tıklayarak alan bilgisini görebilir, detay sayfasına geçebilirsiniz.')}</p></div>
+        <div class="map-cnt"><b id="mapCount">0</b> alan</div>
+      </div>
+      <div id="mapCanvas" class="map-canvas"></div>
+      <div id="mapEmpty" class="map-empty" style="display:none">Bu arama/filtre için konumu işaretlenmiş alan bulunamadı.</div>
+      <p class="muted" style="font-size:12.5px;margin:12px 2px 60px">Yakınlaştırdıkça gruplanmış pinler ayrışır. Sayılı daireler o bölgedeki alan sayısını gösterir.</p>
+    </div>`;
+  mapPinsCache=allPins();
+  setTimeout(()=>{
+    if(typeof L==='undefined'){ document.getElementById('mapCanvas').innerHTML='<div class="map-empty">Harita kütüphanesi yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.</div>'; return; }
+    mapObj=L.map('mapCanvas',{scrollWheelZoom:true}).setView(ADANA,12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,
+      attribution:'&copy; OpenStreetMap katkıda bulunanlar'}).addTo(mapObj);
+    clusterGrp=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:55,spiderfyOnMaxZoom:true,
+      iconCreateFunction:c=>{ const n=c.getChildCount(); const sz=n<10?36:(n<50?44:52);
+        return L.divIcon({html:`<div class="cl-b" style="width:${sz}px;height:${sz}px;line-height:${sz}px">${n}</div>`,className:'cl-w',iconSize:[sz,sz]}); }});
+    mapObj.addLayer(clusterGrp);
+    refreshPins();
+    setTimeout(()=>mapObj.invalidateSize(),200);
+  },60);
+}
 
 /* ---- footer ---- */
 function renderFooter(){ const s=D.settings||{};

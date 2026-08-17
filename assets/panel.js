@@ -118,8 +118,8 @@ function showLogin(err){
 async function doLogin(){ const {error}=await sb.auth.signInWithPassword({email:gv('lu'),password:gv('lp')}); if(error){ showLogin(error.message); } else { showApp(); } }
 async function logout(){ await sb.auth.signOut(); showLogin(); }
 
-const NAV=[['dashboard','◱ Dashboard'],['is-takibi','◷ İş Takibi'],['urunler','◇ Ürünler'],['mecralar','▤ Mecralar'],['listeler','☰ Listeler'],['musteriler','◔ Müşteriler'],['teklifler','▦ Teklifler'],['ekip','◕ Ekip'],['sayfalar','▭ Sayfalar'],['notlar','✎ Notlar'],['ayarlar','⚙ Ayarlar']];
-const TITLES={dashboard:'Dashboard','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',listeler:'Listeler',musteriler:'Müşteriler',teklifler:'Teklifler',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
+const NAV=[['dashboard','◱ Dashboard'],['is-takibi','◷ İş Takibi'],['urunler','◇ Ürünler'],['mecralar','▤ Mecralar'],['harita','◉ Harita'],['listeler','☰ Listeler'],['musteriler','◔ Müşteriler'],['teklifler','▦ Teklifler'],['ekip','◕ Ekip'],['sayfalar','▭ Sayfalar'],['notlar','✎ Notlar'],['ayarlar','⚙ Ayarlar']];
+const TITLES={dashboard:'Dashboard','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Listeler',musteriler:'Müşteriler',teklifler:'Teklifler',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
 function showApp(){
   root().innerHTML=`<div class="app">
     <nav class="side"><div class="lg">medya<span>park</span></div>
@@ -147,6 +147,7 @@ async function renderSection(){
     if(ui.section==='ekip') return ekip(c);
     if(ui.section==='sayfalar') return sayfalar(c);
     if(ui.section==='notlar') return notlar(c);
+    if(ui.section==='harita') return harita(c);
     if(ui.section==='ayarlar') return ayarlar(c);
   }catch(e){ c.innerHTML='<div class="banner">Hata: '+esc(e.message||e)+'</div>'; }
 }
@@ -327,6 +328,105 @@ function drawUnitCal(uid){ const box=document.getElementById('cal-'+uid); if(!bo
 function calMove(uid,d){ calData[uid].y+=d; drawUnitCal(uid); }
 async function cycleMonth(uid,ym){ const st=calData[uid]; const cur=st.map[ym]; const next=cur==='dolu'?'rezerve':(cur==='rezerve'?'bos':'dolu');
   if(next==='bos')delete st.map[ym]; else st.map[ym]=next; drawUnitCal(uid); await api('booking_toggle',{unit_id:uid,ym,status:next}); }
+
+
+/* ---------- HARİTA (konum işaretleme) ---------- */
+let hMap=null, hCluster=null, hMarker=null, hRows=[], hSel=null, hQ='';
+async function harita(c){
+  const st=await api('settings_get');
+  const [al,un]=await Promise.all([
+    sb.from('alt_mecralar').select('*').order('sort').order('id'),
+    sb.from('units').select('*').order('sort').order('id')
+  ]);
+  const mecs=ui._mecralar||await api('mecra_list'); ui._mecralar=mecs;
+  const altById={}; (al.data||[]).forEach(a=>altById[a.id]=a);
+  const mecById={}; mecs.forEach(m=>mecById[m.id]=m);
+  hRows=(un.data||[]).map(u=>{ const a=altById[u.alt_mecra_id]||{}; const m=mecById[a.mecra_id||u.mecra_id]||{};
+    return {id:u.id,unit:u.name||'(pozisyon)',alt:a.name||'—',mec:m.name||'—',theme:m.theme_color||'#0071e3',
+            lat:u.lat,lng:u.lng,konum:u.konum||''}; });
+  const yes=hRows.filter(r=>r.lat!=null&&r.lng!=null).length;
+
+  c.innerHTML=`
+  <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Harita Sayfası Metinleri</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 12px">Header'daki <b>Maps</b> butonuyla açılan sayfanın başlığı ve açıklaması.</p>
+    <div class="field"><label class="flabel">Sayfa başlığı</label><input class="inp" id="mapTitle" value="${esc(st.mapTitle||'')}" placeholder="Reklam Alanlarımız — Adana Haritası"></div>
+    <div class="field"><label class="flabel">Açıklama</label><textarea class="inp" id="mapDesc" placeholder="Kısa tanıtım metni…">${esc(st.mapDesc||'')}</textarea></div>
+    <div class="field"><label class="flabel">Kapak görseli (sayfa üstü şerit)</label><div style="display:flex;gap:8px"><input class="inp" id="mapKapak" value="${esc(st.mapKapak||'')}"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mapKapak').value=u;})">Yükle</button></div></div>
+    <button class="btn btn-primary btn-sm" onclick="saveMapTexts()">Kaydet</button></div>
+
+  <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Konum İşaretleme</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 14px">Soldan bir pozisyon seçin, sonra <b>haritaya tıklayarak</b> yerini işaretleyin ve kaydedin. İşaretli konumlar sitedeki harita sayfasında pin olarak çıkar; yakın olanlar otomatik gruplanır.
+      <br><b>${yes}</b> / ${hRows.length} pozisyonun konumu işaretli.</p>
+    <div class="hmap-grid">
+      <div class="hmap-side">
+        <input class="inp" id="hSearch" placeholder="Pozisyon / mecra ara…" oninput="hFilter(this.value)" style="margin-bottom:10px">
+        <div id="hList" class="hlist"></div>
+      </div>
+      <div>
+        <div id="hSelBar" class="hselbar">Önce soldan bir pozisyon seçin.</div>
+        <div id="hMapCanvas" class="hmap"></div>
+      </div>
+    </div></div>`;
+  hRenderList();
+  setTimeout(hInitMap,80);
+}
+async function saveMapTexts(){ await api('settings_save',{mapTitle:gv('mapTitle'),mapDesc:gv('mapDesc'),mapKapak:gv('mapKapak')}); alert('Kaydedildi.'); }
+function hFilter(q){ hQ=(q||'').toLowerCase(); hRenderList(); }
+function hRenderList(){ const box=document.getElementById('hList'); if(!box)return;
+  const list=hRows.filter(r=>!hQ||[r.unit,r.alt,r.mec,r.konum].some(x=>String(x||'').toLowerCase().includes(hQ)));
+  box.innerHTML=list.length?list.map(r=>{ const ok=r.lat!=null&&r.lng!=null;
+    return `<div class="hrow ${hSel===r.id?'on':''}" onclick="hPick(${r.id})">
+      <span class="hdot" style="background:${ok?r.theme:'#d2d2d7'}"></span>
+      <div class="hnm"><b>${esc(r.unit)}</b><span>${esc(r.mec)} › ${esc(r.alt)}</span></div>
+      <span class="hst">${ok?'✓':'—'}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px;padding:8px">Sonuç yok.</p>';
+}
+function hInitMap(){
+  const el=document.getElementById('hMapCanvas'); if(!el)return;
+  if(typeof L==='undefined'){ el.innerHTML='<p class="muted" style="padding:20px">Harita kütüphanesi yüklenemedi. Sayfayı yenileyin.</p>'; return; }
+  hMap=L.map('hMapCanvas').setView([37.0000,35.3213],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(hMap);
+  hCluster=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50});
+  hMap.addLayer(hCluster);
+  hMap.on('click',e=>{ if(hSel==null){ alert('Önce soldaki listeden bir pozisyon seçin.'); return; } hPlace(e.latlng.lat,e.latlng.lng); });
+  hDrawAll(); setTimeout(()=>hMap.invalidateSize(),200);
+}
+function hDrawAll(){ if(!hCluster)return; hCluster.clearLayers();
+  const ms=hRows.filter(r=>r.lat!=null&&r.lng!=null&&r.id!==hSel).map(r=>
+    L.marker([r.lat,r.lng],{title:r.mec+' · '+r.unit}).bindPopup(`<b>${esc(r.unit)}</b><br>${esc(r.mec)} › ${esc(r.alt)}`));
+  hCluster.addLayers(ms);
+}
+function hPick(id){ hSel=id; hRenderList(); const r=hRows.find(x=>x.id===id); if(!r)return;
+  const bar=document.getElementById('hSelBar');
+  bar.innerHTML=`<b>${esc(r.unit)}</b> <span class="muted">— ${esc(r.mec)} › ${esc(r.alt)}</span>
+    <span class="hcoord" id="hCoord">${r.lat!=null?(+r.lat).toFixed(6)+', '+(+r.lng).toFixed(6):'konum yok — haritaya tıklayın'}</span>
+    <button class="btn btn-primary btn-sm" onclick="hSave()">Konumu Kaydet</button>
+    ${r.lat!=null?`<button class="btn btn-danger btn-sm" onclick="hClear()">Konumu Sil</button>`:''}`;
+  hDrawAll();
+  if(hMarker){ hMap.removeLayer(hMarker); hMarker=null; }
+  if(r.lat!=null&&r.lng!=null){ hPlace(r.lat,r.lng,true); hMap.setView([r.lat,r.lng],16); }
+}
+function hPlace(lat,lng,quiet){
+  if(hMarker) hMap.removeLayer(hMarker);
+  hMarker=L.marker([lat,lng],{draggable:true}).addTo(hMap);
+  hMarker.on('dragend',()=>{ const p=hMarker.getLatLng(); hSetCoordText(p.lat,p.lng); });
+  hSetCoordText(lat,lng);
+  if(!quiet) hMap.panTo([lat,lng]);
+}
+function hSetCoordText(lat,lng){ const el=document.getElementById('hCoord'); if(el)el.textContent=(+lat).toFixed(6)+', '+(+lng).toFixed(6); }
+async function hSave(){
+  if(hSel==null||!hMarker){ alert('Haritaya tıklayarak konumu işaretleyin.'); return; }
+  const p=hMarker.getLatLng();
+  await api('unit_save',{id:hSel,lat:p.lat,lng:p.lng});
+  const r=hRows.find(x=>x.id===hSel); if(r){ r.lat=p.lat; r.lng=p.lng; }
+  hRenderList(); hDrawAll(); alert('Konum kaydedildi.');
+}
+async function hClear(){
+  if(hSel==null)return; if(!confirm('Bu pozisyonun konumu silinsin mi?'))return;
+  await api('unit_save',{id:hSel,lat:null,lng:null});
+  const r=hRows.find(x=>x.id===hSel); if(r){ r.lat=null; r.lng=null; }
+  if(hMarker){ hMap.removeLayer(hMarker); hMarker=null; }
+  hRenderList(); hDrawAll(); hPick(hSel);
+}
 
 /* ---------- LİSTELER ---------- */
 async function listeler(c){
