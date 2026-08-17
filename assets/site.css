@@ -224,3 +224,16 @@ body{background:#fff;overflow-x:hidden;}
 .pp-k{font-size:12px;color:var(--ink3);margin-top:5px;line-height:1.4;}
 .pp-ext{display:block;text-align:center;font-size:12px;color:var(--ink3);margin-top:9px;text-decoration:none;}
 .pp-ext:hover{color:var(--teal,#0071e3);text-decoration:underline;}
+
+/* ---- Alt mecra detayındaki mini harita ---- */
+.mapbox{position:relative;}
+.altmap{position:absolute;inset:0;border-radius:inherit;z-index:1;}
+.altmap-all{position:absolute;left:12px;bottom:12px;z-index:400;background:rgba(255,255,255,.95);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;box-shadow:0 4px 14px -4px rgba(0,0,0,.3);transition:.15s;}
+.altmap-all:hover{color:var(--teal,#0071e3);border-color:var(--teal,#0071e3);}
+.mapph{display:flex;align-items:center;justify-content:center;height:100%;color:var(--ink3);font-size:14px;}
+.gm-row.solo{grid-template-columns:1fr;}
+.map-note{margin-top:12px;padding:11px 15px;border-radius:12px;background:#fff8e6;border:1px solid #f0dfae;color:#8a6d1f;font-size:13.5px;line-height:1.5;}
+/* Google InfoWindow içi kart */
+.gm-style .gm-style-iw-c{padding:0!important;border-radius:16px!important;overflow:hidden;}
+.gm-style .gm-style-iw-d{overflow:auto!important;}
+.gm-style .gm-style-iw-c .pp-b{padding:13px 15px 15px;}

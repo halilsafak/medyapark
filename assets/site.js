@@ -120,7 +120,16 @@ function renderAlt(){
   galImgs=(Array.isArray(alt.galeri)?alt.galeri:[]).slice(); galIdx=0;
   const galInner=`<div class="gimg" id="galImg" style="${galImgs.length?`background-image:url('${esc(galImgs[0])}')`:''}">${galImgs.length?'':'GALERİ / SLIDER'}</div>
     ${galImgs.length>1?`<div class="gnav l" onclick="galGo(-1)">‹</div><div class="gnav r" onclick="galGo(1)">›</div><div class="gdots" id="galDots">${galImgs.map((_,i)=>`<i class="${i===0?'on':''}" onclick="galSet(${i})"></i>`).join('')}</div>`:''}`;
-  const mapsInner = vis(alt,'maps',!!alt.maps)?alt.maps:'Google Maps';
+  /* Harita kutusu: bu alt mecranın işaretli pozisyonları varsa canlı mini harita,
+     yoksa panele yapıştırılmış iframe, o da yoksa yer tutucu */
+  const altPts=(alt.units||[]).map(u=>({lat:parseFloat(u.lat),lng:parseFloat(u.lng),name:u.name||'',konum:u.konum||''}))
+                              .filter(x=>isFinite(x.lat)&&isFinite(x.lng));
+  const showMapBox = vis(alt,'maps', altPts.length>0 || !!alt.maps);
+  let mapsInner;
+  if(!showMapBox) mapsInner='';
+  else if(altPts.length) mapsInner=`<div id="altMap" class="altmap"></div>
+      <button class="altmap-all" onclick="openMapPage()">Tüm alanları haritada gör →</button>`;
+  else mapsInner = alt.maps || '<div class="mapph">Konum eklenmemiş</div>';
 
   const mq=alt.marquee||''; let marquee='';
   if(mq){ const seg=mq.split('*').map(x=>x.trim()).filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join(''); const group=seg.repeat(4); marquee=`<div class="marquee"><div class="track">${group+group}</div></div>`; }
@@ -156,12 +165,31 @@ function renderAlt(){
   const bobj={kapak:(alt.kapak||m.kapak),kapak_color:(alt.kapak_color||m.kapak_color),kapak_opacity:(alt.kapak_opacity!=null?alt.kapak_opacity:m.kapak_opacity),kapak_height:(alt.kapak_height!=null?alt.kapak_height:m.kapak_height)};
 
   app().innerHTML=`${banner(bobj,(alt.baslik||p.name||alt.name),nav)}${introBlock(alt)}
-    <div class="gm-row"><div class="galbox">${galInner}</div><div class="mapbox">${mapsInner}</div></div>
+    <div class="gm-row${mapsInner?'':' solo'}"><div class="galbox">${galInner}</div>${mapsInner?`<div class="mapbox">${mapsInner}</div>`:''}</div>
     ${marquee}
     <div class="res-row"><div class="col-l">${table}</div><div class="side-col">${teknikAcc}${fiyatAcc}${sepetbox}</div></div>
     <div class="related-h"><a onclick="goHome()">Diğer Mecralara Göz Atın</a></div>
     <div class="carousel"><div class="cnav l" onclick="carScroll(-1)">‹</div><div class="cartrack" id="cartrack">${relCards}</div><div class="cnav r" onclick="carScroll(1)">›</div></div>`;
   renderSepetInline(); resetGalTimer();
+  if(altPts.length) initAltMap(altPts, m.theme_color||'#0071e3');
+}
+
+/* Alt mecra detayındaki mini harita */
+let altMapObj=null;
+function initAltMap(pts,color){
+  setTimeout(()=>{
+    const el=document.getElementById('altMap'); if(!el)return;
+    if(typeof L==='undefined'){ el.innerHTML='<div class="mapph">Harita yüklenemedi</div>'; return; }
+    if(altMapObj){ try{altMapObj.remove();}catch(e){} altMapObj=null; }
+    altMapObj=L.map('altMap',{scrollWheelZoom:false,zoomControl:true});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(altMapObj);
+    const ms=pts.map(p=>L.marker([p.lat,p.lng],{icon:pinIcon(color),title:p.name})
+      .bindPopup(`<div class="pp"><div class="pp-b"><div class="pp-t">${esc(p.name)}</div>${p.konum?`<div class="pp-k">${esc(p.konum)}</div>`:''}
+        <a class="pp-ext" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener">Google Haritalar'da aç ↗</a></div></div>`,{maxWidth:240}));
+    const grp=L.featureGroup(ms).addTo(altMapObj);
+    try{ altMapObj.fitBounds(grp.getBounds().pad(0.35),{maxZoom:16}); }catch(e){ altMapObj.setView([pts[0].lat,pts[0].lng],15); }
+    setTimeout(()=>altMapObj.invalidateSize(),200);
+  },80);
 }
 function rollNav(d){ roll+=d; renderAlt(); }
 function carScroll(d){ const t=document.getElementById('cartrack'); if(t)t.scrollBy({left:d*340,behavior:'smooth'}); }
@@ -270,15 +298,102 @@ function popupHTML(p){
     <button class="btn btn-primary btn-sm" style="width:100%;margin-top:10px" onclick="openAlt('${p.mecId}','${p.altId}')">Detaya Git →</button>
     <a class="pp-ext" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener">Google Haritalar'da aç ↗</a></div></div>`; }
 
+/* ---- motor: anahtar varsa Google Maps, yoksa OpenStreetMap ---- */
+let mapEngine='leaflet', gMap=null, gCluster=null, gInfo=null, gMarkers=[], gLoading=null;
+function gKey(){ return String((D.settings||{}).googleMapsKey||'').trim(); }
+
+function loadGoogle(){
+  if(gLoading) return gLoading;
+  gLoading=new Promise((res,rej)=>{
+    const key=gKey(); if(!key) return rej(new Error('anahtar girilmemis'));
+    if(window.google&&window.google.maps&&window.markerClusterer) return res();
+    const t=setTimeout(()=>rej(new Error('zaman asimi')),15000);
+    window.gm_authFailure=()=>{ clearTimeout(t); rej(new Error('anahtar reddedildi')); };
+    window.__gmReady=()=>{
+      const c=document.createElement('script');
+      c.src='https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js';
+      c.onload=()=>{ clearTimeout(t); res(); };
+      c.onerror=()=>{ clearTimeout(t); rej(new Error('kumeleme kutuphanesi yuklenemedi')); };
+      document.head.appendChild(c);
+    };
+    const g=document.createElement('script');
+    g.async=true;
+    g.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&callback=__gmReady&language=tr&region=TR';
+    g.onerror=()=>{ clearTimeout(t); rej(new Error('google maps yuklenemedi')); };
+    document.head.appendChild(g);
+  });
+  return gLoading;
+}
+
+function gPinSvg(color){ return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42">'+
+  '<path d="M16 41C16 41 30 25.5 30 15A14 14 0 1 0 2 15c0 10.5 14 26 14 26z" fill="'+color+'" stroke="#fff" stroke-width="3"/>'+
+  '<circle cx="16" cy="15" r="5.2" fill="#fff"/></svg>'); }
+
+function gClusterSvg(sz){ return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="'+sz+'" height="'+sz+'">'+
+  '<circle cx="'+(sz/2)+'" cy="'+(sz/2)+'" r="'+(sz/2-3)+'" fill="#0071e3" stroke="rgba(255,255,255,.92)" stroke-width="3"/></svg>'); }
+
+function setMapMeta(n){
+  const c=document.getElementById('mapCount'); if(c)c.textContent=n;
+  const e=document.getElementById('mapEmpty'); if(e)e.style.display=n?'none':'block'; }
+
 function refreshPins(){
+  const list=mapPinsCache.filter(pinMatches);
+  setMapMeta(list.length);
+  if(mapEngine==='google'){
+    if(!gMap)return;
+    if(gCluster)gCluster.clearMarkers();
+    gMarkers.forEach(mk=>mk.setMap(null));
+    gMarkers=list.map(p=>{
+      const mk=new google.maps.Marker({position:{lat:p.lat,lng:p.lng},title:p.mec+' \u00b7 '+p.unit,
+        icon:{url:gPinSvg(p.theme),scaledSize:new google.maps.Size(32,42),anchor:new google.maps.Point(16,41)}});
+      mk.addListener('click',()=>{ gInfo.setContent(popupHTML(p)); gInfo.open({anchor:mk,map:gMap}); });
+      return mk; });
+    if(gCluster)gCluster.addMarkers(gMarkers);
+    if(list.length){
+      const b=new google.maps.LatLngBounds();
+      list.forEach(p=>b.extend({lat:p.lat,lng:p.lng}));
+      gMap.fitBounds(b,60);
+      google.maps.event.addListenerOnce(gMap,'idle',()=>{ if(gMap.getZoom()>16)gMap.setZoom(16); });
+    }
+    return;
+  }
   if(!clusterGrp)return;
   clusterGrp.clearLayers();
-  const list=mapPinsCache.filter(pinMatches);
-  const markers=list.map(p=>L.marker([p.lat,p.lng],{icon:pinIcon(p.theme),title:p.mec+' · '+p.unit}).bindPopup(popupHTML(p),{maxWidth:280,minWidth:240}));
+  const markers=list.map(p=>L.marker([p.lat,p.lng],{icon:pinIcon(p.theme),title:p.mec+' \u00b7 '+p.unit}).bindPopup(popupHTML(p),{maxWidth:280,minWidth:240}));
   clusterGrp.addLayers(markers);
-  const c=document.getElementById('mapCount'); if(c)c.textContent=list.length;
-  const empty=document.getElementById('mapEmpty'); if(empty)empty.style.display=list.length?'none':'block';
   if(list.length){ try{ mapObj.fitBounds(L.latLngBounds(list.map(p=>[p.lat,p.lng])).pad(0.18),{maxZoom:15}); }catch(e){} }
+}
+
+function initGoogleMap(){
+  gMap=new google.maps.Map(document.getElementById('mapCanvas'),{
+    center:{lat:ADANA[0],lng:ADANA[1]}, zoom:12,
+    mapTypeControl:true, streetViewControl:true, fullscreenControl:true,
+    styles:[{featureType:'poi.business',stylers:[{visibility:'simplified'}]}]});
+  gInfo=new google.maps.InfoWindow({maxWidth:280});
+  gCluster=new markerClusterer.MarkerClusterer({map:gMap,markers:[],renderer:{
+    render:function(o){ const count=o.count, position=o.position; const sz=count<10?38:(count<50?46:54);
+      return new google.maps.Marker({position:position,zIndex:1000+count,
+        label:{text:String(count),color:'#fff',fontSize:'13px',fontWeight:'700'},
+        icon:{url:gClusterSvg(sz),scaledSize:new google.maps.Size(sz,sz),anchor:new google.maps.Point(sz/2,sz/2)}}); }}});
+  mapEngine='google';
+  refreshPins();
+}
+
+function initLeafletMap(note){
+  const el=document.getElementById('mapCanvas'); if(!el)return;
+  if(typeof L==='undefined'){ el.innerHTML='<div class="map-empty">Harita yuklenemedi. Baglantinizi kontrol edip sayfayi yenileyin.</div>'; return; }
+  mapObj=L.map('mapCanvas',{scrollWheelZoom:true}).setView(ADANA,12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap katkida bulunanlar'}).addTo(mapObj);
+  clusterGrp=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:55,spiderfyOnMaxZoom:true,
+    iconCreateFunction:function(c){ const n=c.getChildCount(); const sz=n<10?36:(n<50?44:52);
+      return L.divIcon({html:'<div class="cl-b" style="width:'+sz+'px;height:'+sz+'px;line-height:'+sz+'px">'+n+'</div>',className:'cl-w',iconSize:[sz,sz]}); }});
+  mapObj.addLayer(clusterGrp);
+  mapEngine='leaflet';
+  refreshPins();
+  setTimeout(function(){ mapObj.invalidateSize(); },200);
+  if(note){ const w=document.getElementById('mapNote'); if(w){ w.textContent=note; w.style.display='block'; } }
 }
 
 function renderMap(){
@@ -293,20 +408,18 @@ function renderMap(){
       </div>
       <div id="mapCanvas" class="map-canvas"></div>
       <div id="mapEmpty" class="map-empty" style="display:none">Bu arama/filtre için konumu işaretlenmiş alan bulunamadı.</div>
+      <div id="mapNote" class="map-note" style="display:none"></div>
       <p class="muted" style="font-size:12.5px;margin:12px 2px 60px">Yakınlaştırdıkça gruplanmış pinler ayrışır. Sayılı daireler o bölgedeki alan sayısını gösterir.</p>
     </div>`;
   mapPinsCache=allPins();
-  setTimeout(()=>{
-    if(typeof L==='undefined'){ document.getElementById('mapCanvas').innerHTML='<div class="map-empty">Harita kütüphanesi yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.</div>'; return; }
-    mapObj=L.map('mapCanvas',{scrollWheelZoom:true}).setView(ADANA,12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,
-      attribution:'&copy; OpenStreetMap katkıda bulunanlar'}).addTo(mapObj);
-    clusterGrp=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:55,spiderfyOnMaxZoom:true,
-      iconCreateFunction:c=>{ const n=c.getChildCount(); const sz=n<10?36:(n<50?44:52);
-        return L.divIcon({html:`<div class="cl-b" style="width:${sz}px;height:${sz}px;line-height:${sz}px">${n}</div>`,className:'cl-w',iconSize:[sz,sz]}); }});
-    mapObj.addLayer(clusterGrp);
-    refreshPins();
-    setTimeout(()=>mapObj.invalidateSize(),200);
+  setTimeout(function(){
+    if(gKey()){
+      loadGoogle().then(function(){ initGoogleMap(); })
+        .catch(function(err){
+          console.warn('Google Maps kullanilamadi:',err.message);
+          initLeafletMap('Google Maps yuklenemedi ('+err.message+'). Harita gecici olarak OpenStreetMap ile gosteriliyor.');
+        });
+    } else { initLeafletMap(); }
   },60);
 }
 
