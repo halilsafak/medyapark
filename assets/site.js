@@ -140,8 +140,8 @@ function renderMec(){
     m.gunluk_gosterim?['Gösterim',m.gunluk_gosterim]:null,
     m.toplam_alan?['Kapsam',m.toplam_alan]:null
   ].filter(Boolean);
-  const statsHTML=`<div class="hs-stats${visCls(m,'gosterim')}">${stats.map(x=>
-    `<div class="hs-row"><span>${esc(x[0])}</span><b>${esc(x[1])}</b></div>`).join('')}</div>`;
+  const statsHTML=stats.map(x=>
+    `<div class="hs-row"><span>${esc(x[0])}</span><b>${esc(x[1])}</b></div>`).join('');
 
   /* --- sidebar: bu lokasyonun alanları --- */
   const altLinks=alts.map(a=>{ const p=a.product||{}; const n=(a.units||[]).length;
@@ -155,11 +155,11 @@ function renderMec(){
   const pts=[]; alts.forEach(a=>(a.units||[]).forEach(u=>{const la=parseFloat(u.lat),ln=parseFloat(u.lng);
     if(isFinite(la)&&isFinite(ln))pts.push({lat:la,lng:ln,name:u.name||''});}));
   const mapBox = pts.length && visMode(m,'maps')!=='off'
-    ? `<div class="hs-map${visCls(m,'maps')}"><div id="hubMap"></div>
+    ? `<div class="hs-map"><div id="hubMap"></div>
         <button class="hs-mapall" onclick="openMapPage()">Haritada gör →</button></div>` : '';
 
   const st=D.settings||{};
-  const cta=`<div class="hs-cta">
+  const cta=`<div class="hs-sec hs-cta">
       <div class="hs-ct">Bu lokasyon için teklif alın</div>
       ${st.phone?`<a class="hs-btn" href="tel:${esc(String(st.phone).replace(/\s/g,''))}">${esc(st.phone)}</a>`:''}
       ${st.social_whatsapp?`<a class="hs-btn wa" href="${esc(st.social_whatsapp)}" target="_blank" rel="noopener">WhatsApp</a>`:''}
@@ -167,18 +167,18 @@ function renderMec(){
 
   const logoHTML = vis(m,'logo',!!m.logo)?`<div class="hs-logo${visCls(m,'logo')}">${picture(m.logo,null,'','logo')}</div>`:'';
 
-  const side=`<aside class="hub-side">
-    <div class="hs-card">
+  const side=`<aside class="hub-side"><div class="hs-panel">
+    <div class="hs-sec hs-top">
       ${logoHTML}
       <div class="hs-name">${esc(m.name)}</div>
       ${m.badge?`<span class="hs-badge">${esc(m.badge)}</span>`:''}
-      ${statsHTML}
-      ${mapBox}
     </div>
-    ${altLinks?`<div class="hs-card sticky"><div class="hs-h">Bu lokasyondaki alanlar</div>${altLinks}</div>`:''}
+    ${stats.length?`<div class="hs-sec${visCls(m,'gosterim')}">${statsHTML}</div>`:''}
+    ${mapBox?`<div class="hs-sec hs-nopad${visCls(m,'maps')}">${mapBox}</div>`:''}
+    ${altLinks?`<div class="hs-sec"><div class="hs-h">Bu lokasyondaki alanlar</div>${altLinks}</div>`:''}
+    ${others?`<div class="hs-sec"><div class="hs-h">Diğer lokasyonlar</div>${others}</div>`:''}
     ${cta}
-    ${others?`<div class="hs-card"><div class="hs-h">Diğer lokasyonlar</div>${others}</div>`:''}
-  </aside>`;
+  </div></aside>`;
 
   /* --- kroki --- */
   const kroki = vis(m,'kroki',!!m.yerlesim_plani)
