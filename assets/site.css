@@ -450,3 +450,66 @@ body{overflow-x:hidden;}
   .rg-mh{width:calc(27px*2 + 4px);} .rg-mh span{font-size:11.5px;}
   .rg-legend{gap:10px;font-size:12px;}
 }
+
+/* ================= MOBİL / MASAÜSTÜ GÖRÜNÜRLÜK ================= */
+@media(max-width:760px){ .only-desk{display:none!important;} }
+@media(min-width:761px){ .only-mob{display:none!important;} }
+.cover-banner .cov-bg{position:absolute;inset:0;background-size:cover;background-position:center;}
+
+/* ================= MECRA TANITIM SAYFASI ================= */
+.hub{max-width:1290px;margin:0 auto;padding:28px 20px 60px;display:grid;grid-template-columns:290px 1fr;gap:28px;align-items:start;}
+.hub-main{min-width:0;}
+.hub-side{display:flex;flex-direction:column;gap:14px;}
+.hs-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;}
+.hs-card.sticky{position:sticky;top:96px;}
+.hs-logo img{max-width:132px;max-height:44px;display:block;margin-bottom:10px;}
+.hs-name{font-size:17px;font-weight:700;letter-spacing:-.01em;}
+.hs-badge{display:inline-block;margin-top:7px;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--bg2);color:var(--ink2);}
+.hs-stats{margin-top:13px;border-top:1px solid var(--line2);padding-top:11px;}
+.hs-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;font-size:13px;}
+.hs-row span{color:var(--ink3);} .hs-row b{font-weight:600;text-align:right;}
+.hs-map{margin-top:13px;position:relative;}
+.hs-map #hubMap{height:150px;border-radius:11px;overflow:hidden;background:var(--bg2);z-index:1;}
+.hs-mapall{position:absolute;left:8px;bottom:8px;z-index:400;background:rgba(255,255,255,.95);border:1px solid var(--line);
+  border-radius:999px;padding:8px 14px;min-height:32px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink);}
+.hs-mapall:hover{color:var(--teal);border-color:var(--teal);}
+.hs-h{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:9px;}
+.qi{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:10px;
+  transition:.14s;margin:0 -4px;}
+.qi:hover{background:var(--bg2);}
+.qi-n{font-size:13.5px;font-weight:600;} .qi-m{font-size:11.5px;color:var(--ink3);white-space:nowrap;}
+.qi.sm .qi-n{font-weight:500;font-size:13px;}
+.hs-cta{background:var(--ink);color:#fff;border-radius:16px;padding:16px;}
+.hs-ct{font-size:13.5px;font-weight:600;margin-bottom:11px;line-height:1.4;}
+.hs-btn{display:block;text-align:center;background:rgba(255,255,255,.14);border-radius:10px;padding:10px;
+  font-size:13.5px;font-weight:600;margin-bottom:7px;transition:.14s;}
+.hs-btn:last-child{margin-bottom:0;} .hs-btn:hover{background:rgba(255,255,255,.24);}
+.hs-btn.wa{background:#25d366;color:#0b3d20;} .hs-btn.wa:hover{background:#31e074;}
+
+.intro.bare{max-width:none;margin:0;padding:0 0 4px;}
+.hub-kroki{margin-top:26px;}
+.hub-kroki h2,.hub-alts h2{font-size:19px;font-weight:650;letter-spacing:-.01em;margin:0 0 12px;}
+.kroki-box{position:relative;border:1px solid var(--line);border-radius:14px;background:#fff;padding:12px;cursor:zoom-in;overflow:hidden;}
+.kroki-img{display:block;width:100%;height:auto;object-fit:contain;border-radius:8px;}
+.kroki-zoom{position:absolute;right:14px;bottom:14px;background:rgba(255,255,255,.94);border:1px solid var(--line);
+  border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:600;color:var(--ink2);}
+.hub-adv{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:22px;}
+.hub-alts{margin-top:30px;}
+.hub-alts .grid3{grid-template-columns:repeat(3,1fr);margin:0;}
+.lbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;}
+.lbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;background:#fff;}
+.lbox-x{position:absolute;top:16px;right:20px;font-size:32px;color:#fff;background:none;border:0;cursor:pointer;line-height:1;}
+
+@media(max-width:1024px){
+  .hub{grid-template-columns:250px 1fr;gap:20px;padding:22px 16px 48px;}
+  .hub-alts .grid3{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:760px){
+  .hub{grid-template-columns:1fr;gap:16px;padding:18px 14px 44px;}
+  .hub-side{order:2;} .hub-main{order:1;}
+  .hs-card.sticky{position:static;}
+  .hub-alts .grid3{grid-template-columns:1fr;}
+  .hub-adv{grid-template-columns:1fr;}
+  .hub-kroki{margin-top:20px;} .hub-kroki h2,.hub-alts h2{font-size:17px;}
+  .kroki-box{padding:8px;}
+}

@@ -10,12 +10,29 @@ const curYm=()=> new Date().getFullYear()+'-'+pad(new Date().getMonth()+1);
 const prod=id=>D.products.find(p=>String(p.id)===String(id))||{};
 const mec=id=>D.mecralar.find(m=>String(m.id)===String(id));
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const vis=(o,key,has)=> ((o.visible&&o.visible[key])!==false) && has;
+/* Görünürlük: 'both' | 'desktop' | 'mobile' | 'off'  (eski true/false ile uyumlu) */
+function visMode(o,key){ const v=o&&o.visible&&o.visible[key];
+  if(v===undefined||v===null||v===true) return 'both';
+  if(v===false) return 'off';
+  return ['both','desktop','mobile','off'].includes(v)?v:'both'; }
+const vis=(o,key,has)=> !!has && visMode(o,key)!=='off';
+/* bölüme eklenecek sınıf: masaüstü/mobil kısıtı */
+function visCls(o,key){ const m=visMode(o,key); return m==='desktop'?' only-desk':(m==='mobile'?' only-mob':''); }
+/* Arka plan görseli: mobil sürümü varsa iki katman (gizli katmanın görseli indirilmez) */
+function bgLayers(desk,mob,cls,style){
+  cls=cls||''; style=style||'';
+  if(mob&&mob!==desk) return `<div class="${cls} only-desk" style="${style}${desk?`background-image:url('${esc(desk)}')`:''}"></div>`+
+                             `<div class="${cls} only-mob" style="${style}${`background-image:url('${esc(mob)}')`}"></div>`;
+  return `<div class="${cls}" style="${style}${desk?`background-image:url('${esc(desk)}')`:''}"></div>`; }
+/* <img> için mobil sürüm */
+function picture(desk,mob,cls,alt){
+  if(mob&&mob!==desk) return `<picture><source media="(max-width:760px)" srcset="${esc(mob)}"><img class="${cls||''}" src="${esc(desk)}" alt="${esc(alt||'')}" loading="lazy"></picture>`;
+  return `<img class="${cls||''}" src="${esc(desk)}" alt="${esc(alt||'')}" loading="lazy">`; }
 function perMonth(p){ const pr=p.prices||{}; if(typeof pr['1 Ay']==='number')return pr['1 Ay']; for(const v of Object.values(pr)){ if(typeof v==='number')return v; } return 0; }
 function hexToRgb(h){ if(!h)return '63,111,99'; h=String(h).replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join(''); if(h.length!==6)return '63,111,99'; const n=parseInt(h,16); return `${(n>>16)&255},${(n>>8)&255},${n&255}`; }
-function gcard(onclick,title,sub,image,theme,label){ const rgb=hexToRgb(theme); const bg=image?`background-image:url('${esc(image)}')`:'';
+function gcard(onclick,title,sub,image,theme,label,imageM){ const rgb=hexToRgb(theme);
   return `<a class="tile" href="#" onclick="${onclick};return false;" style="--tc-rgb:${rgb}">
-    <div class="bg" style="${bg}"></div><div class="ov"></div>
+    ${bgLayers(image,imageM,'bg','')}<div class="ov"></div>
     <div class="ct"><h3>${esc(title)}</h3>${sub?`<p class="tsub">${esc(sub)}</p>`:''}
       <div class="xp"><b>${esc(label||'Keşfet')}</b><span class="arw">→</span></div></div></a>`; }
 
@@ -71,15 +88,21 @@ function galRender(){ const img=document.getElementById('galImg'); if(!img)retur
 function galGo(d){ if(galImgs.length<2)return; galIdx=(galIdx+d+galImgs.length)%galImgs.length; galRender(); resetGalTimer(); }
 function galSet(i){ galIdx=i; galRender(); resetGalTimer(); }
 function resetGalTimer(){ clearInterval(galTimer); if(galImgs.length>1) galTimer=setInterval(()=>{ if(view.type!=='alt'){clearInterval(galTimer);return;} galIdx=(galIdx+1)%galImgs.length; galRender(); },3000); }
-function banner(obj,title,navHTML){ obj=obj||{}; const img=obj.kapak; const h=(obj.kapak_height||600); const rgb=hexToRgb(obj.kapak_color||'#101014'); const op=(obj.kapak_opacity!=null&&obj.kapak_opacity!==''?obj.kapak_opacity:0.4);
-  const cls=img?'light':'dark'; const style=`height:${h}px;${img?`background-image:url('${esc(img)}')`:''}`; const ov=img?`<div class="cov-ov" style="background:rgba(${rgb},${op})"></div>`:''; const ph=img?'':`<div class="cov-ph">KAPAK GÖRSELİ · ${h}px</div>`;
-  return `<div class="cover-banner" style="${style}">${ph}${ov}<div class="cov-inner"><nav class="cov-nav ${cls}" aria-label="Sayfa yolu">${navHTML||''}</nav></div></div>`; }
+function banner(obj,title,navHTML){ obj=obj||{}; const img=obj.kapak, imgM=obj.kapak_mobil;
+  const h=(obj.kapak_height||600); const rgb=hexToRgb(obj.kapak_color||'#101014');
+  const op=(obj.kapak_opacity!=null&&obj.kapak_opacity!==''?obj.kapak_opacity:0.4);
+  const cls=img?'light':'dark';
+  const layers=(img||imgM)?bgLayers(img,imgM,'cov-bg',''):'';
+  const ov=img?`<div class="cov-ov" style="background:rgba(${rgb},${op})"></div>`:'';
+  const ph=img?'':`<div class="cov-ph">KAPAK GÖRSELİ · ${h}px</div>`;
+  return `<div class="cover-banner" style="height:${h}px">${layers}${ph}${ov}<div class="cov-inner"><nav class="cov-nav ${cls}" aria-label="Sayfa yolu">${navHTML||''}</nav></div></div>`; }
 const showPrices=()=> (D.settings||{}).showPrices!==false;
 /* Kapak altı: başlık + açıklama */
-function introBlock(o){ o=o||{};
+function introBlock(o,bare){ o=o||{};
   const t=o.intro_baslik||'', d=o.aciklama||'';
   if(!vis(o,'aciklama',!!(t||d))) return '';
-  return `<section class="intro">${t?`<h1>${esc(t)}</h1>`:''}${d?`<p>${esc(d)}</p>`:''}</section>`; }
+  const inner=`${t?`<h1>${esc(t)}</h1>`:''}${d?`<p>${esc(d)}</p>`:''}`;
+  return `<section class="intro${bare?' bare':''}${visCls(o,'aciklama')}">${inner}</section>`; }
 function altPrices(alt,p){ const f=alt&&alt.fiyat; if(f&&f.baz!=null&&f.baz!==''){ const baz=+f.baz; const per=(mon,ind)=>Math.round(baz*mon*(1-(+ind||0)/100)); const rows=[]; if(f.hafta!=null&&f.hafta!=='')rows.push(['Haftalık',Math.round(+f.hafta)]); rows.push(['1 Ay',Math.round(baz)]); rows.push(['3 Ay',per(3,f.ind3)]); rows.push(['6 Ay',per(6,f.ind6)]); rows.push(['1 Yıl',per(12,f.ind12)]); return rows; } return Object.entries((p&&p.prices)||{}); }
 function altPerMonth(alt,p){ const f=alt&&alt.fiyat; if(f&&f.baz!=null&&f.baz!=='')return Math.round(+f.baz); return perMonth(p); }
 
@@ -91,7 +114,7 @@ function renderHome(q){
   if(q) list=list.filter(m=>m.name.toLowerCase().includes(q)||(m.alts||[]).some(a=>a.name.toLowerCase().includes(q)||(a.product&&a.product.name||'').toLowerCase().includes(q)));
   const h=D.settings.hero||{};
   const cards=list.map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
-    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet');}).join('');
+    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil);}).join('');
   app().innerHTML=`<section class="hero"><div class="counters"><span><b class="cnt" data-to="250">0</b>+ Reklam Alanı</span><span><b class="cnt" data-to="1000">0</b>+ Müşteri</span><span><b class="cnt" data-to="36">0</b>+ Yıllık Tecrübe</span></div><h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>
     <div class="grid3">${cards||'<p class="muted">Sonuç yok.</p>'}</div>`;
   animateCounters();
@@ -100,12 +123,118 @@ function renderHome(q){
 /* ---- MECRA → ALT MECRALAR ---- */
 function renderMec(){
   const m=mec(view.id); if(!m)return goHome();
-  const cards=(m.alts||[]).map(a=>{ const p=a.product||{}; const n=(a.units||[]).length;
-    const sub=[`${n} pozisyon`, a.toplam_alan].filter(Boolean).join(' · ');
-    return gcard(`openAlt('${m.id}','${a.id}')`, (p.name||a.name), sub, (a.image||m.image), m.theme_color, 'Keşfet');}).join('');
+  const alts=m.alts||[];
+  /* tek alt mecra + tanıtım kapalı ise doğrudan alt mecraya git */
+  if(alts.length===1 && m.hub===false) return openAlt(m.id,alts[0].id);
+
   const nav=`<a href="#" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <span>${esc(m.name)}</span>`;
-  app().innerHTML=`${banner(m,(m.baslik||m.name),nav)}${introBlock(m)}
-    <div class="grid3">${cards||'<p class="muted">Bu mecrada alt mecra yok.</p>'}</div>`;
+
+  /* --- istatistikler --- */
+  const units=alts.reduce((n,a)=>n+(a.units||[]).length,0);
+  const yuzey=alts.reduce((n,a)=>n+groupUnits(a.units||[]).reduce((k,g)=>k+(g.A?1:0)+(g.B?1:0),0),0);
+  const urunSay=new Set(alts.map(a=>String(a.product_id))).size;
+  const stats=[
+    ['Reklam alanı', urunSay+' tip'],
+    ['Pozisyon', units],
+    ['Yüzey', yuzey],
+    m.gunluk_gosterim?['Gösterim',m.gunluk_gosterim]:null,
+    m.toplam_alan?['Kapsam',m.toplam_alan]:null
+  ].filter(Boolean);
+  const statsHTML=`<div class="hs-stats${visCls(m,'gosterim')}">${stats.map(x=>
+    `<div class="hs-row"><span>${esc(x[0])}</span><b>${esc(x[1])}</b></div>`).join('')}</div>`;
+
+  /* --- sidebar: bu lokasyonun alanları --- */
+  const altLinks=alts.map(a=>{ const p=a.product||{}; const n=(a.units||[]).length;
+    return `<a class="qi" href="#" onclick="openAlt('${m.id}','${a.id}');return false;">
+      <span class="qi-n">${esc(p.name||a.name)}</span><span class="qi-m">${n} pozisyon</span></a>`;}).join('');
+  const others=D.mecralar.filter(x=>String(x.id)!==String(m.id)).map(x=>
+    `<a class="qi sm" href="#" onclick="openMec('${x.id}');return false;">
+      <span class="qi-n">${esc(x.name)}</span><span class="qi-m">${(x.alts||[]).length} alan</span></a>`).join('');
+
+  /* --- sidebar: mini harita (pozisyon koordinatlarının ortalaması) --- */
+  const pts=[]; alts.forEach(a=>(a.units||[]).forEach(u=>{const la=parseFloat(u.lat),ln=parseFloat(u.lng);
+    if(isFinite(la)&&isFinite(ln))pts.push({lat:la,lng:ln,name:u.name||''});}));
+  const mapBox = pts.length && visMode(m,'maps')!=='off'
+    ? `<div class="hs-map${visCls(m,'maps')}"><div id="hubMap"></div>
+        <button class="hs-mapall" onclick="openMapPage()">Haritada gör →</button></div>` : '';
+
+  const st=D.settings||{};
+  const cta=`<div class="hs-cta">
+      <div class="hs-ct">Bu lokasyon için teklif alın</div>
+      ${st.phone?`<a class="hs-btn" href="tel:${esc(String(st.phone).replace(/\s/g,''))}">${esc(st.phone)}</a>`:''}
+      ${st.social_whatsapp?`<a class="hs-btn wa" href="${esc(st.social_whatsapp)}" target="_blank" rel="noopener">WhatsApp</a>`:''}
+    </div>`;
+
+  const logoHTML = vis(m,'logo',!!m.logo)?`<div class="hs-logo${visCls(m,'logo')}">${picture(m.logo,null,'','logo')}</div>`:'';
+
+  const side=`<aside class="hub-side">
+    <div class="hs-card">
+      ${logoHTML}
+      <div class="hs-name">${esc(m.name)}</div>
+      ${m.badge?`<span class="hs-badge">${esc(m.badge)}</span>`:''}
+      ${statsHTML}
+      ${mapBox}
+    </div>
+    ${altLinks?`<div class="hs-card sticky"><div class="hs-h">Bu lokasyondaki alanlar</div>${altLinks}</div>`:''}
+    ${cta}
+    ${others?`<div class="hs-card"><div class="hs-h">Diğer lokasyonlar</div>${others}</div>`:''}
+  </aside>`;
+
+  /* --- kroki --- */
+  const kroki = vis(m,'kroki',!!m.yerlesim_plani)
+    ? `<section class="hub-kroki${visCls(m,'kroki')}">
+        <h2>Yerleşim Krokisi</h2>
+        <div class="kroki-box" onclick="lightbox('${esc(m.yerlesim_plani)}')">
+          ${picture(m.yerlesim_plani,m.kroki_mobil,'kroki-img','Yerleşim krokisi')}
+          <span class="kroki-zoom">Büyütmek için tıklayın</span></div></section>` : '';
+
+  /* --- avantajlar --- */
+  const adv=Array.isArray(m.avantajlar)?m.avantajlar.filter(a=>a&&(a.t||a.title)):[];
+  const advHTML = vis(m,'avantajlar',adv.length>0)
+    ? `<section class="hub-adv${visCls(m,'avantajlar')}">${adv.map(a=>
+        `<div class="adv"><b>${esc(a.t||a.title)}</b>${(a.d||a.desc)?`<span>${esc(a.d||a.desc)}</span>`:''}</div>`).join('')}</section>` : '';
+
+  /* --- ürün kartları --- */
+  const cards=alts.map(a=>{ const p=a.product||{}; const n=(a.units||[]).length;
+    const sub=[`${n} pozisyon`, a.toplam_alan].filter(Boolean).join(' · ');
+    return gcard(`openAlt('${m.id}','${a.id}')`, (p.name||a.name), sub, (a.image||m.image), m.theme_color, 'Keşfet', a.image_mobil);}).join('');
+
+  app().innerHTML=`${banner(m,(m.baslik||m.name),nav)}
+    <div class="hub">${side}
+      <div class="hub-main">
+        ${introBlock(m,true)}
+        ${kroki}${advHTML}
+        <section class="hub-alts">
+          <h2>Reklam Alanları</h2>
+          <div class="grid3">${cards||'<p class="muted">Bu lokasyonda alan tanımlı değil.</p>'}</div>
+        </section>
+      </div></div>`;
+  if(pts.length) initHubMap(pts, m.theme_color||'#0071e3');
+}
+
+/* mecra sayfasındaki mini harita */
+let hubMapObj=null;
+function initHubMap(pts,color){
+  setTimeout(()=>{
+    const el=document.getElementById('hubMap'); if(!el||typeof L==='undefined')return;
+    if(hubMapObj){ try{hubMapObj.remove();}catch(e){} hubMapObj=null; }
+    hubMapObj=L.map('hubMap',{scrollWheelZoom:false,zoomControl:false,dragging:false,attributionControl:false});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(hubMapObj);
+    const ms=pts.map(p=>L.marker([p.lat,p.lng],{icon:pinIcon(color)}));
+    const grp=L.featureGroup(ms).addTo(hubMapObj);
+    try{ hubMapObj.fitBounds(grp.getBounds().pad(0.5),{maxZoom:15}); }
+    catch(e){ hubMapObj.setView([pts[0].lat,pts[0].lng],14); }
+    setTimeout(()=>hubMapObj.invalidateSize(),160);
+  },60);
+}
+
+/* kroki büyütme */
+function lightbox(src){
+  if(!src)return;
+  const d=document.createElement('div'); d.className='lbox';
+  d.innerHTML=`<button class="lbox-x" aria-label="Kapat">×</button><img src="${esc(src)}" alt="Kroki">`;
+  d.onclick=()=>d.remove();
+  document.body.appendChild(d);
 }
 
 /* ---- ALT DETAY ---- */

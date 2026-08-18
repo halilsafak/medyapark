@@ -326,3 +326,8 @@ textarea.inp{resize:vertical;min-height:70px;}
   .hb-l{flex:0 0 66px;}
   .chart-x span{font-size:9.5px;}
 }
+
+/* ---- görünürlük seçici ---- */
+.vis-sel{display:flex;align-items:center;gap:10px;margin-top:9px;padding-top:9px;border-top:1px solid var(--c-line2);}
+.vis-sel>span{font-size:12px;font-weight:600;color:var(--c-ink2);white-space:nowrap;flex:0 0 auto;}
+.vis-sel select{max-width:230px;font-size:12.5px;padding:6px 9px;}
