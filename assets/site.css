@@ -410,3 +410,43 @@ body{overflow-x:hidden;}
   .map-canvas{height:300px;}
   .drawer{width:min(420px,80vw);}
 }
+
+/* ================= REZERVASYON IZGARASI (A/B yüzey) ================= */
+.rgrid{display:inline-block;min-width:100%;}
+.rg-row{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+.rg-row:last-child{margin-bottom:0;}
+.rg-lbl{flex:0 0 auto;width:86px;font-size:13px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rg-m{display:flex;gap:4px;flex:0 0 auto;}
+.rg-head{margin-bottom:8px;}
+.rg-head .rg-lbl{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);}
+.rg-mh{width:calc(30px*2 + 4px);justify-content:center;}
+.rg-mh span{font-size:11.5px;font-weight:700;color:var(--ink2);letter-spacing:.02em;}
+
+.rcell{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-size:10.5px;font-weight:700;color:#fff;transition:transform .12s ease,box-shadow .12s ease,background .12s;}
+.rcell i{font-style:normal;opacity:.85;}
+.rcell.bos{background:#3fb950;}
+.rcell.bos:hover{background:#2f9c41;cursor:pointer;transform:translateY(-1px);box-shadow:0 4px 10px -3px rgba(63,185,80,.6);}
+.rcell.dolu{background:#e5484d;}
+.rcell.rezerve{background:#f0883e;}
+.rcell.sel{background:#1f6feb;cursor:pointer;box-shadow:0 4px 12px -3px rgba(31,111,235,.65);}
+.rcell.past{background:#eceef1;color:#aab0b8;}
+.rcell.yok{background:#f4f5f7;color:#c3c8cf;box-shadow:inset 0 0 0 1px #e6e8eb;}
+
+.rg-legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:16px;padding-top:14px;
+  border-top:1px solid var(--line2);font-size:12.5px;color:var(--ink2);}
+.rg-legend span{display:inline-flex;align-items:center;gap:6px;}
+.rg-legend .sw{width:14px;height:14px;border-radius:4px;display:inline-block;}
+.rg-legend .sw.bos{background:#3fb950;} .rg-legend .sw.dolu{background:#e5484d;}
+.rg-legend .sw.rezerve{background:#f0883e;} .rg-legend .sw.sel{background:#1f6feb;}
+.rg-legend .lg-surf b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:6px;background:var(--bg2);border:1px solid var(--line);font-size:11px;color:var(--ink);}
+.rg-legend .lg-sep{width:1px;height:16px;background:var(--line);}
+
+@media(max-width:760px){
+  .rg-lbl{width:62px;font-size:12px;}
+  .rg-row{gap:9px;}
+  .rcell{width:27px;height:27px;border-radius:7px;font-size:10px;}
+  .rg-mh{width:calc(27px*2 + 4px);} .rg-mh span{font-size:11.5px;}
+  .rg-legend{gap:10px;font-size:12px;}
+}

@@ -109,6 +109,18 @@ function renderMec(){
 }
 
 /* ---- ALT DETAY ---- */
+/* "P1-A" -> {base:'P1', surf:'A'} ; eşleşmezse tek yüzey (A) sayılır */
+function posParts(name){ const t=String(name||'').trim();
+  const m=t.match(/^(.*[^\s._-])[\s._-]*([ABab])$/);
+  if(m) return {base:m[1], surf:m[2].toUpperCase()};
+  return {base:t, surf:'A'}; }
+function groupUnits(list){ const map=new Map();
+  (list||[]).forEach(u=>{ const p=posParts(u.name);
+    if(!map.has(p.base)) map.set(p.base,{base:p.base,A:null,B:null});
+    const g=map.get(p.base);
+    if(!g[p.surf]) g[p.surf]=u; else if(!g.B) g.B=u; });
+  return [...map.values()]; }
+
 function rollMonths(){ const b=new Date(); b.setDate(1); b.setMonth(b.getMonth()+roll*12);
   const arr=[]; for(let i=0;i<12;i++){ const d=new Date(b.getFullYear(),b.getMonth()+i,1); arr.push({ym:d.getFullYear()+'-'+pad(d.getMonth()+1),label:MONTHS_LONG[d.getMonth()],y:d.getFullYear()}); } return arr; }
 
@@ -135,20 +147,44 @@ function renderAlt(){
   if(mq){ const seg=mq.split('*').map(x=>x.trim()).filter(Boolean).map(x=>`<span>${esc(x)}</span>`).join(''); const group=seg.repeat(4); marquee=`<div class="marquee"><div class="track">${group+group}</div></div>`; }
 
   const months=rollMonths(); const now=curYm();
-  const yr=months[0].y + (months[11].y!==months[0].y?('-'+months[11].y):'');
-  const head='<th class="u">ÜNİTELER</th>'+months.map(mo=>`<th>${mo.label}</th>`).join('');
-  const rows=uList.map(u=>{ const mp={}; (u.booked||[]).forEach(b=>mp[b.ym]=b.status);
-    const cells=months.map(mo=>{ const st=mp[mo.ym], sel=cart.some(c=>String(c.unitId)===String(u.id)&&c.ym===mo.ym), past=mo.ym<now;
-      let cls='cell',txt='';
-      if(sel){cls+=' sel';txt='Sepette';}
-      else if(st){cls+=' dolu';txt='Dolu';}
-      else if(past){cls+=' past';txt='—';} else {cls+=' bos';txt='Boş';}
-      const click=(!st&&!past)?`onclick="pick('${u.id}','${mo.ym}')"`:(sel?`onclick="pick('${u.id}','${mo.ym}')"`:'');
-      return `<td><span class="${cls}" ${click}>${txt}</span></td>`; }).join('');
-    return `<tr><td class="u">${esc(u.name)}</td>${cells}</tr>`; }).join('');
-  const table=`<div class="restable"><div class="rh"><div><span class="t">Rezervasyon Tablosu</span> &nbsp;<span class="flow">Ünite Seç › Sepete Ekle › Teklif Al</span></div><div style="display:flex;align-items:center;gap:10px"><span class="yr">${yr}</span><div class="nav"><button onclick="rollNav(-1)">‹</button><button onclick="rollNav(1)">›</button></div></div></div>
-    <div class="rtwrap"><table class="rt"><thead><tr>${head}</tr></thead><tbody>${rows||'<tr><td class="u muted">Pozisyon yok</td></tr>'}</tbody></table></div>
-    <div class="cal-legend" style="margin:10px 4px 4px"><span><i class="lg-bos"></i>Müsait (Boş)</span><span><i class="lg-dolu"></i>Dolu</span><span><i class="lg-sel"></i>Sepette</span></div></div>`;
+  const yr=months[0].y + (months[11].y!==months[0].y?(' – '+months[11].y):'');
+  const groups=groupUnits(uList);
+
+  const monHead=months.map(mo=>`<div class="rg-m rg-mh"><span>${esc(mo.label.slice(0,3))}</span></div>`).join('');
+  const surfCell=(u,ym,past)=>{
+    if(!u) return `<span class="rcell yok" title="Bu pozisyonda bu yüzey tanımlı değil">–</span>`;
+    const mp={}; (u.booked||[]).forEach(b=>mp[b.ym]=b.status);
+    const st=mp[ym], sel=cart.some(c=>String(c.unitId)===String(u.id)&&c.ym===ym);
+    const {surf}=posParts(u.name);
+    const ay=MONTHS_LONG[+ym.slice(5,7)-1]+' '+ym.slice(0,4);
+    const yz=surf==='A'?'A yüzey (ön yüz)':'B yüzey (arka yüz)';
+    let cls='rcell', durum;
+    if(sel){cls+=' sel';durum='Sepette';}
+    else if(st==='dolu'){cls+=' dolu';durum='Dolu';}
+    else if(st==='rezerve'){cls+=' rezerve';durum='Rezerve';}
+    else if(past){cls+=' past';durum='Geçmiş';}
+    else {cls+=' bos';durum='Müsait';}
+    const tik=(!st&&!past)||sel ? ` onclick="pick('${u.id}','${ym}')"` : '';
+    return `<span class="${cls}" data-u="${u.id}" data-ym="${ym}"${tik} title="${esc(u.name)} · ${esc(yz)} · ${esc(ay)} — ${durum}"><i>${surf}</i></span>`;
+  };
+  const rows=groups.map(g=>{
+    const cells=months.map(mo=>`<div class="rg-m">${surfCell(g.A,mo.ym,mo.ym<now)}${surfCell(g.B,mo.ym,mo.ym<now)}</div>`).join('');
+    return `<div class="rg-row"><div class="rg-lbl" title="${esc(g.base)}">${esc(g.base)}</div>${cells}</div>`;
+  }).join('');
+
+  const table=`<div class="restable"><div class="rh">
+      <div><span class="t">Rezervasyon Tablosu</span> &nbsp;<span class="flow">Yüzey Seç › Sepete Ekle › Teklif Al</span></div>
+      <div style="display:flex;align-items:center;gap:10px"><span class="yr">${yr}</span><div class="nav"><button onclick="rollNav(-1)" title="Önceki yıl">‹</button><button onclick="rollNav(1)" title="Sonraki yıl">›</button></div></div></div>
+    <div class="rtwrap"><div class="rgrid">
+      <div class="rg-row rg-head"><div class="rg-lbl">Pozisyon</div>${monHead}</div>
+      ${rows||'<div class="rg-row"><div class="rg-lbl muted">Pozisyon yok</div></div>'}
+    </div></div>
+    <div class="rg-legend">
+      <span class="lg-surf"><b>A</b> Ön yüz</span><span class="lg-surf"><b>B</b> Arka yüz</span>
+      <span class="lg-sep"></span>
+      <span><i class="sw bos"></i>Müsait</span><span><i class="sw dolu"></i>Dolu</span>
+      <span><i class="sw rezerve"></i>Rezerve</span><span><i class="sw sel"></i>Seçili</span>
+    </div></div>`;
 
   const prices=altPrices(alt,p);
   const specRows=[['Ürün',p.name],['Ölçü',p.olcu],['Yüzey',p.yuzey],['Aydınlatma',p.isikli],['Baskı Malzemesi',p.baski_malzemesi],['Baskı Formatı',p.baski_format],['Yayın Formatı',p.yayin_format]].filter(x=>x[1]&&x[1]!=='—').map(x=>`<div class="spec"><span class="k">${esc(x[0])}</span><span class="v">${esc(x[1])}</span></div>`).join('');
@@ -203,7 +239,10 @@ function toggleMonth(uid,ym){
     cart.push({unitId:Number(uid),mecra:m.name,alt:alt.name,unit:u.name,product:p.name,olcu:u.olcu||p.olcu||'',ym,monthLabel:MONTHS_LONG[+mm-1]+' '+y,price,priceLabel:money(price)}); }
   badge(); renderCart(); updateCell(uid,ym); renderSepetInline();
 }
-function updateCell(uid,ym){ const el=document.querySelector(`.cell[data-u='${uid}'][data-ym='${ym}']`); if(!el)return; const sel=cart.some(c=>String(c.unitId)===String(uid)&&c.ym===ym); el.classList.remove('sel','bos'); if(sel){el.classList.add('sel');el.textContent='Sepette';}else{el.classList.add('bos');el.textContent='Boş';} }
+function updateCell(uid,ym){ const el=document.querySelector(`.rcell[data-u='${uid}'][data-ym='${ym}']`); if(!el)return;
+  const sel=cart.some(c=>String(c.unitId)===String(uid)&&c.ym===ym);
+  el.classList.remove('sel','bos'); el.classList.add(sel?'sel':'bos');
+  if(el.title) el.title=el.title.replace(/—.*$/, '— '+(sel?'Sepette':'Müsait')); }
 
 function renderSepetInline(){ const box=document.getElementById('sepetInner'); if(!box)return;
   if(!cart.length){ box.innerHTML='<div class="empty2">Sepetiniz boş. Tablodan müsait ay seçtikçe burada güncellenir.</div>'; return; }

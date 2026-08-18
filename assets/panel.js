@@ -437,6 +437,56 @@ async function hClear(){
   hRenderList(); hDrawAll(); hPick(hSel);
 }
 
+
+/* ---- pozisyon gruplama (P1-A / P1-B -> P1 satırı, A ve B yüzeyleri) ---- */
+function posParts(name){ const t=String(name||'').trim();
+  const m=t.match(/^(.*[^\s._-])[\s._-]*([ABab])$/);
+  if(m) return {base:m[1], surf:m[2].toUpperCase()};
+  return {base:t, surf:'A'}; }
+function groupUnits(list){ const map=new Map();
+  (list||[]).forEach(u=>{ const p=posParts(u.name);
+    if(!map.has(p.base)) map.set(p.base,{base:p.base,A:null,B:null});
+    const g=map.get(p.base);
+    if(!g[p.surf]) g[p.surf]=u; else if(!g.B) g.B=u; });
+  return [...map.values()]; }
+
+function lCell(u,ym,cmap,bmap){
+  if(!u) return `<span class="rcell yok" title="Bu yüzey tanımlı değil">–</span>`;
+  const rec=(bmap[u.id]||{})[ym]; const st=rec?rec.s:'bos';
+  const who=rec&&rec.c?(cmap[rec.c]||''):'';
+  const surf=posParts(u.name).surf;
+  const kod = who? String(who).trim().slice(0,3).toLocaleUpperCase('tr') : surf;
+  return `<span class="rcell ${st}" data-u="${u.id}" data-ym="${ym}" data-surf="${surf}"
+    onclick="lCycle(${u.id},'${ym}')"
+    onmouseenter="lTip(this)" onmouseleave="lTipHide()"><i>${esc(kod)}</i></span>`;
+}
+
+/* ---- üzerine gelince bilgi kartı ---- */
+let _tipEl=null;
+function lTip(el){
+  const uid=el.dataset.u, ym=el.dataset.ym;
+  const rec=(window.__lbmap[uid]||{})[ym]; const st=rec?rec.s:'bos';
+  const who=rec&&rec.c?(window.__lcmap[rec.c]||''):'';
+  const u=(window.__lumap||{})[uid]||{};
+  const durum= st==='dolu'?'Dolu':(st==='rezerve'?'Rezerve':'Boş');
+  const ay=MONTHS_LONG_TR[+ym.slice(5,7)-1]+' '+ym.slice(0,4);
+  const yz=el.dataset.surf==='A'?'A yüzey (ön yüz)':'B yüzey (arka yüz)';
+  if(!_tipEl){ _tipEl=document.createElement('div'); _tipEl.className='rtip'; document.body.appendChild(_tipEl); }
+  _tipEl.innerHTML=`<div class="rtip-t">${esc(u.name||'')} · ${esc(yz)}</div>
+    <div class="rtip-r"><span>Dönem</span><b>${esc(ay)}</b></div>
+    <div class="rtip-r"><span>Durum</span><b class="st-${st}">${durum}</b></div>
+    ${who?`<div class="rtip-r"><span>Kiralayan</span><b>${esc(who)}</b></div>`:''}
+    ${rec&&rec.n?`<div class="rtip-n">${esc(rec.n)}</div>`:''}`;
+  const b=el.getBoundingClientRect();
+  _tipEl.style.display='block';
+  const tw=_tipEl.offsetWidth, th=_tipEl.offsetHeight;
+  let left=b.left+b.width/2-tw/2; left=Math.max(8,Math.min(left,window.innerWidth-tw-8));
+  let top=b.top-th-10; if(top<8) top=b.bottom+10;
+  _tipEl.style.left=left+'px'; _tipEl.style.top=top+'px';
+}
+function lTipHide(){ if(_tipEl)_tipEl.style.display='none'; }
+const MONTHS_LONG_TR=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
 /* ---------- LİSTELER ---------- */
 async function listeler(c){
   if(!ui._lyear) ui._lyear=new Date().getFullYear();
@@ -446,8 +496,9 @@ async function listeler(c){
   const pmap={}; prods.forEach(p=>pmap[p.id]=p.name);
   const uByAlt={}; mlist.forEach(m=>(m.units||[]).forEach(u=>{ if(u.alt_mecra_id!=null)(uByAlt[u.alt_mecra_id]=uByAlt[u.alt_mecra_id]||[]).push(u); }));
   const altByMec={}; alts.forEach(a=>(altByMec[a.mecra_id]=altByMec[a.mecra_id]||[]).push(a));
-  const bmap={}; bks.forEach(b=>{(bmap[b.unit_id]=bmap[b.unit_id]||{})[b.ym]={s:b.status,c:b.customer_id};}); window.__lbmap=bmap;
-  const head='<th class="unit">Pozisyon</th>'+MONTHS_SHORT.map(mo=>`<th>${mo}</th>`).join('');
+  const bmap={}; bks.forEach(b=>{(bmap[b.unit_id]=bmap[b.unit_id]||{})[b.ym]={s:b.status,c:b.customer_id,n:b.note};}); window.__lbmap=bmap;
+  const umap={}; mlist.forEach(m=>(m.units||[]).forEach(u=>umap[u.id]=u)); window.__lumap=umap;
+  const monHead=MONTHS_SHORT.map(mo=>`<div class="rg-m rg-mh"><span>${mo}</span></div>`).join('');
   let html='';
   for(const m of mlist){ const as=altByMec[m.id]||[];
     html+=`<details class="sec-card lgrp" open><summary>${esc(m.name)}</summary>`;
@@ -455,29 +506,35 @@ async function listeler(c){
     for(const a of as){ const us=uByAlt[a.id]||[];
       html+=`<div class="sec-head" style="margin-top:10px"><h4 style="font-size:14px;margin:0">${esc(a.name)} <span class="muted">· ${esc(pmap[a.product_id]||'')}</span></h4><button class="btn btn-outline btn-sm" onclick="lAddPos(${a.id},${m.id},${a.product_id})">+ Pozisyon</button></div>`;
       if(!us.length){ html+='<p class="muted" style="font-size:12px">Pozisyon yok.</p>'; continue; }
-      html+=`<div style="overflow-x:auto"><table class="matrix"><thead><tr>${head}</tr></thead><tbody>`;
-      for(const u of us){ const um=bmap[u.id]||{};
-        const cells=MONTHS_SHORT.map((mo,i)=>{ const ym=y+'-'+pad(i+1); const rec=um[ym]; const st=rec?rec.s:'bos'; const who=rec&&rec.c?cmap[rec.c]:'';
-          const lbl= st==='bos'?'·':(who?esc(String(who).slice(0,3)).toLocaleUpperCase('tr'):(st==='dolu'?'D':'R'));
-          const tip=who?` title="Kiralayan: ${esc(who)}"`:'';
-          return `<td><span class="mx ${st}" data-u="${u.id}" data-ym="${ym}" onclick="lCycle(${u.id},'${ym}')"${tip}>${lbl}</span></td>`; }).join('');
-        html+=`<tr><td class="unit">${esc(u.name)}</td>${cells}</tr>`; }
-      html+='</tbody></table></div>';
+      const groups=groupUnits(us);
+      const rows=groups.map(g=>{
+        const cells=MONTHS_SHORT.map((mo,i)=>{ const ym=y+'-'+pad(i+1);
+          return `<div class="rg-m">${lCell(g.A,ym,cmap,bmap)}${lCell(g.B,ym,cmap,bmap)}</div>`; }).join('');
+        return `<div class="rg-row"><div class="rg-lbl" title="${esc(g.base)}">${esc(g.base)}</div>${cells}</div>`; }).join('');
+      html+=`<div class="rtwrap"><div class="rgrid">
+        <div class="rg-row rg-head"><div class="rg-lbl">Pozisyon</div>${monHead}</div>${rows}</div></div>`;
     }
-    html+='</details>';
+    html+=`<div class="rg-legend">
+      <span class="lg-surf"><b>A</b> Ön yüz</span><span class="lg-surf"><b>B</b> Arka yüz</span><span class="lg-sep"></span>
+      <span><i class="sw bos"></i>Boş</span><span><i class="sw dolu"></i>Dolu</span><span><i class="sw rezerve"></i>Rezerve</span>
+      </div></details>`;
   }
   const custOpts=custs.map(x=>`<option value="${x.id}">${esc(x.firma||x.ilgili_kisi||('#'+x.id))}</option>`).join('');
   c.innerHTML=`<div class="sec-head"><h3>Doluluk / Kiralama</h3>
     <div class="year-nav" style="margin:0"><button onclick="lYear(-1)">‹</button><span class="yr">${y}</span><button onclick="lYear(1)">›</button></div></div>
-    <div class="banner">Hücreye tıkla: Boş → Dolu → Rezerve → Boş. Dolu/Rezerve yaparken aşağıda seçili müşteri atanır ve anında kaydedilir. Ön yüzde müşteri görünmez; ziyaretçi yalnızca boş/dolu görür.</div>
+    <div class="banner">Her ayın altında iki kutu vardır: <b>soldaki A (ön yüz)</b>, <b>sağdaki B (arka yüz)</b>. Kutuya tıkla: Boş → Dolu → Rezerve → Boş. Dolu/Rezerve yaparken aşağıda seçili müşteri atanır ve anında kaydedilir. Kutunun üzerine gelince kiralayan firma bilgi kartında görünür. Ziyaretçi firma adını görmez, yalnızca durumu görür.</div>
     <div class="field" style="max-width:380px"><label class="flabel">Atanacak müşteri (dolu/rezerve için)</label><select class="inp" id="lcust"><option value="">— müşteri atama —</option>${custOpts}</select></div>
     ${html||'<p class="muted">Mecra yok.</p>'}`;
 }
 function lCycle(uid,ym){ const cur=(window.__lbmap[uid]||{})[ym]; const s=cur?cur.s:'bos'; const next=s==='bos'?'dolu':(s==='dolu'?'rezerve':'bos');
   const sel=document.getElementById('lcust'); const cid= next==='bos'? null : (sel&&sel.value?+sel.value:null);
   window.__lbmap[uid]=window.__lbmap[uid]||{}; if(next==='bos')delete window.__lbmap[uid][ym]; else window.__lbmap[uid][ym]={s:next,c:cid};
-  const el=document.querySelector(`.mx[data-u='${uid}'][data-ym='${ym}']`);
-  if(el){ el.className='mx '+(next==='bos'?'bos':next); const who=cid?window.__lcmap[cid]:''; el.textContent= next==='bos'?'·':(who?String(who).slice(0,3).toLocaleUpperCase('tr'):(next==='dolu'?'D':'R')); if(who)el.title='Kiralayan: '+who; else el.removeAttribute('title'); }
+  const el=document.querySelector(`.rcell[data-u='${uid}'][data-ym='${ym}']`);
+  if(el){ el.className='rcell '+next;
+    const who=cid?window.__lcmap[cid]:'';
+    const kod= (next!=='bos'&&who)? String(who).trim().slice(0,3).toLocaleUpperCase('tr') : (el.dataset.surf||'A');
+    el.innerHTML='<i>'+esc(kod)+'</i>';
+    lTip(el); }
   api('booking_toggle',{unit_id:uid,ym,status:next,customer_id:cid});
 }
 async function lAddPos(altId,mid,pid){ const nm=prompt('Pozisyon adı (ör. P1-A):','P'); if(nm===null)return; await api('unit_save',{alt_mecra_id:altId,mecra_id:mid,product_id:pid,name:(nm||'Yeni Pozisyon')}); renderSection(); }
