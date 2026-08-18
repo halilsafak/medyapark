@@ -33,16 +33,44 @@ async function api(action, body){
   switch(act){
     case 'dashboard_stats':{
       const y=new Date().getFullYear();
-      const [uc,mc,jc,qc,bc,rq]=await Promise.all([
-        sb.from('units').select('*',{count:'exact',head:true}),
-        sb.from('mecralar').select('*',{count:'exact',head:true}),
-        sb.from('jobs').select('*',{count:'exact',head:true}).neq('status','arsiv'),
-        sb.from('quotes').select('*',{count:'exact',head:true}).eq('status','yeni'),
-        sb.from('bookings').select('*',{count:'exact',head:true}).like('ym',y+'-%'),
+      const [un,mc,al,jb,qs,bk,rq]=await Promise.all([
+        sb.from('units').select('id,mecra_id,alt_mecra_id'),
+        sb.from('mecralar').select('id,name,theme_color').order('sort'),
+        sb.from('alt_mecralar').select('id,mecra_id'),
+        sb.from('jobs').select('id,status'),
+        sb.from('quotes').select('id,status,created_at'),
+        sb.from('bookings').select('unit_id,ym,status').like('ym',y+'-%'),
         sb.from('quotes').select('*').order('created_at',{ascending:false}).limit(6)
       ]);
-      const units=uc.count||0, mecra=mc.count||0;
-      return ok({doluluk:Math.round((bc.count||0)*100/Math.max(1,units*12)),activeJobs:jc.count||0,newQuotes:qc.count||0,mecra,units,recentQuotes:rq.data||[]});
+      const units=(un.data||[]), mecras=(mc.data||[]), alts=(al.data||[]);
+      const jobs=(jb.data||[]), quotes=(qs.data||[]), bks=(bk.data||[]);
+      /* aylık doluluk */
+      const aylik=Array.from({length:12},(_,i)=>({ay:i+1,dolu:0,rezerve:0}));
+      bks.forEach(b=>{ const i=(+String(b.ym).slice(5,7))-1; if(i<0||i>11)return;
+        if(b.status==='dolu')aylik[i].dolu++; else if(b.status==='rezerve')aylik[i].rezerve++; });
+      const kapasite=units.length;
+      const toplamDolu=bks.filter(b=>b.status==='dolu').length;
+      const toplamRez=bks.filter(b=>b.status==='rezerve').length;
+      const slot=Math.max(1,kapasite*12);
+      /* mecra bazında alan sayısı */
+      const uByMec={}; units.forEach(u=>{ uByMec[u.mecra_id]=(uByMec[u.mecra_id]||0)+1; });
+      const mecraDagilim=mecras.map(m=>({name:m.name,color:m.theme_color||'#4f6bed',adet:uByMec[m.id]||0}))
+                               .sort((a,b)=>b.adet-a.adet).slice(0,6);
+      /* teklif ve iş durumları */
+      const say=(arr,k)=>arr.reduce((o,x)=>{const v=x.status||'yeni';o[v]=(o[v]||0)+1;return o;},{});
+      const ay30=new Date(Date.now()-30*864e5).toISOString();
+      return ok({
+        units:units.length, mecra:mecras.length, alts:alts.length,
+        doluluk:Math.round(toplamDolu*100/slot),
+        dolulukRez:Math.round(toplamRez*100/slot),
+        toplamDolu, toplamRez, bosSlot:Math.max(0,slot-toplamDolu-toplamRez), slot,
+        aylik, mecraDagilim,
+        quoteStat:say(quotes), jobStat:say(jobs),
+        activeJobs:jobs.filter(j=>j.status!=='arsiv').length,
+        newQuotes:quotes.filter(q=>(q.status||'yeni')==='yeni').length,
+        son30Teklif:quotes.filter(q=>q.created_at&&q.created_at>ay30).length,
+        yil:y, recentQuotes:rq.data||[]
+      });
     }
     case 'jobs_list':{ const {data,error}=await sb.from('jobs').select('*').order('sort').order('id'); if(error)throw error; return ok(data); }
     case 'job_move':{ const {error}=await sb.from('jobs').update({status:body.status}).eq('id',body.id); if(error)throw error; return ok(); }
@@ -106,7 +134,9 @@ let ui={section:'dashboard'}, calData={};
 const root=()=>document.getElementById('root');
 
 /* ---- Kimlik doğrulama (Supabase Auth) ---- */
-async function boot(){ const {data}=await sb.auth.getSession(); if(data.session) showApp(); else showLogin(); }
+async function boot(){ const {data}=await sb.auth.getSession();
+  if(data.session){ try{ ui._settings=await api('settings_get'); }catch(e){ ui._settings={}; } showApp(); }
+  else showLogin(); }
 function showLogin(err){
   root().innerHTML=`<div class="login"><div class="box"><div class="lg">medya<span>park</span></div>
     <p class="muted">Yönetim Paneli</p>
@@ -115,20 +145,49 @@ function showLogin(err){
     <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Giriş Yap</button>
     ${err?`<p class="muted" style="color:var(--clay);margin:12px 0 0">${esc(err)}</p>`:''}</div></div>`;
 }
-async function doLogin(){ const {error}=await sb.auth.signInWithPassword({email:gv('lu'),password:gv('lp')}); if(error){ showLogin(error.message); } else { showApp(); } }
+async function doLogin(){ const {error}=await sb.auth.signInWithPassword({email:gv('lu'),password:gv('lp')});
+  if(error){ showLogin(error.message); return; }
+  try{ ui._settings=await api('settings_get'); }catch(e){ ui._settings={}; }
+  showApp(); }
 async function logout(){ await sb.auth.signOut(); showLogin(); }
 
-const NAV=[['dashboard','◱ Dashboard'],['is-takibi','◷ İş Takibi'],['urunler','◇ Ürünler'],['mecralar','▤ Mecralar'],['harita','◉ Harita'],['listeler','☰ Listeler'],['musteriler','◔ Müşteriler'],['teklifler','▦ Teklifler'],['ekip','◕ Ekip'],['sayfalar','▭ Sayfalar'],['notlar','✎ Notlar'],['ayarlar','⚙ Ayarlar']];
-const TITLES={dashboard:'Dashboard','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Listeler',musteriler:'Müşteriler',teklifler:'Teklifler',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
+const NAV=[
+ ['dashboard','Dashboard','dashboard','Genel'],
+ ['is-takibi','İş Takibi','jobs',''],
+ ['urunler','Ürünler','products','Envanter'],
+ ['mecralar','Mecralar','media',''],
+ ['harita','Harita','map',''],
+ ['listeler','Doluluk','lists',''],
+ ['musteriler','Müşteriler','customers','Satış'],
+ ['teklifler','Teklifler','quotes',''],
+ ['ekip','Ekip','team','Yönetim'],
+ ['sayfalar','Sayfalar','pages',''],
+ ['notlar','Notlar','notes',''],
+ ['ayarlar','Ayarlar','settings','']];
+const TITLES={dashboard:'Dashboard','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Doluluk',musteriler:'Müşteriler',teklifler:'Teklifler',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
 function showApp(){
+  const st=ui._settings||{};
+  const logo = st.logoImage
+    ? `<img src="${esc(st.logoImage)}" alt="logo">`
+    : `<span class="wm">medya<b>park</b></span>`;
+  let nav='';
+  NAV.forEach(n=>{
+    if(n[3]) nav+=`<div class="nav-grp">${esc(n[3])}</div>`;
+    nav+=`<button class="navi" data-s="${n[0]}" onclick="go('${n[0]}')">${ic(n[2],17)}<span>${esc(n[1])}</span></button>`;
+  });
   root().innerHTML=`<div class="app">
-    <nav class="side"><div class="lg">medya<span>park</span></div>
-      ${NAV.map(n=>`<div class="navi" data-s="${n[0]}" onclick="go('${n[0]}')"><span class="ico">${n[1].split(' ')[0]}</span>${n[1].split(' ').slice(1).join(' ')}</div>`).join('')}
-      <div class="navi logout" onclick="logout()"><span class="ico">⎋</span>Çıkış</div>
+    <nav class="side">
+      <div class="brand">${logo}<span class="brand-sub">Yönetim Paneli</span></div>
+      <div class="nav-scroll">${nav}</div>
+      <button class="navi logout" onclick="logout()">${ic('logout',17)}<span>Çıkış</span></button>
     </nav>
-    <div class="main"><div class="topbar"><h2 id="ttl">Dashboard</h2>
-      <a class="btn btn-outline btn-sm" href="index.html" target="_blank">Siteyi Aç</a></div>
-      <div class="content" id="content"></div></div></div>`;
+    <div class="main">
+      <header class="topbar">
+        <div class="tb-l"><h2 id="ttl">Dashboard</h2><span class="tb-crumb" id="tbc"></span></div>
+        <a class="btn btn-outline btn-sm" href="index.html" target="_blank">${ic('ext',15)} Siteyi Aç</a>
+      </header>
+      <div class="content" id="content"></div>
+    </div></div>`;
   go('dashboard');
 }
 function go(s){ ui.section=s; document.querySelectorAll('.navi').forEach(n=>n.classList.toggle('on',n.dataset.s===s));
@@ -156,41 +215,175 @@ async function renderSection(){
 function modal(html){ document.getElementById('modal').innerHTML=html; document.getElementById('modalBg').classList.add('open'); }
 function closeModal(){ document.getElementById('modalBg').classList.remove('open'); }
 
+
+/* ================= İKONLAR (satır içi SVG) ================= */
+const ICON={
+ dashboard:'<path d="M3 3h7v8H3zM14 3h7v5h-7zM14 11h7v10h-7zM3 14h7v7H3z"/>',
+ jobs:'<path d="M3 6h18M3 12h18M3 18h11"/><circle cx="19" cy="18" r="2.4"/>',
+ products:'<path d="M12 2.6 21 7v10l-9 4.4L3 17V7z"/><path d="M3 7l9 4.4L21 7M12 11.4V21"/>',
+ media:'<rect x="3" y="4" width="18" height="13" rx="1.5"/><path d="M8 21h8M12 17v4"/>',
+ map:'<path d="M9 3 3 5.5v15L9 18l6 3 6-2.5v-15L15 6z"/><path d="M9 3v15M15 6v15"/>',
+ lists:'<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.6" cy="6" r="1.1"/><circle cx="3.6" cy="12" r="1.1"/><circle cx="3.6" cy="18" r="1.1"/>',
+ customers:'<circle cx="9" cy="8" r="3.4"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 5.2a3.4 3.4 0 0 1 0 5.6M18 20a6 6 0 0 0-2.6-4.9"/>',
+ quotes:'<path d="M6 2.5h8l4.5 4.5v14.5H6z"/><path d="M14 2.5V7h4.5M9 12h7M9 16h5"/>',
+ team:'<circle cx="12" cy="7" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+ pages:'<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+ notes:'<path d="M4 4h16v12l-5 5H4z"/><path d="M20 16h-5v5"/><path d="M8 9h8M8 13h5"/>',
+ settings:'<circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.2A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3 15a1.6 1.6 0 0 0-1.5-1H1a2 2 0 1 1 0-4h.2A1.6 1.6 0 0 0 2.7 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 7 4.7 1.6 1.6 0 0 0 8 3.2V3a2 2 0 1 1 4 0v.2A1.6 1.6 0 0 0 15 4.7a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.4 1z" transform="translate(1 1) scale(.92)"/>',
+ logout:'<path d="M15 17l5-5-5-5M20 12H9M11 4H5v16h6"/>',
+ ext:'<path d="M14 4h6v6M20 4l-8 8M18 14v5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 19V8a1.5 1.5 0 0 1 1.5-1.5H10"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ up:'<path d="M5 15l7-7 7 7"/>', down:'<path d="M5 9l7 7 7-7"/>',
+ left:'<path d="M14 6l-6 6 6 6"/>', right:'<path d="M10 6l6 6-6 6"/>',
+ trash:'<path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.5 2"/>',
+ check:'<path d="M4 12.5l5 5L20 6.5"/>',
+ layers:'<path d="M12 3 3 7.5l9 4.5 9-4.5z"/><path d="M3 12.5 12 17l9-4.5M3 17 12 21.5 21 17"/>',
+ pin:'<path d="M12 21s7-6.6 7-11.5A7 7 0 1 0 5 9.5C5 14.4 12 21 12 21z"/><circle cx="12" cy="9.3" r="2.6"/>'
+};
+function ic(n,sz){ return `<svg class="ic" viewBox="0 0 24 24" width="${sz||18}" height="${sz||18}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[n]||''}</svg>`; }
+
+/* ================= MİNİ GRAFİKLER (bağımlılıksız SVG) ================= */
+function chartBars(rows,opt){
+  opt=opt||{}; const h=opt.h||150, max=Math.max(1,...rows.map(r=>r.a+(r.b||0)));
+  const n=rows.length, gap=opt.gap||6, w=100/n;
+  const bars=rows.map((r,i)=>{
+    const ha=(r.a/max)*h, hb=((r.b||0)/max)*h;
+    const x=i*w+gap/n/2, bw=w-gap/n;
+    return `<g class="cb"><title>${esc(r.l)}: ${r.a} dolu${r.b?' · '+r.b+' rezerve':''}</title>
+      <rect x="${x}%" y="${h-ha-hb}" width="${bw}%" height="${hb||0}" fill="var(--c-warn)" rx="2"/>
+      <rect x="${x}%" y="${h-ha}" width="${bw}%" height="${ha}" fill="var(--c-accent)" rx="2"/>
+      <rect x="${x}%" y="0" width="${bw}%" height="${h}" fill="transparent"/></g>`;
+  }).join('');
+  const labs=rows.map((r,i)=>`<span>${esc(r.l)}</span>`).join('');
+  return `<div class="chart"><svg viewBox="0 0 100 ${h}" preserveAspectRatio="none" height="${h}" width="100%">
+    ${[0,.25,.5,.75,1].map(p=>`<line x1="0" x2="100" y1="${h*p}" y2="${h*p}" stroke="var(--c-line)" stroke-width=".5" vector-effect="non-scaling-stroke"/>`).join('')}
+    ${bars}</svg><div class="chart-x">${labs}</div></div>`;
+}
+function chartDonut(segs,center){
+  const tot=Math.max(1,segs.reduce((s,x)=>s+x.v,0)); let acc=0; const R=54,C=2*Math.PI*R;
+  const arcs=segs.filter(s=>s.v>0).map(s=>{ const len=(s.v/tot)*C; const off=C-acc; acc+=len;
+    return `<circle class="dseg" r="${R}" cx="70" cy="70" fill="none" stroke="${s.c}" stroke-width="18"
+      stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${off}" transform="rotate(-90 70 70)"><title>${esc(s.l)}: ${s.v}</title></circle>`;}).join('');
+  return `<div class="donut"><svg viewBox="0 0 140 140" width="140" height="140">
+    <circle r="${R}" cx="70" cy="70" fill="none" stroke="var(--c-line)" stroke-width="18"/>${arcs}</svg>
+    <div class="donut-c"><b>${esc(center.v)}</b><span>${esc(center.l)}</span></div></div>`;
+}
+function chartRows(items){
+  const max=Math.max(1,...items.map(i=>i.v));
+  return `<div class="hbars">${items.map(i=>`<div class="hb">
+    <span class="hb-l" title="${esc(i.l)}">${esc(i.l)}</span>
+    <span class="hb-t"><i style="width:${(i.v/max)*100}%;background:${i.c||'var(--c-accent)'}"></i></span>
+    <b class="hb-v">${i.v}</b></div>`).join('')}</div>`;
+}
+
 /* ---------- DASHBOARD ---------- */
 async function dashboard(c){
   const s=await api('dashboard_stats');
-  const rq=(s.recentQuotes||[]).map(q=>`<tr><td>#${q.id}</td><td>${esc(q.customer_name||q.firma||'-')}</td><td>${money(q.total)}</td><td><span class="badge-st st-${q.status}">${q.status}</span></td><td>${(q.created_at||'').slice(0,10)}</td></tr>`).join('');
-  c.innerHTML=`<div class="kpi">
-    <div class="k teal"><div class="n">%${s.doluluk}</div><div class="l">Bu ay mecra doluluk</div></div>
-    <div class="k sand"><div class="n">${s.activeJobs}</div><div class="l">Devam eden iş</div></div>
-    <div class="k clay"><div class="n">${s.newQuotes}</div><div class="l">Yeni teklif</div></div>
-    <div class="k plain"><div class="n">${s.mecra}</div><div class="l">Mecra / ${s.units} ünite</div></div>
+  const AY=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  const QL={yeni:'Yeni',gorusuldu:'Görüşüldü',onaylandi:'Onaylandı',iptal:'İptal'};
+  const QC={yeni:'#4f6bed',gorusuldu:'#d99100',onaylandi:'#1f9d55',iptal:'#d64545'};
+  const JL={tasarim:'Tasarım',baski:'Baskı',montaj:'Montaj',yayin:'Yayın',arsiv:'Arşiv'};
+  const JC={tasarim:'#7c5cff',baski:'#d99100',montaj:'#0ea5b7',yayin:'#1f9d55',arsiv:'#8b93a7'};
+
+  const rq=(s.recentQuotes||[]).map(q=>`<tr onclick="quoteView(${q.id})">
+    <td class="mono">#${q.id}</td><td>${esc(q.customer_name||q.firma||'-')}</td>
+    <td><span class="badge-st st-${esc(q.status||'yeni')}">${esc(QL[q.status]||q.status||'yeni')}</span></td>
+    <td class="mono dim">${(q.created_at||'').slice(0,10)}</td></tr>`).join('');
+
+  const kpi=[
+    ['Doluluk','%'+s.doluluk, s.yil+' yılı · '+s.toplamDolu+'/'+s.slot+' ay-alan','accent','layers'],
+    ['Devam eden iş', s.activeJobs, (s.jobStat.yayin||0)+' yayında','violet','jobs'],
+    ['Yeni teklif', s.newQuotes, 'son 30 günde '+s.son30Teklif+' teklif','amber','quotes'],
+    ['Envanter', s.units, s.mecra+' mecra · '+s.alts+' alt mecra','green','media']
+  ].map(k=>`<div class="kpi-c ${k[3]}"><div class="kpi-ic">${ic(k[4],20)}</div>
+    <div class="kpi-n mono">${esc(k[1])}</div><div class="kpi-t">${esc(k[0])}</div>
+    <div class="kpi-s">${esc(k[2])}</div></div>`).join('');
+
+  const bars=chartBars(s.aylik.map((a,i)=>({l:AY[i],a:a.dolu,b:a.rezerve})),{h:150});
+  const donut=chartDonut([
+    {l:'Dolu',v:s.toplamDolu,c:'var(--c-accent)'},
+    {l:'Rezerve',v:s.toplamRez,c:'var(--c-warn)'},
+    {l:'Boş',v:s.bosSlot,c:'var(--c-line2)'}],{v:'%'+s.doluluk,l:'dolu'});
+
+  const qSegs=Object.keys(QL).map(k=>({l:QL[k],v:s.quoteStat[k]||0,c:QC[k]}));
+  const qTot=qSegs.reduce((a,b)=>a+b.v,0);
+  const jRows=Object.keys(JL).map(k=>({l:JL[k],v:s.jobStat[k]||0,c:JC[k]}));
+
+  c.innerHTML=`
+  <div class="kpi-row">${kpi}</div>
+
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-h"><h3>${s.yil} Aylık Doluluk</h3>
+        <div class="lgnd"><span><i style="background:var(--c-accent)"></i>Dolu</span><span><i style="background:var(--c-warn)"></i>Rezerve</span></div></div>
+      <div class="card-b">${bars}</div>
+    </section>
+    <section class="card">
+      <div class="card-h"><h3>Yıllık Kapasite</h3></div>
+      <div class="card-b donut-wrap">${donut}
+        <div class="dlist">
+          <div><i style="background:var(--c-accent)"></i>Dolu<b class="mono">${s.toplamDolu}</b></div>
+          <div><i style="background:var(--c-warn)"></i>Rezerve<b class="mono">${s.toplamRez}</b></div>
+          <div><i style="background:var(--c-line2)"></i>Boş<b class="mono">${s.bosSlot}</b></div>
+        </div></div>
+    </section>
   </div>
-  <div class="sec-card"><div class="sec-head"><h3>Son Teklifler</h3><button class="btn btn-ghost btn-sm" onclick="go('teklifler')">Tümü</button></div>
-    ${rq?`<table class="tbl"><thead><tr><th>#</th><th>Müşteri</th><th>Tutar</th><th>Durum</th><th>Tarih</th></tr></thead><tbody>${rq}</tbody></table>`:'<p class="muted">Henüz teklif yok.</p>'}</div>`;
+
+  <div class="grid-3">
+    <section class="card">
+      <div class="card-h"><h3>Teklif Durumları</h3><span class="chip mono">${qTot}</span></div>
+      <div class="card-b">${qTot?chartRows(qSegs):'<p class="empty">Henüz teklif yok.</p>'}</div>
+    </section>
+    <section class="card">
+      <div class="card-h"><h3>İş Akışı</h3><button class="btn btn-ghost btn-sm" onclick="go('is-takibi')">Aç</button></div>
+      <div class="card-b">${chartRows(jRows)}</div>
+    </section>
+    <section class="card">
+      <div class="card-h"><h3>Mecra Bazında Alan</h3></div>
+      <div class="card-b">${s.mecraDagilim.length?chartRows(s.mecraDagilim.map(m=>({l:m.name,v:m.adet,c:m.color}))):'<p class="empty">Mecra yok.</p>'}</div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-h"><h3>Son Teklifler</h3><button class="btn btn-ghost btn-sm" onclick="go('teklifler')">Tümü</button></div>
+    ${rq?`<table class="tbl rowlink"><thead><tr><th>#</th><th>Müşteri</th><th>Durum</th><th>Tarih</th></tr></thead><tbody>${rq}</tbody></table>`:'<div class="card-b"><p class="empty">Henüz teklif yok.</p></div>'}
+  </section>`;
 }
 
 /* ---------- İŞ TAKİBİ (kanban) ---------- */
 const JOBST=[['tasarim','Tasarımda'],['baski','Baskıda'],['montaj','Montajda'],['yayin','Yayında'],['arsiv','Arşiv']];
+const JOBC={tasarim:'violet',baski:'amber',montaj:'cyan',yayin:'green',arsiv:'slate'};
 async function isTakibi(c){
   const jobs=await api('jobs_list');
-  const cols=JOBST.map(([st,lbl])=>{
-    const items=jobs.filter(j=>j.status===st).map(j=>{
-      const idx=JOBST.findIndex(x=>x[0]===st);
-      return `<div class="kcard"><div class="t">${esc(j.title)}</div><div class="m">${esc(j.note||'')}</div>
-      <div class="acts">${idx>0?`<button onclick="jobMove(${j.id},'${JOBST[idx-1][0]}')">‹</button>`:''}
-      ${idx<4?`<button onclick="jobMove(${j.id},'${JOBST[idx+1][0]}')">›</button>`:''}
-      <button onclick="jobDelete(${j.id})">sil</button></div></div>`;}).join('');
-    return `<div class="kcol"><h4>${lbl}<span>${jobs.filter(j=>j.status===st).length}</span></h4>${items}</div>`;
+  const toplam=jobs.filter(j=>j.status!=='arsiv').length;
+  const cols=JOBST.map(([st,lbl],idx)=>{
+    const list=jobs.filter(j=>j.status===st);
+    const items=list.map(j=>`<article class="kcard">
+      <div class="kc-t">${esc(j.title)}</div>
+      ${j.note?`<div class="kc-m">${esc(j.note)}</div>`:''}
+      <div class="kc-a">
+        ${idx>0?`<button title="Geri al: ${esc(JOBST[idx-1][1])}" onclick="jobMove(${j.id},'${JOBST[idx-1][0]}')">${ic('left',15)}</button>`:'<span></span>'}
+        ${idx<JOBST.length-1?`<button title="İlerlet: ${esc(JOBST[idx+1][1])}" onclick="jobMove(${j.id},'${JOBST[idx+1][0]}')">${ic('right',15)}</button>`:'<span></span>'}
+        <button class="del" title="Sil" onclick="jobDelete(${j.id})">${ic('trash',15)}</button>
+      </div></article>`).join('');
+    return `<section class="kcol ${JOBC[st]||'slate'}">
+      <header class="kcol-h"><span class="kdot"></span><h4>${esc(lbl)}</h4><span class="kcount mono">${list.length}</span></header>
+      <div class="kcol-b">${items||'<p class="kempty">Kayıt yok</p>'}</div>
+      <button class="kadd" onclick="jobForm('${st}')">${ic('plus',14)} Ekle</button>
+    </section>`;
   }).join('');
-  c.innerHTML=`<div class="sec-head"><h3>İş Akışı</h3><button class="btn btn-primary btn-sm" onclick="jobForm()">+ Yeni İş</button></div><div class="kanban">${cols}</div>`;
+  c.innerHTML=`<div class="sec-head">
+      <div><h3>İş Akışı</h3><p class="sub">${toplam} aktif iş · aşamalar arasında oklarla taşıyın</p></div>
+      <button class="btn btn-primary btn-sm" onclick="jobForm()">${ic('plus',15)} Yeni İş</button></div>
+    <div class="kanban">${cols}</div>`;
 }
 async function jobMove(id,status){ await api('job_move',{id,status}); renderSection(); }
 async function jobDelete(id){ if(confirm('Silinsin mi?')){ await api('job_delete&id='+id); renderSection(); } }
-function jobForm(){ modal(`<h3 style="margin:0 0 14px">Yeni İş</h3>
+function jobForm(st){ modal(`<h3 style="margin:0 0 14px">Yeni İş</h3>
   <div class="field"><label class="flabel">Başlık</label><input class="inp" id="jt"></div>
   <div class="field"><label class="flabel">Not</label><textarea class="inp" id="jn"></textarea></div>
-  <div class="field"><label class="flabel">Durum</label><select class="inp" id="js">${JOBST.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join('')}</select></div>
+  <div class="field"><label class="flabel">Durum</label><select class="inp" id="js">${JOBST.map(x=>`<option value="${x[0]}" ${st===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>
   <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="closeModal()">Vazgeç</button><button class="btn btn-primary btn-sm" onclick="jobSave()">Kaydet</button></div>`); }
 async function jobSave(){ await api('job_save',{title:gv('jt'),note:gv('jn'),status:gv('js')}); closeModal(); renderSection(); }
 
