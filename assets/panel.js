@@ -75,6 +75,82 @@ function pickUpload(accept, cb, opt){ const inp=document.createElement('input');
   inp.click(); }
 
 
+
+/* ==========================================================
+   YEDEKLEME  (Supabase ücretsiz planda otomatik yedek yok)
+   Tüm tablolar tek JSON dosyasına indirilir; aynı dosyadan
+   geri yüklenebilir.
+   ========================================================== */
+const YEDEK_TABLO=['settings','pages','products','mecralar','alt_mecralar','units',
+  'customers','suppliers','jobs','bookings','notes','team','quotes','quote_items'];
+/* geri yükleme sırası: bağımlı tablolar sonra gelmeli */
+const YEDEK_SIRA=['settings','pages','products','customers','suppliers','team',
+  'mecralar','alt_mecralar','units','jobs','bookings','notes','quotes','quote_items'];
+
+async function yedekAl(){
+  const btn=document.getElementById('bkBtn'); if(btn){btn.disabled=true;btn.textContent='Hazırlanıyor…';}
+  const out={_bilgi:{olusturma:new Date().toISOString(),kullanici:ui._email||'',surum:1},_tablolar:{}};
+  let toplam=0, hata=[];
+  for(const t of YEDEK_TABLO){
+    try{ const {data,error}=await sb.from(t).select('*'); if(error)throw error;
+      out._tablolar[t]=data||[]; toplam+=(data||[]).length; }
+    catch(e){ hata.push(t); out._tablolar[t]=[]; }
+  }
+  const gorseller=[];
+  JSON.stringify(out).replace(/https?:\/\/[^"\\ ]+\/storage\/v1\/object\/public\/[^"\\ ]+/g,u=>{gorseller.push(u);return u;});
+  out._gorseller=[...new Set(gorseller)];
+  const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`medyapark-yedek-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  if(btn){btn.disabled=false;btn.innerHTML=ic('download',15)+' Yedek Al (JSON)';}
+  const bilgi=document.getElementById('bkInfo');
+  if(bilgi) bilgi.innerHTML=`<div class="imp-info">Yedek indirildi · ${toplam} kayıt · ${out._gorseller.length} görsel bağlantısı`
+    +(hata.length?` · <b>okunamayan tablo: ${hata.join(', ')}</b>`:'')+`</div>`;
+}
+
+function yedekYukleAc(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
+  inp.onchange=async()=>{ const f=inp.files[0]; if(!f)return;
+    let veri; try{ veri=JSON.parse(await f.text()); }catch(e){ alert('Dosya okunamadı, geçerli bir yedek dosyası seçin.'); return; }
+    if(!veri._tablolar){ alert('Bu dosya bir Medyapark yedeği değil.'); return; }
+    const say=Object.entries(veri._tablolar).map(([k,v])=>`${k}: ${v.length}`).join(' · ');
+    modal(`<h3 style="margin:0 0 10px">Yedekten Geri Yükle</h3>
+      <div class="imp-warn">Bu işlem yedekteki kayıtları veritabanına yazar. Aynı numaralı kayıtların üzerine yazılır.
+        Yedek alındıktan SONRA eklenmiş kayıtlar silinmez, oldukları gibi kalır.</div>
+      <p class="muted" style="font-size:12.5px">Yedek tarihi: <b>${esc(String((veri._bilgi||{}).olusturma||'').slice(0,16).replace('T',' '))}</b></p>
+      <div class="imp-info" style="max-height:120px;overflow:auto">${esc(say)}</div>
+      <p style="font-size:13px;margin:12px 0 6px">Devam etmek için aşağıya <b>GERI YUKLE</b> yazın:</p>
+      <input class="inp" id="bkOnay" placeholder="GERI YUKLE" autocomplete="off">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+        <button class="btn btn-ghost btn-sm" onclick="closeModal()">Vazgeç</button>
+        <button class="btn btn-danger btn-sm" onclick="yedekGeriYukle()">Geri Yükle</button></div>`);
+    window.__yedek=veri;
+  };
+  inp.click();
+}
+async function yedekGeriYukle(){
+  if((gv('bkOnay')||'').trim().toLocaleUpperCase('tr')!=='GERI YUKLE'){ alert('Onay metnini tam yazın: GERI YUKLE'); return; }
+  const veri=window.__yedek; if(!veri)return;
+  const bilgi=document.getElementById('bkOnay').parentElement;
+  bilgi.innerHTML='<p class="muted">Geri yükleniyor… Bu pencereyi kapatmayın.</p>';
+  let ok=0, hata=[];
+  for(const t of YEDEK_SIRA){
+    const rows=veri._tablolar[t]; if(!rows||!rows.length)continue;
+    try{
+      for(let i=0;i<rows.length;i+=200){
+        const {error}=await sb.from(t).upsert(rows.slice(i,i+200),{onConflict:t==='settings'?'k':'id'});
+        if(error)throw error;
+      }
+      ok+=rows.length;
+    }catch(e){ hata.push(t+' ('+(e.message||e).slice(0,40)+')'); }
+  }
+  closeModal();
+  alert(`Geri yükleme bitti.\n${ok} kayıt yazıldı.`+(hata.length?`\n\nSorun çıkan tablolar:\n`+hata.join('\n'):''));
+  renderSection();
+}
+
 /* ==========================================================
    İŞLEM KAYITLARI
    Kaydetme/silme işlemleri arka planda loglanır; hata olursa
@@ -2138,6 +2214,15 @@ async function ayarlar(c){
     <div class="field"><label class="flabel">Açıklama (description)</label><textarea class="inp" id="seoD">${esc(st.seoDesc||'')}</textarea></div>
     <div class="field"><label class="flabel">Anahtar kelimeler</label><input class="inp" id="seoK" value="${esc(st.seoKeywords||'')}"></div>
     <button class="btn btn-primary btn-sm" onclick="saveSeo()">Kaydet</button></div>
+
+  <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Yedekleme</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 4px">Supabase'in ücretsiz planında otomatik yedek yoktur. Bütün tablolarınızı tek bir dosyaya indirip bilgisayarınızda saklayabilirsiniz.</p>
+    <p class="muted" style="font-size:12.5px;margin:0 0 14px"><b>Veri girişi yaptığınız günlerde her akşam bir yedek almanızı öneririm.</b> Dosyayı bilgisayarınızda ya da bulut diskinizde saklayın.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" id="bkBtn" onclick="yedekAl()">${ic('download',15)} Yedek Al (JSON)</button>
+      <button class="btn btn-outline btn-sm" onclick="yedekYukleAc()">${ic('upload',15)} Yedekten Geri Yükle</button></div>
+    <div id="bkInfo"></div>
+    <p class="muted" style="font-size:12px;margin:12px 0 0"><b>Not:</b> Yedek dosyası metin verilerini içerir; yüklediğiniz görseller Supabase deposunda kalır. Yedek içinde görsel bağlantılarının listesi de bulunur.</p></div>
 
   <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">İşlem Kayıtları</h3>
     <p class="muted" style="font-size:13px;margin:0 0 12px">Panelde kim ne yaptı, en yeniden eskiye doğru listelenir. Girişler, kaydetmeler, silmeler ve doluluk değişiklikleri kaydedilir.</p>
