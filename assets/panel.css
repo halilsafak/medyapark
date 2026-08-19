@@ -441,17 +441,26 @@ details.grp>summary:hover .chev{color:var(--c-accent);}
 .btn-link:hover{color:var(--c-accent);background:var(--c-accent-soft);}
 
 /* alan grafiği */
-.areachart{position:relative;padding-bottom:6px;}
-.ag-line{fill:none;stroke:var(--c-brand-d);stroke-width:2;stroke-linecap:round;vector-effect:non-scaling-stroke;}
-.ag-grid{stroke:#e4eaf5;stroke-width:1;vector-effect:non-scaling-stroke;}
-.ag-grid.base{stroke:#d8e1f0;}
-.ag-yl{font-size:9.5px;fill:#a9b3c4;text-anchor:end;font-family:var(--fm);}
-.ag-xl{font-size:10.5px;fill:#94a0b4;text-anchor:middle;font-family:var(--f);font-weight:400;letter-spacing:.01em;}
-.ag-xs{font-size:9px;fill:#b6bfcd;text-anchor:middle;font-family:var(--fm);}
-.ag-dot{fill:#fff;stroke:var(--c-brand-d);stroke-width:2;opacity:0;transition:opacity .12s;}
-.ag-tipbg{fill:#101112;opacity:0;transition:opacity .12s;}
-.ag-tipt{font-size:10.5px;fill:#fff;text-anchor:middle;opacity:0;transition:opacity .12s;font-weight:500;}
-.ag-pt:hover .ag-dot,.ag-pt:hover .ag-tipbg,.ag-pt:hover .ag-tipt{opacity:1;}
+.areachart{position:relative;}
+.ac-plot{position:relative;border-top:1px solid #e8edf6;border-bottom:1px solid #dde5f2;}
+.ac-plot svg{display:block;}
+.ag-line{fill:none;stroke:var(--c-brand-d);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round;}
+.ac-max{position:absolute;left:0;top:-8px;font-size:10px;color:#aab3c4;font-family:var(--fm);background:#fff;padding-right:5px;}
+.ac-pt{position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;}
+.ac-dot{position:absolute;inset:50% auto auto 50%;transform:translate(-50%,-50%);
+  width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 2px var(--c-brand-d);
+  opacity:0;transition:opacity .12s;}
+.ac-tip{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);
+  background:#0d1730;color:#fff;border-radius:6px;padding:5px 9px;font-size:11px;font-weight:500;
+  white-space:nowrap;opacity:0;pointer-events:none;transition:.12s;z-index:20;}
+/* ilk ve son noktada balon ekran dışına taşmasın */
+.ac-pt:first-of-type .ac-tip{left:0;transform:none;}
+.ac-pt:last-of-type .ac-tip{left:auto;right:0;transform:none;}
+.ac-pt:hover .ac-dot,.ac-pt:hover .ac-tip{opacity:1;}
+.ac-x{display:flex;margin-top:9px;}
+.ac-x span{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;}
+.ac-x i{font-style:normal;font-size:11px;color:#93a0b5;font-weight:400;}
+.ac-x u{text-decoration:none;font-size:9.5px;color:#b8c1d0;font-family:var(--fm);}
 
 /* iş akışı listesi */
 .flow{display:flex;flex-direction:column;}

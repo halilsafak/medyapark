@@ -432,50 +432,47 @@ function chartRows(items){
 }
 
 
-/* ---- Alan grafiği: yumuşak eğri + degrade dolgu ---- */
+/* ---- Alan grafiği: eğri SVG, yazılar HTML (ölçekle büyümesin) ---- */
 function chartArea(rows,opt){
-  opt=opt||{}; const W=760,H=opt.h||196, PL=30,PR=12,PT=18,PB=30;
+  opt=opt||{}; const H=opt.h||150, W=760;          /* W yalnızca eğri koordinat sistemi */
   const n=rows.length; if(!n) return '<p class="empty">Veri yok.</p>';
   const raw=Math.max(1,...rows.map(r=>r.v));
   const steps=Math.min(4,raw), max=Math.ceil(raw/steps)*steps;
-  const x=i=>PL+(i*(W-PL-PR))/Math.max(1,n-1);
-  const yv=v=>PT+(1-v/max)*(H-PT-PB);
+  const x=i=>(i*W)/Math.max(1,n-1);
+  const yv=v=>H-(v/max)*H;
   const pts=rows.map((r,i)=>[x(i),yv(r.v)]);
-  /* Monoton kübik eğri (Fritsch–Carlson): yumuşak ama veriyi aşmaz,
-     sıfırın altına sarkmaz */
-  const dx=[],dy=[],slope=[];
-  for(let i=0;i<n-1;i++){ dx.push(pts[i+1][0]-pts[i][0]); dy.push(pts[i+1][1]-pts[i][1]); slope.push(dy[i]/dx[i]); }
-  const m=[slope[0]||0];
+  /* monoton kübik: yumuşak ama veriyi aşmaz */
+  const dx=[],dy=[],sl=[];
+  for(let i=0;i<n-1;i++){ dx.push(pts[i+1][0]-pts[i][0]); dy.push(pts[i+1][1]-pts[i][1]); sl.push(dy[i]/dx[i]); }
+  const m=[sl[0]||0];
   for(let i=1;i<n-1;i++){
-    if(slope[i-1]*slope[i]<=0) m.push(0);
-    else { const w1=2*dx[i]+dx[i-1], w2=dx[i]+2*dx[i-1];
-      m.push((w1+w2)/(w1/slope[i-1]+w2/slope[i])); }
-  }
-  m.push(slope[n-2]||0);
+    if(sl[i-1]*sl[i]<=0) m.push(0);
+    else { const w1=2*dx[i]+dx[i-1], w2=dx[i]+2*dx[i-1]; m.push((w1+w2)/(w1/sl[i-1]+w2/sl[i])); } }
+  m.push(sl[n-2]||0);
   let d='M'+pts[0][0].toFixed(1)+','+pts[0][1].toFixed(1);
-  for(let i=0;i<n-1;i++){
-    const h=dx[i];
+  for(let i=0;i<n-1;i++){ const h=dx[i];
     d+=`C${(pts[i][0]+h/3).toFixed(1)},${(pts[i][1]+m[i]*h/3).toFixed(1)} `
       +`${(pts[i+1][0]-h/3).toFixed(1)},${(pts[i+1][1]-m[i+1]*h/3).toFixed(1)} `
-      +`${pts[i+1][0].toFixed(1)},${pts[i+1][1].toFixed(1)}`;
-  }
-  const fill=d+`L${x(n-1).toFixed(1)},${(H-PB).toFixed(1)}L${PL},${(H-PB).toFixed(1)}Z`;
+      +`${pts[i+1][0].toFixed(1)},${pts[i+1][1].toFixed(1)}`; }
+  const fill=d+`L${W},${H}L0,${H}Z`;
   const gid='ag'+Math.random().toString(36).slice(2,7);
-  /* minimal: yalnızca taban ve tepe çizgisi, tek değer etiketi */
-  const grid=[0,max].map(v=>{ const yy=yv(v);
-    return `<line x1="${PL}" x2="${W-PR}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" class="ag-grid${v===0?' base':''}"/>`;}).join('')
-    + `<text x="${PL-6}" y="${(yv(max)+4).toFixed(1)}" class="ag-yl">${max}</text>`;
-  const dots=rows.map((r,i)=>`<g class="ag-pt"><circle cx="${x(i).toFixed(1)}" cy="${yv(r.v).toFixed(1)}" r="4.5" class="ag-dot"/>
-    <rect x="${(x(i)-26).toFixed(1)}" y="${(yv(r.v)-32).toFixed(1)}" width="52" height="21" rx="5" class="ag-tipbg"/>
-    <text x="${x(i).toFixed(1)}" y="${(yv(r.v)-17.5).toFixed(1)}" class="ag-tipt">${esc(r.l)}: ${r.v}</text>
-    <rect x="${(x(i)-14).toFixed(1)}" y="${PT}" width="28" height="${H-PT-PB}" fill="transparent"/></g>`).join('');
-  const xl=rows.map((r,i)=>`<text x="${x(i).toFixed(1)}" y="${H-19}" class="ag-xl">${esc(r.l)}</text>`
-    +(r.sub?`<text x="${x(i).toFixed(1)}" y="${H-5}" class="ag-xs">${esc(r.sub)}</text>`:'')).join('');
-  return `<div class="areachart"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
-    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="var(--c-brand)" stop-opacity=".55"/>
-      <stop offset="100%" stop-color="var(--c-brand)" stop-opacity=".02"/></linearGradient></defs>
-    ${grid}<path d="${fill}" fill="url(#${gid})"/><path d="${d}" class="ag-line"/>${dots}${xl}</svg></div>`;
+  /* nokta ve balonlar: yüzdeyle konumlanan HTML */
+  const noktalar=rows.map((r,i)=>{
+    const l=(x(i)/W)*100, t=(yv(r.v)/H)*100;
+    return `<span class="ac-pt" style="left:${l.toFixed(2)}%;top:${t.toFixed(2)}%">
+      <i class="ac-dot"></i><b class="ac-tip">${esc(r.l)}${r.sub?' '+esc(r.sub):''} · ${r.v}</b></span>`;}).join('');
+  const etiketler=rows.map(r=>`<span><i>${esc(r.l)}</i>${r.sub?`<u>${esc(r.sub)}</u>`:''}</span>`).join('');
+  return `<div class="areachart">
+    <div class="ac-plot" style="height:${H}px">
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" width="100%" height="${H}">
+        <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--c-brand)" stop-opacity=".38"/>
+          <stop offset="100%" stop-color="var(--c-brand)" stop-opacity=".02"/></linearGradient></defs>
+        <path d="${fill}" fill="url(#${gid})"/><path d="${d}" class="ag-line"/></svg>
+      <span class="ac-max">${max}</span>
+      ${noktalar}
+    </div>
+    <div class="ac-x">${etiketler}</div></div>`;
 }
 
 /* ---- İş akışı listesi: solda firma, sağda soldan sağa aşamalar ---- */
@@ -546,7 +543,7 @@ async function dashboard(c){
   const area=chartArea((s.aylik||[]).map((a,i)=>({
       l:a.label, v:(a.dolu||0)+(a.rezerve||0),
       sub:(i===0||a.label==='Oca')?a.yil:''
-    })),{h:212});
+    })),{h:150});
   const araligi=(s.rollBas&&s.rollSon)?(s.rollBas.replace('-','/')+' – '+s.rollSon.replace('-','/')):s.yil;
 
   const notlar=(s.notes||[]).length ? s.notes.map(n=>{
