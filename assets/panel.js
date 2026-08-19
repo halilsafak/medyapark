@@ -204,21 +204,12 @@ function go(s){ ui.section=s; document.querySelectorAll('.navi').forEach(n=>n.cl
 
 async function renderSection(){
   const c=document.getElementById('content'); c.innerHTML='<p class="muted">Yükleniyor…</p>';
+  const F={dashboard,'is-takibi':isTakibi,urunler,mecralar,listeler,musteriler,teklifler,ekip,
+           sayfalar,notlar,anasayfa:anasayfaBolum,tedarikciler,harita,ayarlar};
   try{
-    if(ui.section==='dashboard') return dashboard(c);
-    if(ui.section==='is-takibi') return isTakibi(c);
-    if(ui.section==='urunler') return urunler(c);
-    if(ui.section==='mecralar') return mecralar(c);
-    if(ui.section==='listeler') return listeler(c);
-    if(ui.section==='musteriler') return musteriler(c);
-    if(ui.section==='teklifler') return teklifler(c);
-    if(ui.section==='ekip') return ekip(c);
-    if(ui.section==='sayfalar') return sayfalar(c);
-    if(ui.section==='notlar') return notlar(c);
-    if(ui.section==='anasayfa') return anasayfaBolum(c);
-    if(ui.section==='tedarikciler') return tedarikciler(c);
-    if(ui.section==='harita') return harita(c);
-    if(ui.section==='ayarlar') return ayarlar(c);
+    const fn=F[ui.section]; if(!fn)return;
+    await fn(c);
+    collapsify(c,ui.section);
   }catch(e){ c.innerHTML='<div class="banner">Hata: '+esc(e.message||e)+'</div>'; }
 }
 
@@ -622,6 +613,61 @@ async function importApply(){
 }
 
 
+
+/* ==========================================================
+   KATLANABİLİR BÖLÜMLER
+   Uzun formlar varsayılan olarak KAPALI gelir; başlığa veya
+   sağdaki oka tıklayınca açılır. Kapalıyken de alanlar DOM'da
+   durduğu için kaydetme işlemleri etkilenmez.
+   ========================================================== */
+function grpWrap(box,title){
+  if(!title) return;
+  const inner=document.createElement('div'); inner.className='grp-b';
+  while(box.firstChild) inner.appendChild(box.firstChild);
+  const d=document.createElement('details'); d.className='grp';
+  const sm=document.createElement('summary');
+  sm.innerHTML='<span class="grp-t"></span><i class="chev" aria-hidden="true"></i>';
+  sm.querySelector('.grp-t').textContent=title;
+  d.appendChild(sm); d.appendChild(inner);
+  box.appendChild(d); box.classList.add('is-grp');
+}
+function collapsify(root,sec){
+  if(!root)return;
+  /* form blokları */
+  root.querySelectorAll('.fld-box:not([data-cx])').forEach(box=>{
+    const lab=box.querySelector(':scope > .flabel');
+    if(!lab)return;
+    box.dataset.cx='1';
+    const t=lab.textContent.trim(); lab.remove();
+    grpWrap(box,t);
+  });
+  /* ayar/anasayfa kartları — harita ve grafik içerenler hariç */
+  if(sec==='ayarlar'||sec==='anasayfa'){
+    root.querySelectorAll('.sec-card:not([data-cx])').forEach(card=>{
+      if(card.querySelector('#hMapCanvas,#hubMap,canvas,.chart,.donut'))return;
+      const h=card.querySelector(':scope > h3, :scope > h4');
+      if(!h)return;
+      card.dataset.cx='1';
+      const t=h.textContent.trim(); h.remove();
+      grpWrap(card,t);
+    });
+  }
+  /* üstte tümünü aç/kapat */
+  const n=root.querySelectorAll('details.grp').length;
+  if(n>1 && !root.querySelector('.grp-all')){
+    const bar=document.createElement('div'); bar.className='grp-all';
+    bar.innerHTML=`<button type="button" onclick="grpAll(this,true)">Tümünü aç</button>
+      <span>·</span><button type="button" onclick="grpAll(this,false)">Tümünü kapat</button>`;
+    const first=root.querySelector('details.grp');
+    if(first&&first.parentElement) first.parentElement.parentElement.insertBefore(bar,first.parentElement);
+    else root.insertBefore(bar,root.firstChild);
+  }
+}
+function grpAll(btn,open){
+  const scope=btn.closest('#mecEd, #altEd, .content')||document;
+  scope.querySelectorAll('details.grp').forEach(d=>{ d.open=open; });
+}
+
 /* ---------- ANASAYFA KARŞILAMA ---------- */
 async function anasayfaBolum(c){
   const st=await api('settings_get'); ui._settings=st;
@@ -701,6 +747,7 @@ async function mecralar(c){
 function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_color:'#0071e3'};
   document.getElementById('mecEd').innerHTML=`<div class="sec-card" style="margin-top:16px"><h3 style="margin:0 0 14px;font-size:16px">${id?'Mecrayı Düzenle':'Yeni Mecra'}</h3>
     <input type="hidden" id="mid" value="${id||0}">
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Temel Bilgiler</label>
     <div class="row2"><div class="field"><label class="flabel">İsim (kart başlığı)</label><input class="inp" id="mname" value="${esc(m.name)}" oninput="slugHint('mname','mslug')"></div>
     <div class="field"><label class="flabel">Tema rengi</label><div class="colorwrap"><input type="color" id="mcolor" value="${esc(m.theme_color||'#0071e3')}" oninput="document.getElementById('mcolor2').value=this.value"><input class="inp" id="mcolor2" value="${esc(m.theme_color)}" oninput="document.getElementById('mcolor').value=this.value"></div></div></div>
     <div class="field"><label class="flabel">Sayfa adresi</label>
@@ -708,6 +755,8 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
       <p class="muted" style="font-size:11.5px;margin:5px 0 0">Boş bırakırsan isimden otomatik üretilir. Sonradan değiştirirsen eski linkler kırılır.</p></div>
     <div class="row2"><div class="field"><label class="flabel">Günlük gösterim</label><input class="inp" id="mgg" value="${esc(m.gunluk_gosterim)}" placeholder="≈ 250.000 gösterim"></div>
     <div class="field"><label class="flabel">Toplam reklam alanı</label><input class="inp" id="mta" value="${esc(m.toplam_alan)}" placeholder="3 alt mecra"></div></div>
+    </div>
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Görseller ve Kapak</label>
     <div class="field"><label class="flabel">Kart görseli (yükle veya URL)</label><div style="display:flex;gap:8px"><input class="inp" id="mimage" value="${esc(m.image)}" placeholder="https://..."><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mimage').value=u;})">Yükle</button></div></div>
     <div class="field"><label class="flabel">Kapak görseli (1920×400 — mecra sayfası üstü)</label><div style="display:flex;gap:8px"><input class="inp" id="mkapak" value="${esc(m.kapak)}"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mkapak').value=u;})">Yükle</button></div></div>
     <div class="row2"><div class="field"><label class="flabel">Kapak kaplama rengi</label><input type="color" id="mkcolor" value="${esc(m.kapak_color||'#101014')}"></div><div class="field"><label class="flabel">Kapak opasite (0–1)</label><input class="inp" type="number" min="0" max="1" step="0.05" id="mkop" value="${m.kapak_opacity!=null?m.kapak_opacity:0.4}"></div></div>
@@ -715,6 +764,7 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
     ${imgField('mkapakm', m.kapak_mobil, 'Kapak görseli — MOBİL sürüm (opsiyonel, 760px altı)', 'boş = masaüstü görseli kullanılır')}
     ${imgField('mimagem', m.image_mobil, 'Kart görseli — MOBİL sürüm (opsiyonel)', 'boş = masaüstü görseli kullanılır')}
     ${visSel('m',m,'kapak','Kapak görünürlüğü')}
+    </div>
 
     <div class="fld-box"><label class="flabel" style="font-weight:700">Kapak altı tanıtım (mecra sayfasında kapağın hemen altında görünür)</label>
       <input class="inp" id="mintro" value="${esc(m.intro_baslik)}" placeholder="Başlık — ör. Adana'nın Kalbinde Reklam" style="margin-bottom:8px">
@@ -748,6 +798,7 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
     <button class="btn btn-primary btn-sm" onclick="mecSave()">Mecrayı Kaydet</button>
     ${id?`<hr style="border:0;border-top:1px solid var(--line2);margin:18px 0"><div class="sec-head"><h3 style="font-size:15px">Alt Mecralar</h3><button class="btn btn-primary btn-sm" onclick="altAdd(${id})">+ Alt Mecra</button></div><div id="altList">Yükleniyor…</div>`:'<p class="muted" style="margin-top:12px">Alt mecraları, mecrayı kaydettikten sonra ekleyebilirsiniz.</p>'}
     </div>`;
+  collapsify(document.getElementById('mecEd'),'form');
   document.getElementById('mecEd').scrollIntoView({behavior:'smooth'});
   if(id) loadAltList(id);
 }
@@ -819,6 +870,7 @@ async function altEdit(id,mid){
       <p class="muted" style="font-size:12px;margin-top:6px">Boş bırakılırsa ürünün kendi fiyatları kullanılır. 3 Ay = baz×3×(1−%) · 1 Yıl = baz×12×(1−%). Pozisyonlar ve doluluk artık <b>Listeler</b> bölümünden yönetilir.</p></div>
     <button class="btn btn-primary btn-sm" onclick="altSave()">Alt Mecrayı Kaydet</button>
     </div>`;
+  collapsify(document.getElementById('mecEd'),'form');
   document.getElementById('mecEd').scrollIntoView({behavior:'smooth'});
 }
 async function altSave(){ const id=+gv('aid'), mid=+gv('amid');
