@@ -245,11 +245,12 @@ const NAV=[
  ['musteriler','Müşteriler','customers','Satış'],
  ['teklifler','Teklifler','quotes',''],
  ['tedarikciler','Tedarikçiler','truck',''],
+ ['raporlar','Raporlar','report',''],
  ['ekip','Ekip','team','Yönetim'],
  ['sayfalar','Sayfalar','pages',''],
  ['notlar','Notlar','notes',''],
  ['ayarlar','Ayarlar','settings','']];
-const TITLES={dashboard:'Dashboard',anasayfa:'Anasayfa Karşılama','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Doluluk',musteriler:'Müşteriler',tedarikciler:'Tedarikçiler',teklifler:'Teklifler',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
+const TITLES={dashboard:'Dashboard',anasayfa:'Anasayfa Karşılama','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Doluluk',musteriler:'Müşteriler',tedarikciler:'Tedarikçiler',raporlar:'Raporlar',teklifler:'Teklifler',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
 function userChip(){
   const me=ui._me||{}; const ad=me.name||(ui._email||'').split('@')[0]||'Kullanıcı';
   const rol=me.role||me.yetki||'Yönetici';
@@ -292,7 +293,7 @@ function go(s){ ui.section=s; document.querySelectorAll('.navi').forEach(n=>n.cl
 async function renderSection(){
   const c=document.getElementById('content'); c.innerHTML='<p class="muted">Yükleniyor…</p>';
   const F={dashboard,'is-takibi':isTakibi,urunler,mecralar,listeler,musteriler,teklifler,ekip,
-           sayfalar,notlar,anasayfa:anasayfaBolum,tedarikciler,harita,ayarlar};
+           sayfalar,notlar,anasayfa:anasayfaBolum,tedarikciler,raporlar,harita,ayarlar};
   try{
     const fn=F[ui.section]; if(!fn)return;
     await fn(c);
@@ -331,6 +332,7 @@ const ICON={
  pin:'<path d="M12 21s7-6.6 7-11.5A7 7 0 1 0 5 9.5C5 14.4 12 21 12 21z"/><circle cx="12" cy="9.3" r="2.6"/>',
  truck:'<path d="M2 6.5h11v10H2zM13 10h4l3 3.2v3.3h-7z"/><circle cx="6" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
  home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.8V20h13V9.8"/><path d="M9.5 20v-6h5v6"/>',
+ report:'<path d="M6 2.5h8l4.5 4.5v14.5H6z"/><path d="M14 2.5V7h4.5"/><path d="M9 17v-3M12 17v-6M15 17v-4"/>',
  upload:'<path d="M12 16V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/>',
  download:'<path d="M12 4v12M7.5 11.5 12 16l4.5-4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/>'
 };
@@ -565,6 +567,7 @@ async function isTakibi(c){
       <div class="kc-a">
         ${idx>0?`<button title="Geri al: ${esc(JOBST[idx-1][1])}" onclick="jobMove(${j.id},'${JOBST[idx-1][0]}')">${ic('left',15)}</button>`:'<span></span>'}
         ${idx<JOBST.length-1?`<button title="İlerlet: ${esc(JOBST[idx+1][1])}" onclick="jobMove(${j.id},'${JOBST[idx+1][0]}')">${ic('right',15)}</button>`:'<span></span>'}
+        <button title="Düzenle" onclick="jobForm(null,${j.id})">${ic('pages',15)}</button>
         <button class="del" title="Sil" onclick="jobDelete(${j.id})">${ic('trash',15)}</button>
       </div></article>`).join('');
     return `<section class="kcol ${JOBC[st]||'slate'}">
@@ -580,12 +583,37 @@ async function isTakibi(c){
 }
 async function jobMove(id,status){ await api('job_move',{id,status}); renderSection(); }
 async function jobDelete(id){ if(confirm('Silinsin mi?')){ await api('job_delete&id='+id); renderSection(); } }
-function jobForm(st){ modal(`<h3 style="margin:0 0 14px">Yeni İş</h3>
-  <div class="field"><label class="flabel">Başlık</label><input class="inp" id="jt"></div>
-  <div class="field"><label class="flabel">Not</label><textarea class="inp" id="jn"></textarea></div>
-  <div class="field"><label class="flabel">Durum</label><select class="inp" id="js">${JOBST.map(x=>`<option value="${x[0]}" ${st===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>
-  <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="closeModal()">Vazgeç</button><button class="btn btn-primary btn-sm" onclick="jobSave()">Kaydet</button></div>`); }
-async function jobSave(){ await api('job_save',{title:gv('jt'),note:gv('jn'),status:gv('js')}); closeModal(); renderSection(); }
+async function jobForm(st,id){
+  const [cu,su,mc]=await Promise.all([api('customers_list'),api('suppliers_list'),api('mecra_list')]);
+  const j = id ? (await api('jobs_list')).find(x=>x.id===id)||{} : {};
+  const opt=(arr,val,lbl)=>`<option value="">— yok —</option>`+arr.map(x=>
+    `<option value="${x.id}" ${String(val)===String(x.id)?'selected':''}>${esc(lbl(x))}</option>`).join('');
+  modal(`<h3 style="margin:0 0 14px">${id?'İşi Düzenle':'Yeni İş'}</h3>
+  <input type="hidden" id="jid" value="${id||0}">
+  <div class="field"><label class="flabel">Başlık *</label><input class="inp" id="jt" value="${esc(j.title)}" placeholder="ör. M1 AVM Megalight baskı"></div>
+  <div class="row2">
+    <div class="field"><label class="flabel">Müşteri</label><select class="inp" id="jc">${opt(cu,j.customer_id,x=>x.firma||x.ilgili_kisi)}</select></div>
+    <div class="field"><label class="flabel">Mecra</label><select class="inp" id="jm">${opt(mc,j.mecra_id,x=>x.name)}</select></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label class="flabel">Tedarikçi (baskı/montaj)</label><select class="inp" id="jsup">${opt(su,j.supplier_id,x=>x.firma+(x.kategori?' · '+x.kategori:''))}</select></div>
+    <div class="field"><label class="flabel">Aşama</label><select class="inp" id="js">${JOBST.map(x=>`<option value="${x[0]}" ${(j.status||st)===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label class="flabel">Başlangıç</label><input class="inp" type="date" id="jsd" value="${esc(j.start_day)}"></div>
+    <div class="field"><label class="flabel">Bitiş / teslim</label><input class="inp" type="date" id="jed" value="${esc(j.end_day)}"></div>
+  </div>
+  <div class="field"><label class="flabel">Not</label><textarea class="inp" id="jn">${esc(j.note)}</textarea></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="closeModal()">Vazgeç</button><button class="btn btn-primary btn-sm" onclick="jobSave()">Kaydet</button></div>`);
+}
+async function jobSave(){
+  if(!gv('jt').trim()){ alert('Başlık zorunlu.'); return; }
+  const num=v=>v?+v:null;
+  await api('job_save',{id:+gv('jid')||0,title:gv('jt'),note:gv('jn'),status:gv('js'),
+    customer_id:num(gv('jc')),mecra_id:num(gv('jm')),supplier_id:num(gv('jsup')),
+    start_day:gv('jsd')||null,end_day:gv('jed')||null});
+  closeModal(); renderSection();
+}
 
 /* ---------- ÜRÜNLER ---------- */
 async function urunler(c){
@@ -705,6 +733,27 @@ async function exportRows(dosyaAdi, sheetAdi, cols, rows){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,sheetAdi.slice(0,30));
   XLSX.writeFile(wb,`${dosyaAdi}-${_dt()}.xlsx`);
+}
+
+/* çok sayfalı Excel */
+async function exportSheets(dosyaAdi, sheets){
+  try{ await xlsxLoad(); }catch(e){ alert(e.message); return 0; }
+  const wb=XLSX.utils.book_new(); let toplam=0;
+  sheets.forEach(sh=>{
+    if(!sh.rows.length) return;
+    const head=sh.cols.map(c=>c.label);
+    const body=sh.rows.map(r=>sh.cols.map(c=>{
+      const v=typeof c.get==='function'?c.get(r):r[c.key];
+      return (v===null||v===undefined)?'':v; }));
+    const ws=XLSX.utils.aoa_to_sheet([head,...body]);
+    ws['!cols']=sh.cols.map(c=>({wch:c.w||18}));
+    ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:body.length,c:head.length-1}})};
+    XLSX.utils.book_append_sheet(wb,ws,sh.name.slice(0,30));
+    toplam+=sh.rows.length;
+  });
+  if(!wb.SheetNames.length){ alert('Seçtiğiniz aralıkta kayıt bulunamadı.'); return 0; }
+  XLSX.writeFile(wb,`${dosyaAdi}-${_dt()}.xlsx`);
+  return toplam;
 }
 
 /* --- İÇE AKTAR --- */
@@ -853,6 +902,161 @@ function collapsify(root,sec){
 function grpAll(btn,open){
   const scope=btn.closest('#mecEd, #altEd, .content')||document;
   scope.querySelectorAll('details.grp, details.lgrp').forEach(d=>{ d.open=open; });
+}
+
+
+/* ==========================================================
+   RAPORLAR
+   ========================================================== */
+const JOBLBL={tasarim:'Tasarım',baski:'Baskı',montaj:'Montaj',yayin:'Yayın',arsiv:'Arşiv'};
+function haftaAraligi(off){
+  const d=new Date(); const g=(d.getDay()+6)%7;           /* pazartesi = 0 */
+  const bas=new Date(d.getFullYear(),d.getMonth(),d.getDate()-g+(off||0)*7);
+  const bit=new Date(bas); bit.setDate(bas.getDate()+6);
+  const f=x=>x.toISOString().slice(0,10);
+  return [f(bas),f(bit)];
+}
+async function raporlar(c){
+  const [b,e]=haftaAraligi(0);
+  c.innerHTML=`<div class="sec-head">
+      <div><h3>Raporlar</h3><p class="sub">Seçtiğiniz aralık için Excel dosyası oluşturur</p></div></div>
+
+    <div class="sec-card">
+      <label class="flabel" style="font-weight:700">Tarih aralığı</label>
+      <div class="row2" style="max-width:460px">
+        <div class="field"><label class="flabel">Başlangıç</label><input class="inp" type="date" id="rb" value="${b}"></div>
+        <div class="field"><label class="flabel">Bitiş</label><input class="inp" type="date" id="re" value="${e}"></div>
+      </div>
+      <div class="rp-quick">
+        <button class="btn btn-ghost btn-sm" onclick="rapHafta(0)">Bu hafta</button>
+        <button class="btn btn-ghost btn-sm" onclick="rapHafta(1)">Gelecek hafta</button>
+        <button class="btn btn-ghost btn-sm" onclick="rapHafta(-1)">Geçen hafta</button>
+        <button class="btn btn-ghost btn-sm" onclick="rapAy()">Bu ay</button>
+        <button class="btn btn-ghost btn-sm" onclick="rapAy(1)">Gelecek ay</button>
+      </div>
+    </div>
+
+    <div class="sec-card">
+      <label class="flabel" style="font-weight:700">Rapora eklenecek bölümler</label>
+      <div class="rp-list">
+        ${[['r_hafta','Haftalık Aksiyon Planı','Seçilen aralıkta başlayan veya biten tüm işler; aşama, tarih ve sorumlu firma ile',1],
+           ['r_baski','Baskı & Montaj Takibi','Yalnızca baskı ve montaj aşamasındaki işler; atanan tedarikçi bilgisiyle',1],
+           ['r_is','İş Takibi (tümü)','Arşiv dahil bütün işlerin listesi',0],
+           ['r_dol','Mecra Doluluk Detayı','Pozisyon ve yüzey bazında ay ay durum ve kiralayan firma',1],
+           ['r_ozet','Doluluk Özeti','Mecra bazında dolu/rezerve/boş ay sayısı ve doluluk yüzdesi',1],
+           ['r_teklif','Teklifler','Seçilen aralıkta gelen teklifler ve durumları',0]
+          ].map(x=>`<label class="rp-item"><input type="checkbox" id="${x[0]}" ${x[3]?'checked':''}>
+            <span><b>${esc(x[1])}</b><em>${esc(x[2])}</em></span></label>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+        <button class="btn btn-primary btn-sm" onclick="rapUret()">${ic('download',15)} Excel Raporu Oluştur</button>
+        <button class="btn btn-outline btn-sm" onclick="rapOnizle()">Önizleme</button>
+      </div>
+      <div id="rapOut"></div>
+    </div>`;
+}
+function rapHafta(o){ const [b,e]=haftaAraligi(o);
+  document.getElementById('rb').value=b; document.getElementById('re').value=e; }
+function rapAy(o){ const d=new Date(); const m=d.getMonth()+(o||0);
+  const b=new Date(d.getFullYear(),m,1), e=new Date(d.getFullYear(),m+1,0);
+  const f=x=>x.toISOString().slice(0,10);
+  document.getElementById('rb').value=f(b); document.getElementById('re').value=f(e); }
+
+async function rapVeri(){
+  const b=gv('rb'), e=gv('re');
+  if(!b||!e){ alert('Tarih aralığı seçin.'); return null; }
+  if(b>e){ alert('Başlangıç tarihi bitişten sonra olamaz.'); return null; }
+  const [jb,cu,su,mc,al,un,bk,qs]=await Promise.all([
+    sb.from('jobs').select('*').order('start_day'),
+    api('customers_list'), api('suppliers_list'), api('mecra_list'),
+    sb.from('alt_mecralar').select('*'), sb.from('units').select('*').order('sort').order('id'),
+    sb.from('bookings').select('*'), sb.from('quotes').select('*').order('created_at',{ascending:false})
+  ]);
+  const cm={}; cu.forEach(x=>cm[x.id]=x);
+  const sm={}; su.forEach(x=>sm[x.id]=x);
+  const mm={}; mc.forEach(x=>mm[x.id]=x);
+  const am={}; (al.data||[]).forEach(x=>am[x.id]=x);
+  const jobs=(jb.data||[]);
+  const araliktaMi=j=>{
+    const s1=j.start_day||'', s2=j.end_day||j.start_day||'';
+    if(!s1&&!s2) return false;
+    return !(s2<b || s1>e);                         /* aralıkla kesişiyorsa */
+  };
+  const jrow=j=>({
+    is:j.title||'', asama:JOBLBL[j.status]||j.status||'',
+    firma:(cm[j.customer_id]||{}).firma||'', kisi:(cm[j.customer_id]||{}).ilgili_kisi||'',
+    mecra:(mm[j.mecra_id]||{}).name||'', tedarikci:(sm[j.supplier_id]||{}).firma||'',
+    bas:j.start_day||'', bit:j.end_day||'', not:j.note||''
+  });
+  /* ay listesi: aralığın kapsadığı aylar */
+  const aylar=[]; { const d=new Date(b.slice(0,7)+'-01'); const son=e.slice(0,7);
+    for(let i=0;i<36;i++){ const ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      aylar.push(ym); if(ym>=son)break; d.setMonth(d.getMonth()+1); } }
+  const bmap={}; (bk.data||[]).forEach(x=>{(bmap[x.unit_id]=bmap[x.unit_id]||{})[x.ym]=x;});
+  const dolRows=[], ozet={};
+  (un.data||[]).forEach(u=>{
+    const a=am[u.alt_mecra_id]||{}; const m=mm[a.mecra_id||u.mecra_id]||{};
+    const p=posParts(u.name);
+    const o=ozet[m.id]=ozet[m.id]||{mecra:m.name||'—',poz:0,dolu:0,rez:0,bos:0};
+    o.poz++;
+    aylar.forEach(ym=>{ const r=(bmap[u.id]||{})[ym];
+      const durum=r?(r.status==='dolu'?'Dolu':'Rezerve'):'Boş';
+      if(durum==='Dolu')o.dolu++; else if(durum==='Rezerve')o.rez++; else o.bos++;
+      dolRows.push({mecra:m.name||'',alt:a.name||'',poz:p.base,yuzey:p.surf,ay:ym,durum,
+        firma:r&&r.customer_id?((cm[r.customer_id]||{}).firma||''):'', not:r&&r.note?r.note:''});
+    });
+  });
+  const ozetRows=Object.values(ozet).map(o=>({...o,
+    toplam:o.dolu+o.rez+o.bos,
+    oran:(o.dolu+o.rez+o.bos)?Math.round((o.dolu+o.rez)*100/(o.dolu+o.rez+o.bos))+'%':'0%'}));
+  const qrows=(qs.data||[]).filter(q=>{const d=(q.created_at||'').slice(0,10); return d>=b&&d<=e;})
+    .map(q=>({no:'#'+q.id,musteri:q.customer_name||q.firma||'',tel:q.telefon||'',mail:q.eposta||'',
+      durum:({yeni:'Yeni',gorusuldu:'Görüşüldü',onaylandi:'Onaylandı',iptal:'İptal'})[q.status]||q.status||'Yeni',
+      tarih:(q.created_at||'').slice(0,10)}));
+  return {b,e,
+    hafta:jobs.filter(araliktaMi).map(jrow),
+    baski:jobs.filter(j=>['baski','montaj'].includes(j.status)).map(jrow),
+    tumIs:jobs.map(jrow), dolRows, ozetRows, qrows, ayAdet:aylar.length};
+}
+const RC={
+  is:[{key:'is',label:'İş',w:32},{key:'asama',label:'Aşama',w:12},{key:'firma',label:'Müşteri',w:24},
+      {key:'kisi',label:'İlgili Kişi',w:18},{key:'mecra',label:'Mecra',w:20},{key:'tedarikci',label:'Tedarikçi',w:22},
+      {key:'bas',label:'Başlangıç',w:12},{key:'bit',label:'Bitiş',w:12},{key:'not',label:'Not',w:30}],
+  dol:[{key:'mecra',label:'Mecra',w:22},{key:'alt',label:'Alt Mecra',w:20},{key:'poz',label:'Pozisyon',w:14},
+       {key:'yuzey',label:'Yüzey',w:8},{key:'ay',label:'Ay',w:10},{key:'durum',label:'Durum',w:10},
+       {key:'firma',label:'Kiralayan',w:24},{key:'not',label:'Not',w:26}],
+  ozet:[{key:'mecra',label:'Mecra',w:24},{key:'poz',label:'Pozisyon',w:10},{key:'dolu',label:'Dolu (ay)',w:11},
+        {key:'rez',label:'Rezerve (ay)',w:13},{key:'bos',label:'Boş (ay)',w:11},
+        {key:'toplam',label:'Toplam (ay)',w:12},{key:'oran',label:'Doluluk',w:10}],
+  q:[{key:'no',label:'No',w:8},{key:'musteri',label:'Müşteri',w:26},{key:'tel',label:'Telefon',w:16},
+     {key:'mail',label:'E-posta',w:24},{key:'durum',label:'Durum',w:12},{key:'tarih',label:'Tarih',w:12}]
+};
+function rapSecim(d){
+  const S=[];
+  if(document.getElementById('r_hafta').checked) S.push({name:'Haftalık Aksiyon',cols:RC.is,rows:d.hafta});
+  if(document.getElementById('r_baski').checked) S.push({name:'Baskı-Montaj',cols:RC.is,rows:d.baski});
+  if(document.getElementById('r_is').checked)    S.push({name:'İş Takibi',cols:RC.is,rows:d.tumIs});
+  if(document.getElementById('r_dol').checked)   S.push({name:'Doluluk Detay',cols:RC.dol,rows:d.dolRows});
+  if(document.getElementById('r_ozet').checked)  S.push({name:'Doluluk Özet',cols:RC.ozet,rows:d.ozetRows});
+  if(document.getElementById('r_teklif').checked)S.push({name:'Teklifler',cols:RC.q,rows:d.qrows});
+  return S;
+}
+async function rapOnizle(){
+  const out=document.getElementById('rapOut'); out.innerHTML='<p class="muted" style="margin-top:14px">Hazırlanıyor…</p>';
+  const d=await rapVeri(); if(!d){ out.innerHTML=''; return; }
+  const S=rapSecim(d);
+  if(!S.length){ out.innerHTML='<div class="banner" style="margin-top:14px">En az bir bölüm seçin.</div>'; return; }
+  out.innerHTML=`<div class="rp-prev"><div class="imp-info">${d.b} – ${d.e} · ${d.ayAdet} ay kapsanıyor</div>
+    ${S.map(x=>`<div class="rp-line"><b>${esc(x.name)}</b><span>${x.rows.length} satır</span></div>`).join('')}
+    ${S.every(x=>!x.rows.length)?'<div class="imp-warn">Bu aralıkta kayıt bulunamadı.</div>':''}</div>`;
+}
+async function rapUret(){
+  const out=document.getElementById('rapOut'); out.innerHTML='<p class="muted" style="margin-top:14px">Rapor hazırlanıyor…</p>';
+  const d=await rapVeri(); if(!d){ out.innerHTML=''; return; }
+  const S=rapSecim(d);
+  if(!S.length){ out.innerHTML='<div class="banner" style="margin-top:14px">En az bir bölüm seçin.</div>'; return; }
+  const n=await exportSheets('medyapark-rapor-'+d.b+'_'+d.e, S);
+  out.innerHTML=n?`<div class="imp-info" style="margin-top:14px">Rapor indirildi · ${S.filter(x=>x.rows.length).length} sayfa, ${n} satır</div>`:'';
 }
 
 /* ---------- ANASAYFA KARŞILAMA ---------- */
@@ -1555,7 +1759,12 @@ async function tedarikciler(c){
         <button class="btn btn-ghost btn-sm" onclick="supExport()">${ic('download',15)} Excel'e Aktar</button>
         <button class="btn btn-outline btn-sm" onclick="supImport()">${ic('upload',15)} Excel'den Al</button>
         <button class="btn btn-primary btn-sm" onclick="supForm(0)">${ic('plus',15)} Tedarikçi</button></div>
-    </div>${bloklar||'<p class="empty">Tedarikçi yok. Excel\'den toplu aktarabilir veya tek tek ekleyebilirsiniz.</p>'}`;
+    </div>${bloklar||`<div class="sec-card" style="text-align:center;padding:38px 20px">
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">Henüz tedarikçi eklenmedi</div>
+      <p class="muted" style="font-size:13px;margin:0 0 16px">Baskı, montaj, malzeme ve nakliye firmalarını buraya ekleyin.<br>İş Takibi'nde işlere tedarikçi atayabilir, raporlarda takip edebilirsiniz.</p>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="supForm(0)">${ic('plus',15)} İlk tedarikçiyi ekle</button>
+        <button class="btn btn-outline btn-sm" onclick="supImport()">${ic('upload',15)} Excel'den toplu ekle</button></div></div>`}`;
 }
 function supForm(id){ const x=(ui._sup||[]).find(s=>s.id===id)||{aktif:true};
   const kats=['Baskı','Montaj','Malzeme','Nakliye','Elektrik','Tasarım','Diğer'];
