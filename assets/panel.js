@@ -33,43 +33,42 @@ async function api(action, body){
   switch(act){
     case 'dashboard_stats':{
       const y=new Date().getFullYear();
-      const [un,mc,al,jb,qs,bk,rq]=await Promise.all([
-        sb.from('units').select('id,mecra_id,alt_mecra_id'),
+      const d7=new Date(Date.now()-7*864e5).toISOString();
+      const [un,mc,al,jb,qs,bk,rq,nt,tm]=await Promise.all([
+        sb.from('units').select('id,mecra_id'),
         sb.from('mecralar').select('id,name,theme_color').order('sort'),
-        sb.from('alt_mecralar').select('id,mecra_id'),
-        sb.from('jobs').select('id,status'),
+        sb.from('alt_mecralar').select('id'),
+        sb.from('jobs').select('id,title,status,start_day,end_day,created_at,mecra_id'),
         sb.from('quotes').select('id,status,created_at'),
         sb.from('bookings').select('unit_id,ym,status').like('ym',y+'-%'),
-        sb.from('quotes').select('*').order('created_at',{ascending:false}).limit(6)
+        sb.from('quotes').select('*').order('created_at',{ascending:false}).limit(5),
+        sb.from('notes').select('*').order('created_at',{ascending:false}).limit(5),
+        sb.from('team').select('id,name,role,photo,eposta')
       ]);
       const units=(un.data||[]), mecras=(mc.data||[]), alts=(al.data||[]);
       const jobs=(jb.data||[]), quotes=(qs.data||[]), bks=(bk.data||[]);
-      /* aylık doluluk */
       const aylik=Array.from({length:12},(_,i)=>({ay:i+1,dolu:0,rezerve:0}));
       bks.forEach(b=>{ const i=(+String(b.ym).slice(5,7))-1; if(i<0||i>11)return;
         if(b.status==='dolu')aylik[i].dolu++; else if(b.status==='rezerve')aylik[i].rezerve++; });
-      const kapasite=units.length;
+      const kapasite=units.length, slot=Math.max(1,kapasite*12);
       const toplamDolu=bks.filter(b=>b.status==='dolu').length;
       const toplamRez=bks.filter(b=>b.status==='rezerve').length;
-      const slot=Math.max(1,kapasite*12);
-      /* mecra bazında alan sayısı */
       const uByMec={}; units.forEach(u=>{ uByMec[u.mecra_id]=(uByMec[u.mecra_id]||0)+1; });
       const mecraDagilim=mecras.map(m=>({name:m.name,color:m.theme_color||'#4f6bed',adet:uByMec[m.id]||0}))
                                .sort((a,b)=>b.adet-a.adet).slice(0,6);
-      /* teklif ve iş durumları */
-      const say=(arr,k)=>arr.reduce((o,x)=>{const v=x.status||'yeni';o[v]=(o[v]||0)+1;return o;},{});
+      const say=arr=>arr.reduce((o,x)=>{const v=x.status||'yeni';o[v]=(o[v]||0)+1;return o;},{});
+      const jeni={}; jobs.filter(j=>j.created_at&&j.created_at>d7).forEach(j=>{const k=j.status||'tasarim';jeni[k]=(jeni[k]||0)+1;});
       const ay30=new Date(Date.now()-30*864e5).toISOString();
       return ok({
         units:units.length, mecra:mecras.length, alts:alts.length,
-        doluluk:Math.round(toplamDolu*100/slot),
-        dolulukRez:Math.round(toplamRez*100/slot),
-        toplamDolu, toplamRez, bosSlot:Math.max(0,slot-toplamDolu-toplamRez), slot,
-        aylik, mecraDagilim,
-        quoteStat:say(quotes), jobStat:say(jobs),
+        doluluk:Math.round(toplamDolu*100/slot), toplamDolu, toplamRez,
+        bosSlot:Math.max(0,slot-toplamDolu-toplamRez), slot, aylik, mecraDagilim,
+        quoteStat:say(quotes), jobStat:say(jobs), jobYeni:jeni,
         activeJobs:jobs.filter(j=>j.status!=='arsiv').length,
         newQuotes:quotes.filter(q=>(q.status||'yeni')==='yeni').length,
         son30Teklif:quotes.filter(q=>q.created_at&&q.created_at>ay30).length,
-        yil:y, recentQuotes:rq.data||[]
+        yil:y, recentQuotes:rq.data||[], notes:nt.data||[], team:tm.data||[],
+        takvim:jobs.filter(j=>j.start_day).map(j=>({d:j.start_day,t:j.title,s:j.status}))
       });
     }
     case 'jobs_list':{ const {data,error}=await sb.from('jobs').select('*').order('sort').order('id'); if(error)throw error; return ok(data); }
@@ -142,7 +141,10 @@ const root=()=>document.getElementById('root');
 
 /* ---- Kimlik doğrulama (Supabase Auth) ---- */
 async function boot(){ const {data}=await sb.auth.getSession();
-  if(data.session){ try{ ui._settings=await api('settings_get'); }catch(e){ ui._settings={}; } showApp(); }
+  if(data.session){ ui._email=(data.session.user||{}).email||'';
+    try{ ui._settings=await api('settings_get'); }catch(e){ ui._settings={}; }
+    try{ const t=await api('team_list'); ui._me=(t||[]).find(x=>String(x.eposta||'').toLowerCase()===ui._email.toLowerCase())||null; }catch(e){}
+    showApp(); }
   else showLogin(); }
 function showLogin(err){
   root().innerHTML=`<div class="login"><div class="box"><div class="lg">medya<span>park</span></div>
@@ -154,7 +156,9 @@ function showLogin(err){
 }
 async function doLogin(){ const {error}=await sb.auth.signInWithPassword({email:gv('lu'),password:gv('lp')});
   if(error){ showLogin(error.message); return; }
+  ui._email=gv('lu');
   try{ ui._settings=await api('settings_get'); }catch(e){ ui._settings={}; }
+  try{ const t=await api('team_list'); ui._me=(t||[]).find(x=>String(x.eposta||'').toLowerCase()===ui._email.toLowerCase())||null; }catch(e){}
   showApp(); }
 async function logout(){ await sb.auth.signOut(); showLogin(); }
 
@@ -174,6 +178,14 @@ const NAV=[
  ['notlar','Notlar','notes',''],
  ['ayarlar','Ayarlar','settings','']];
 const TITLES={dashboard:'Dashboard',anasayfa:'Anasayfa Karşılama','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Doluluk',musteriler:'Müşteriler',tedarikciler:'Tedarikçiler',teklifler:'Teklifler',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
+function userChip(){
+  const me=ui._me||{}; const ad=me.name||(ui._email||'').split('@')[0]||'Kullanıcı';
+  const rol=me.role||me.yetki||'Yönetici';
+  const av=me.photo?`<img src="${esc(me.photo)}" alt="">`
+    :`<span class="uc-i">${esc((ad.trim()[0]||'K').toLocaleUpperCase('tr'))}</span>`;
+  return `<div class="uchip" title="${esc(ui._email||'')}">${av}
+    <div class="uc-b"><b>${esc(ad)}</b><span>${esc(rol)}</span></div></div>`;
+}
 function showApp(){
   const st=ui._settings||{};
   const logo = st.logoImage
@@ -193,7 +205,10 @@ function showApp(){
     <div class="main">
       <header class="topbar">
         <div class="tb-l"><h2 id="ttl">Dashboard</h2><span class="tb-crumb" id="tbc"></span></div>
-        <a class="btn btn-outline btn-sm" href="index.html" target="_blank">${ic('ext',15)} Siteyi Aç</a>
+        <div class="tb-r">
+          <a class="btn btn-outline btn-sm" href="index.html" target="_blank">${ic('ext',15)} Siteyi Aç</a>
+          ${userChip()}
+        </div>
       </header>
       <div class="content" id="content"></div>
     </div></div>`;
@@ -300,76 +315,148 @@ function chartRows(items){
       <b class="hb-v">${i.v}</b></div>`;}).join('')}</div>`;
 }
 
+
+/* ---- Alan grafiği: yumuşak eğri + degrade dolgu ---- */
+function chartArea(rows,opt){
+  opt=opt||{}; const W=760,H=opt.h||210, PL=38,PR=10,PT=14,PB=26;
+  const n=rows.length; if(!n) return '<p class="empty">Veri yok.</p>';
+  const raw=Math.max(1,...rows.map(r=>r.v));
+  const steps=Math.min(4,raw), max=Math.ceil(raw/steps)*steps;
+  const x=i=>PL+(i*(W-PL-PR))/Math.max(1,n-1);
+  const yv=v=>PT+(1-v/max)*(H-PT-PB);
+  const pts=rows.map((r,i)=>[x(i),yv(r.v)]);
+  /* Monoton kübik eğri (Fritsch–Carlson): yumuşak ama veriyi aşmaz,
+     sıfırın altına sarkmaz */
+  const dx=[],dy=[],slope=[];
+  for(let i=0;i<n-1;i++){ dx.push(pts[i+1][0]-pts[i][0]); dy.push(pts[i+1][1]-pts[i][1]); slope.push(dy[i]/dx[i]); }
+  const m=[slope[0]||0];
+  for(let i=1;i<n-1;i++){
+    if(slope[i-1]*slope[i]<=0) m.push(0);
+    else { const w1=2*dx[i]+dx[i-1], w2=dx[i]+2*dx[i-1];
+      m.push((w1+w2)/(w1/slope[i-1]+w2/slope[i])); }
+  }
+  m.push(slope[n-2]||0);
+  let d='M'+pts[0][0].toFixed(1)+','+pts[0][1].toFixed(1);
+  for(let i=0;i<n-1;i++){
+    const h=dx[i];
+    d+=`C${(pts[i][0]+h/3).toFixed(1)},${(pts[i][1]+m[i]*h/3).toFixed(1)} `
+      +`${(pts[i+1][0]-h/3).toFixed(1)},${(pts[i+1][1]-m[i+1]*h/3).toFixed(1)} `
+      +`${pts[i+1][0].toFixed(1)},${pts[i+1][1].toFixed(1)}`;
+  }
+  const fill=d+`L${x(n-1).toFixed(1)},${(H-PB).toFixed(1)}L${PL},${(H-PB).toFixed(1)}Z`;
+  const gid='ag'+Math.random().toString(36).slice(2,7);
+  const grid=Array.from({length:steps+1},(_,i)=>{ const v=max*(steps-i)/steps, yy=yv(v);
+    return `<line x1="${PL}" x2="${W-PR}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" class="ag-grid"/>
+            <text x="${PL-8}" y="${(yy+3.5).toFixed(1)}" class="ag-yl">${v}</text>`;}).join('');
+  const dots=rows.map((r,i)=>`<g class="ag-pt"><circle cx="${x(i).toFixed(1)}" cy="${yv(r.v).toFixed(1)}" r="4.5" class="ag-dot"/>
+    <rect x="${(x(i)-26).toFixed(1)}" y="${(yv(r.v)-32).toFixed(1)}" width="52" height="21" rx="5" class="ag-tipbg"/>
+    <text x="${x(i).toFixed(1)}" y="${(yv(r.v)-17.5).toFixed(1)}" class="ag-tipt">${esc(r.l)}: ${r.v}</text>
+    <rect x="${(x(i)-14).toFixed(1)}" y="${PT}" width="28" height="${H-PT-PB}" fill="transparent"/></g>`).join('');
+  const xl=rows.map((r,i)=>(n>8&&i%2)?'':`<text x="${x(i).toFixed(1)}" y="${H-8}" class="ag-xl">${esc(r.l)}</text>`).join('');
+  return `<div class="areachart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:${H}px">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="var(--c-lime)" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="var(--c-lime)" stop-opacity=".02"/></linearGradient></defs>
+    ${grid}<path d="${fill}" fill="url(#${gid})"/><path d="${d}" class="ag-line"/>${dots}${xl}</svg></div>`;
+}
+
+/* ---- Gruplu sütun: iş takip akışı ---- */
+function chartGroup(rows){
+  const max=Math.max(1,...rows.map(r=>Math.max(r.a,r.b)));
+  return `<div class="gbars">${rows.map(r=>`<div class="gcol">
+    <div class="gpair">
+      <i class="ga" style="height:${(r.a/max)*100}%"><span class="gtip">${esc(r.l)} · toplam ${r.a}</span></i>
+      <i class="gb" style="height:${(r.b/max)*100}%"><span class="gtip">${esc(r.l)} · son 7 gün ${r.b}</span></i>
+    </div><span class="glab">${esc(r.l)}</span></div>`).join('')}</div>`;
+}
+
+/* ---- Takvim ---- */
+let calOffset=0;
+function calWidget(events){
+  const base=new Date(); base.setDate(1); base.setMonth(base.getMonth()+calOffset);
+  const y=base.getFullYear(), m=base.getMonth();
+  const AY=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const ilk=new Date(y,m,1).getDay(); const kaydir=(ilk+6)%7;   /* pazartesi başlangıç */
+  const gun=new Date(y,m+1,0).getDate();
+  const bugun=new Date(); const bugunMu=d=>bugun.getFullYear()===y&&bugun.getMonth()===m&&bugun.getDate()===d;
+  const isMap={}; (events||[]).forEach(e=>{ const dt=new Date(e.d);
+    if(dt.getFullYear()===y&&dt.getMonth()===m) (isMap[dt.getDate()]=isMap[dt.getDate()]||[]).push(e.t); });
+  let hc=''; for(let i=0;i<kaydir;i++) hc+='<span></span>';
+  for(let d=1;d<=gun;d++){ const ev=isMap[d];
+    hc+=`<span class="cd${ev?' has':''}${bugunMu(d)?' today':''}"${ev?` title="${esc(ev.slice(0,3).join(' · '))}"`:''}>${d}</span>`; }
+  return `<div class="calw">
+    <div class="calh"><b>${AY[m]} ${y}</b>
+      <span class="calnav"><button onclick="calNav(-1)">‹</button><button onclick="calNav(1)">›</button></span></div>
+    <div class="calg calhead"><span>P</span><span>S</span><span>Ç</span><span>P</span><span>C</span><span>C</span><span>P</span></div>
+    <div class="calg">${hc}</div></div>`;
+}
+function calNav(d){ calOffset+=d; const el=document.getElementById('calBox');
+  if(el) el.innerHTML=calWidget(ui._dashEvents||[]); }
+
 /* ---------- DASHBOARD ---------- */
 async function dashboard(c){
   const s=await api('dashboard_stats');
+  ui._dashEvents=s.takvim||[];
   const AY=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
   const QL={yeni:'Yeni',gorusuldu:'Görüşüldü',onaylandi:'Onaylandı',iptal:'İptal'};
-  const QC={yeni:'#4f6bed',gorusuldu:'#d99100',onaylandi:'#1f9d55',iptal:'#d64545'};
   const JL={tasarim:'Tasarım',baski:'Baskı',montaj:'Montaj',yayin:'Yayın',arsiv:'Arşiv'};
-  const JC={tasarim:'#7c5cff',baski:'#d99100',montaj:'#0ea5b7',yayin:'#1f9d55',arsiv:'#8b93a7'};
-
-  const rq=(s.recentQuotes||[]).map(q=>`<tr onclick="quoteView(${q.id})">
-    <td class="mono">#${q.id}</td><td>${esc(q.customer_name||q.firma||'-')}</td>
-    <td><span class="badge-st st-${esc(q.status||'yeni')}">${esc(QL[q.status]||q.status||'yeni')}</span></td>
-    <td class="mono dim">${(q.created_at||'').slice(0,10)}</td></tr>`).join('');
 
   const kpi=[
-    ['Doluluk','%'+s.doluluk, s.yil+' yılı · '+s.toplamDolu+'/'+s.slot+' ay-alan','accent','layers'],
-    ['Devam eden iş', s.activeJobs, (s.jobStat.yayin||0)+' yayında','violet','jobs'],
-    ['Yeni teklif', s.newQuotes, 'son 30 günde '+s.son30Teklif+' teklif','amber','quotes'],
-    ['Envanter', s.units, s.mecra+' mecra · '+s.alts+' alt mecra','green','media']
-  ].map(k=>`<div class="kpi-c ${k[3]}"><div class="kpi-ic">${ic(k[4],20)}</div>
-    <div class="kpi-n mono">${esc(k[1])}</div><div class="kpi-t">${esc(k[0])}</div>
-    <div class="kpi-s">${esc(k[2])}</div></div>`).join('');
+    ['%'+s.doluluk,'Doluluk', s.yil+' · '+s.toplamDolu+'/'+s.slot+' ay-alan','k-blue'],
+    [s.activeJobs,'Devam eden iş',(s.jobStat.yayin||0)+' yayında','k-lime'],
+    [s.newQuotes,'Yeni teklif','son 30 günde '+s.son30Teklif,'k-amber'],
+    [s.units,'Reklam alanı', s.mecra+' mecra · '+s.alts+' alt mecra','k-green']
+  ].map(k=>`<div class="kpi2 ${k[3]}"><div class="kpi2-n">${esc(k[0])}</div>
+    <div class="kpi2-t">${esc(k[1])}</div><div class="kpi2-s">${esc(k[2])}</div></div>`).join('');
 
-  const bars=chartBars(s.aylik.map((a,i)=>({l:AY[i],a:a.dolu,b:a.rezerve})),{h:150});
-  const donut=chartDonut([
-    {l:'Dolu',v:s.toplamDolu,c:'var(--c-accent)'},
-    {l:'Rezerve',v:s.toplamRez,c:'var(--c-warn)'},
-    {l:'Boş',v:s.bosSlot,c:'var(--c-line2)'}],{v:'%'+s.doluluk,l:'dolu'});
+  const area=chartArea(s.aylik.map((a,i)=>({l:AY[i],v:a.dolu+a.rezerve})),{h:210});
+  const jobRows=['tasarim','baski','montaj','yayin','arsiv'].map(k=>
+    ({l:JL[k],a:s.jobStat[k]||0,b:(s.jobYeni||{})[k]||0}));
 
-  const qSegs=Object.keys(QL).map(k=>({l:QL[k],v:s.quoteStat[k]||0,c:QC[k]}));
-  const qTot=qSegs.reduce((a,b)=>a+b.v,0);
-  const jRows=Object.keys(JL).map(k=>({l:JL[k],v:s.jobStat[k]||0,c:JC[k]}));
+  const notlar=(s.notes||[]).length ? s.notes.map(n=>{
+    const ad=n.ilgili_kisi||n.konu||'Not';
+    const bas=(ad.trim()[0]||'N').toLocaleUpperCase('tr');
+    return `<div class="msg" onclick="go('notlar')">
+      <span class="msg-av">${esc(bas)}</span>
+      <div class="msg-b"><div class="msg-t">${esc(n.konu||ad)}</div>
+        <div class="msg-x">${esc(String(n.body||'').slice(0,58))}</div></div>
+      <span class="msg-d">${esc(String(n.tarih||n.created_at||'').slice(5,10))}</span></div>`;}).join('')
+    : '<p class="empty">Henüz not yok. Ekip notlarını Notlar bölümünden ekleyebilirsiniz.</p>';
+
+  const rq=(s.recentQuotes||[]).map(q=>`<tr onclick="quoteView(${q.id})">
+    <td class="mono dim">#${q.id}</td><td>${esc(q.customer_name||q.firma||'-')}</td>
+    <td><span class="badge-st st-${esc(q.status||'yeni')}">${esc(QL[q.status]||'Yeni')}</span></td>
+    <td class="mono dim">${(q.created_at||'').slice(0,10)}</td></tr>`).join('');
 
   c.innerHTML=`
-  <div class="kpi-row">${kpi}</div>
-
-  <div class="grid-2">
-    <section class="card">
-      <div class="card-h"><h3>${s.yil} Aylık Doluluk</h3>
-        <div class="lgnd"><span><i style="background:var(--c-accent)"></i>Dolu</span><span><i style="background:var(--c-warn)"></i>Rezerve</span></div></div>
-      <div class="card-b">${bars}</div>
-    </section>
-    <section class="card">
-      <div class="card-h"><h3>Yıllık Kapasite</h3></div>
-      <div class="card-b donut-wrap">${donut}
-        <div class="dlist">
-          <div><i style="background:var(--c-accent)"></i>Dolu<b class="mono">${s.toplamDolu}</b></div>
-          <div><i style="background:var(--c-warn)"></i>Rezerve<b class="mono">${s.toplamRez}</b></div>
-          <div><i style="background:var(--c-line2)"></i>Boş<b class="mono">${s.bosSlot}</b></div>
-        </div></div>
-    </section>
+  <div class="kpi2-row">${kpi}</div>
+  <div class="dash-grid">
+    <div class="dash-l">
+      <section class="card">
+        <div class="card-h"><h3>Doluluk Trendi</h3><span class="chip">${s.yil}</span></div>
+        <div class="card-b">${area}</div>
+      </section>
+      <section class="card">
+        <div class="card-h"><h3>İş Takip Akışı</h3>
+          <div class="lgnd"><span><i style="background:var(--c-lime)"></i>Toplam</span><span><i style="background:var(--c-green-d)"></i>Son 7 gün</span></div>
+        </div>
+        <div class="card-b">${chartGroup(jobRows)}</div>
+      </section>
+    </div>
+    <div class="dash-r">
+      <section class="card"><div class="card-b" id="calBox">${calWidget(ui._dashEvents)}</div></section>
+      <section class="card">
+        <div class="card-h"><h3>Son Notlar</h3><button class="btn-link" onclick="go('notlar')">Tümü</button></div>
+        <div class="card-b msgs">${notlar}</div>
+      </section>
+      <section class="card">
+        <div class="card-h"><h3>Mecra Dağılımı</h3></div>
+        <div class="card-b">${s.mecraDagilim.length?chartRows(s.mecraDagilim.map(m=>({l:m.name,v:m.adet,c:m.color}))):'<p class="empty">Mecra yok.</p>'}</div>
+      </section>
+    </div>
   </div>
-
-  <div class="grid-3">
-    <section class="card">
-      <div class="card-h"><h3>Teklif Durumları</h3><span class="chip mono">${qTot}</span></div>
-      <div class="card-b">${qTot?chartRows(qSegs):'<p class="empty">Henüz teklif yok.</p>'}</div>
-    </section>
-    <section class="card">
-      <div class="card-h"><h3>İş Akışı</h3><button class="btn btn-ghost btn-sm" onclick="go('is-takibi')">Aç</button></div>
-      <div class="card-b">${chartRows(jRows)}</div>
-    </section>
-    <section class="card">
-      <div class="card-h"><h3>Mecra Bazında Alan</h3></div>
-      <div class="card-b">${s.mecraDagilim.length?chartRows(s.mecraDagilim.map(m=>({l:m.name,v:m.adet,c:m.color}))):'<p class="empty">Mecra yok.</p>'}</div>
-    </section>
-  </div>
-
   <section class="card">
-    <div class="card-h"><h3>Son Teklifler</h3><button class="btn btn-ghost btn-sm" onclick="go('teklifler')">Tümü</button></div>
+    <div class="card-h"><h3>Son Teklifler</h3><button class="btn-link" onclick="go('teklifler')">Tümü</button></div>
     ${rq?`<table class="tbl rowlink"><thead><tr><th>#</th><th>Müşteri</th><th>Durum</th><th>Tarih</th></tr></thead><tbody>${rq}</tbody></table>`:'<div class="card-b"><p class="empty">Henüz teklif yok.</p></div>'}
   </section>`;
 }
