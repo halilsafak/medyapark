@@ -357,3 +357,19 @@ textarea.inp{resize:vertical;min-height:70px;}
 .slug-row>span{padding:8px 10px;background:var(--c-alt);color:var(--c-ink3);font-size:12.5px;font-family:var(--fm);border-right:1px solid var(--c-line);white-space:nowrap;}
 .slug-row .inp{border:0;border-radius:0;}
 .slug-row .inp:focus{box-shadow:none;}
+
+/* ---- içe aktarma sihirbazı ---- */
+.imp-drop{border:1.5px dashed var(--c-line);border-radius:var(--r);padding:22px;text-align:center;background:var(--c-alt);margin-bottom:14px;}
+.imp-info{background:var(--c-accent-soft);border:1px solid #cfd9ff;color:#2b3f8f;border-radius:var(--r);
+  padding:8px 12px;font-size:12.5px;margin-bottom:12px;}
+.imp-warn{background:var(--c-red-soft);border:1px solid #f5c2c2;color:#9c2b2b;border-radius:var(--r);
+  padding:8px 12px;font-size:12.5px;margin-bottom:10px;}
+.imp-map{display:flex;flex-direction:column;gap:8px;max-height:290px;overflow-y:auto;padding-right:4px;}
+.imp-row{display:grid;grid-template-columns:132px 1fr;gap:10px;align-items:center;}
+.imp-f{font-size:12.5px;font-weight:600;color:var(--c-ink2);}
+.imp-f b{color:var(--c-red);}
+.imp-h{grid-column:2;font-size:11px;color:var(--c-ink3);margin-top:-4px;}
+.imp-row select{padding:6px 9px;font-size:12.5px;}
+.imp-prev{max-height:180px;overflow:auto;border:1px solid var(--c-line);border-radius:var(--r);margin-top:10px;}
+.imp-prev .tbl td,.imp-prev .tbl th{padding:6px 10px;font-size:12px;white-space:nowrap;}
+@media(max-width:560px){ .imp-row{grid-template-columns:1fr;} .imp-h{grid-column:1;} }

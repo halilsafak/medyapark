@@ -95,12 +95,19 @@ async function api(action, body){
     case 'booking_list':{ const {data,error}=await sb.from('bookings').select('ym,status').eq('unit_id',q.unit_id); if(error)throw error; return ok(data); }
     case 'booking_toggle':{
       if(body.status==='bos'){ const {error}=await sb.from('bookings').delete().eq('unit_id',body.unit_id).eq('ym',body.ym); if(error)throw error; }
-      else { const {error}=await sb.from('bookings').upsert({unit_id:body.unit_id,ym:body.ym,status:body.status,customer_id:(body.customer_id!==undefined?body.customer_id:null)},{onConflict:'unit_id,ym'}); if(error)throw error; }
+      else { const row={unit_id:body.unit_id,ym:body.ym,status:body.status,customer_id:(body.customer_id!==undefined?body.customer_id:null)};
+        if(body.note!==undefined) row.note=body.note;
+        const {error}=await sb.from('bookings').upsert(row,{onConflict:'unit_id,ym'}); if(error)throw error; }
       return ok();
     }
 
     case 'customers_list':{ const {data,error}=await sb.from('customers').select('*').order('id',{ascending:false}); if(error)throw error; return ok(data); }
     case 'customer_save': return ok(await saveRow('customers',body));
+    case 'customer_delete':{ const {error}=await sb.from('customers').delete().eq('id',body.id); if(error)throw error; return ok(true); }
+
+    case 'suppliers_list':{ const {data,error}=await sb.from('suppliers').select('*').order('firma'); if(error)throw error; return ok(data); }
+    case 'supplier_save': return ok(await saveRow('suppliers',body));
+    case 'supplier_delete':{ const {error}=await sb.from('suppliers').delete().eq('id',body.id); if(error)throw error; return ok(true); }
 
     case 'quotes_list':{ const {data,error}=await sb.from('quotes').select('*').order('created_at',{ascending:false}); if(error)throw error; return ok(data); }
     case 'quote_get':{
@@ -160,11 +167,12 @@ const NAV=[
  ['listeler','Doluluk','lists',''],
  ['musteriler','Müşteriler','customers','Satış'],
  ['teklifler','Teklifler','quotes',''],
+ ['tedarikciler','Tedarikçiler','truck',''],
  ['ekip','Ekip','team','Yönetim'],
  ['sayfalar','Sayfalar','pages',''],
  ['notlar','Notlar','notes',''],
  ['ayarlar','Ayarlar','settings','']];
-const TITLES={dashboard:'Dashboard','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Doluluk',musteriler:'Müşteriler',teklifler:'Teklifler',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
+const TITLES={dashboard:'Dashboard','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Doluluk',musteriler:'Müşteriler',tedarikciler:'Tedarikçiler',teklifler:'Teklifler',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
 function showApp(){
   const st=ui._settings||{};
   const logo = st.logoImage
@@ -206,6 +214,7 @@ async function renderSection(){
     if(ui.section==='ekip') return ekip(c);
     if(ui.section==='sayfalar') return sayfalar(c);
     if(ui.section==='notlar') return notlar(c);
+    if(ui.section==='tedarikciler') return tedarikciler(c);
     if(ui.section==='harita') return harita(c);
     if(ui.section==='ayarlar') return ayarlar(c);
   }catch(e){ c.innerHTML='<div class="banner">Hata: '+esc(e.message||e)+'</div>'; }
@@ -239,7 +248,10 @@ const ICON={
  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5.5l3.5 2"/>',
  check:'<path d="M4 12.5l5 5L20 6.5"/>',
  layers:'<path d="M12 3 3 7.5l9 4.5 9-4.5z"/><path d="M3 12.5 12 17l9-4.5M3 17 12 21.5 21 17"/>',
- pin:'<path d="M12 21s7-6.6 7-11.5A7 7 0 1 0 5 9.5C5 14.4 12 21 12 21z"/><circle cx="12" cy="9.3" r="2.6"/>'
+ pin:'<path d="M12 21s7-6.6 7-11.5A7 7 0 1 0 5 9.5C5 14.4 12 21 12 21z"/><circle cx="12" cy="9.3" r="2.6"/>',
+ truck:'<path d="M2 6.5h11v10H2zM13 10h4l3 3.2v3.3h-7z"/><circle cx="6" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
+ upload:'<path d="M12 16V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/>',
+ download:'<path d="M12 4v12M7.5 11.5 12 16l4.5-4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/>'
 };
 function ic(n,sz){ return `<svg class="ic" viewBox="0 0 24 24" width="${sz||18}" height="${sz||18}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[n]||''}</svg>`; }
 
@@ -480,6 +492,130 @@ async function buildSitemap(){
   a.href=URL.createObjectURL(new Blob([xml],{type:'application/xml'}));
   a.download='sitemap.xml'; a.click(); URL.revokeObjectURL(a.href);
   alert(urls.length+' adres içeren sitemap.xml indirildi.\nBu dosyayı sitenin ana klasörüne yükleyin.');
+}
+
+
+/* ==========================================================
+   EXCEL / CSV — DIŞA VE İÇE AKTARMA ALTYAPISI
+   ========================================================== */
+let _xlsxP=null;
+function xlsxLoad(){                       /* SheetJS sadece gerektiğinde yüklenir */
+  if(window.XLSX) return Promise.resolve();
+  if(_xlsxP) return _xlsxP;
+  _xlsxP=new Promise((res,rej)=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload=()=>res(); sc.onerror=()=>rej(new Error('Excel kütüphanesi yüklenemedi'));
+    document.head.appendChild(sc);
+  });
+  return _xlsxP;
+}
+const _dt=()=>new Date().toISOString().slice(0,10);
+
+/* --- DIŞA AKTAR --- */
+async function exportRows(dosyaAdi, sheetAdi, cols, rows){
+  try{ await xlsxLoad(); }catch(e){ alert(e.message); return; }
+  const head=cols.map(c=>c.label);
+  const body=rows.map(r=>cols.map(c=>{
+    const v=typeof c.get==='function'?c.get(r):r[c.key];
+    return (v===null||v===undefined)?'':v; }));
+  const ws=XLSX.utils.aoa_to_sheet([head,...body]);
+  ws['!cols']=cols.map(c=>({wch:c.w||18}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,sheetAdi.slice(0,30));
+  XLSX.writeFile(wb,`${dosyaAdi}-${_dt()}.xlsx`);
+}
+
+/* --- İÇE AKTAR --- */
+let _imp=null;   /* {cfg, headers, rows, map} */
+function importOpen(cfg){
+  _imp={cfg,headers:[],rows:[],map:{}};
+  modal(`<h3 style="margin:0 0 6px">${esc(cfg.title)}</h3>
+    <p class="muted" style="font-size:12.5px;margin:0 0 14px">${esc(cfg.hint||'Excel (.xlsx) veya CSV dosyası seçin. Sütunlarınızı bir sonraki adımda eşleştireceksiniz.')}</p>
+    <div class="imp-drop" id="impDrop">
+      <input type="file" id="impFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importParse(this.files[0])">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('impFile').click()">Dosya Seç</button>
+      <p class="muted" style="font-size:12px;margin:9px 0 0">.xlsx · .xls · .csv</p>
+    </div>
+    <div id="impBody"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Vazgeç</button>
+      <button class="btn btn-primary btn-sm" id="impGo" onclick="importApply()" disabled>İçe Aktar</button></div>`);
+}
+async function importParse(file){
+  if(!file)return;
+  try{ await xlsxLoad(); }catch(e){ alert(e.message); return; }
+  const buf=await file.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array',cellDates:true});
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',blankrows:false});
+  if(!aoa.length){ alert('Dosya boş görünüyor.'); return; }
+  /* başlık satırını bul: en çok dolu hücreye sahip ilk 5 satırdan biri */
+  let hi=0,best=-1;
+  aoa.slice(0,5).forEach((r,i)=>{ const n=r.filter(x=>String(x).trim()!=='').length; if(n>best){best=n;hi=i;} });
+  _imp.headers=aoa[hi].map((h,i)=>String(h).trim()||('Sütun '+(i+1)));
+  _imp.rows=aoa.slice(hi+1).filter(r=>r.some(x=>String(x).trim()!==''));
+  /* otomatik eşleştirme */
+  const norm=t=>String(t||'').toLocaleLowerCase('tr').replace(/[^a-z0-9çğıöşü]/g,'');
+  _imp.map={};
+  _imp.cfg.fields.forEach(f=>{
+    const cands=[f.label,...(f.alias||[])].map(norm);
+    const idx=_imp.headers.findIndex(h=>cands.includes(norm(h)));
+    const idx2=idx>=0?idx:_imp.headers.findIndex(h=>cands.some(c=>norm(h).includes(c)&&c.length>3));
+    _imp.map[f.key]=idx2;
+  });
+  importRenderMap();
+}
+function importRenderMap(){
+  const {cfg,headers,rows,map}=_imp;
+  const opts=i=>headers.map((h,n)=>`<option value="${n}" ${i===n?'selected':''}>${esc(h)}</option>`).join('');
+  const sel=cfg.fields.map(f=>`<div class="imp-row">
+    <span class="imp-f">${esc(f.label)}${f.required?' <b>*</b>':''}</span>
+    <select class="inp" onchange="_imp.map['${f.key}']=+this.value;importPreview()">
+      <option value="-1" ${map[f.key]==null||map[f.key]<0?'selected':''}>— eşleştirme —</option>${opts(map[f.key])}</select>
+    ${f.hint?`<span class="imp-h">${esc(f.hint)}</span>`:''}</div>`).join('');
+  document.getElementById('impBody').innerHTML=`
+    <div class="imp-info">${rows.length} satır okundu · ${headers.length} sütun bulundu</div>
+    <div class="imp-map">${sel}</div>
+    ${cfg.modes?`<div class="field" style="margin-top:12px"><label class="flabel">Mevcut kayıtlar</label>
+      <select class="inp" id="impMode">${cfg.modes.map(m=>`<option value="${m[0]}">${m[1]}</option>`).join('')}</select></div>`:''}
+    <div id="impPrev"></div>`;
+  importPreview();
+}
+function importMapped(){
+  const {cfg,rows,map}=_imp;
+  return rows.map(r=>{ const o={};
+    cfg.fields.forEach(f=>{ const i=map[f.key];
+      let v=(i!=null&&i>=0)?r[i]:'';
+      if(v instanceof Date) v=v.toISOString().slice(0,10);
+      o[f.key]=typeof v==='string'?v.trim():v; });
+    return o; });
+}
+function importPreview(){
+  const {cfg}=_imp; const data=importMapped();
+  const eksik=cfg.fields.filter(f=>f.required&&(_imp.map[f.key]==null||_imp.map[f.key]<0));
+  const gecerli=data.filter(r=>cfg.fields.filter(f=>f.required).every(f=>String(r[f.key]||'').trim()!==''));
+  const el=document.getElementById('impPrev');
+  const cols=cfg.fields.slice(0,5);
+  el.innerHTML=`${eksik.length?`<div class="imp-warn">Zorunlu alan eşleştirilmedi: ${eksik.map(f=>esc(f.label)).join(', ')}</div>`:''}
+    <div class="imp-info">${gecerli.length} satır aktarılacak${data.length-gecerli.length?` · ${data.length-gecerli.length} satır atlanacak (zorunlu alan boş)`:''}</div>
+    <div class="imp-prev"><table class="tbl"><thead><tr>${cols.map(c=>`<th>${esc(c.label)}</th>`).join('')}</tr></thead>
+      <tbody>${gecerli.slice(0,5).map(r=>`<tr>${cols.map(c=>`<td>${esc(String(r[c.key]||''))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  document.getElementById('impGo').disabled = eksik.length>0 || gecerli.length===0;
+}
+async function importApply(){
+  const {cfg}=_imp; const btn=document.getElementById('impGo');
+  const data=importMapped().filter(r=>cfg.fields.filter(f=>f.required).every(f=>String(r[f.key]||'').trim()!==''));
+  btn.disabled=true; btn.textContent='Aktarılıyor…';
+  try{
+    const mode=document.getElementById('impMode')?document.getElementById('impMode').value:'';
+    const rap=await cfg.onApply(data,mode);
+    closeModal(); renderSection();
+    alert(rap||'İçe aktarma tamamlandı.');
+  }catch(e){
+    btn.disabled=false; btn.textContent='İçe Aktar';
+    alert('Aktarma hatası: '+(e.message||e));
+  }
 }
 
 /* ---------- MECRALAR ---------- */
@@ -863,6 +999,115 @@ function lTip(el){
 function lTipHide(){ if(_tipEl)_tipEl.style.display='none'; }
 const MONTHS_LONG_TR=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 
+
+/* ---------- DOLULUK: Excel aktarımı ---------- */
+const AY_TR=['ocak','şubat','mart','nisan','mayıs','haziran','temmuz','ağustos','eylül','ekim','kasım','aralık'];
+function ymParse(v,varsayilanYil){
+  if(v==null)return null;
+  if(v instanceof Date) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0');
+  let t=String(v).trim(); if(!t)return null;
+  let m=t.match(/^(\d{4})[-./](\d{1,2})/);                       /* 2026-03 , 2026/3 */
+  if(m) return m[1]+'-'+String(+m[2]).padStart(2,'0');
+  m=t.match(/^(\d{1,2})[-./](\d{4})$/);                          /* 03-2026 */
+  if(m) return m[2]+'-'+String(+m[1]).padStart(2,'0');
+  m=t.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{4})$/);            /* 01.03.2026 */
+  if(m) return m[3]+'-'+String(+m[2]).padStart(2,'0');
+  const low=t.toLocaleLowerCase('tr');                            /* "Mart 2026" / "Mart" */
+  const ai=AY_TR.findIndex(a=>low.startsWith(a.slice(0,3)));
+  if(ai>=0){ const yy=(low.match(/(\d{4})/)||[])[1]||varsayilanYil; return yy+'-'+String(ai+1).padStart(2,'0'); }
+  return null;
+}
+function durumParse(v){
+  const t=String(v||'').toLocaleLowerCase('tr').trim();
+  if(!t) return null;
+  if(/^(dolu|kirali|kiralı|satıldı|satildi|full|1|evet|x)$/.test(t)) return 'dolu';
+  if(/^(rezerve|opsiyon|rezervasyon|beklemede)$/.test(t)) return 'rezerve';
+  if(/^(boş|bos|müsait|musait|empty|0|hayır|hayir)$/.test(t)) return 'bos';
+  return null;
+}
+async function bookExport(){
+  const y=ui._lyear||new Date().getFullYear();
+  const [mc,al,un,bk,cu]=await Promise.all([
+    api('mecra_list'), sb.from('alt_mecralar').select('*'), sb.from('units').select('*').order('sort').order('id'),
+    sb.from('bookings').select('*').like('ym',y+'-%'), api('customers_list')]);
+  const alt={}; (al.data||[]).forEach(a=>alt[a.id]=a);
+  const mm={}; mc.forEach(m=>mm[m.id]=m);
+  const cus={}; cu.forEach(c=>cus[c.id]=c.firma);
+  const bmap={}; (bk.data||[]).forEach(b=>{(bmap[b.unit_id]=bmap[b.unit_id]||{})[b.ym]={s:b.status,c:b.customer_id,n:b.note};});
+  const rows=[];
+  (un.data||[]).forEach(u=>{
+    const a=alt[u.alt_mecra_id]||{}; const m=mm[a.mecra_id||u.mecra_id]||{};
+    const p=posParts(u.name);
+    for(let i=1;i<=12;i++){
+      const ym=y+'-'+String(i).padStart(2,'0'); const r=(bmap[u.id]||{})[ym];
+      rows.push({mecra:m.name||'',alt:a.name||'',pozisyon:p.base,yuzey:p.surf,ay:ym,
+        durum:r?(r.s==='dolu'?'Dolu':'Rezerve'):'Boş',firma:r&&r.c?(cus[r.c]||''):'',not:r&&r.n?r.n:''});
+    }
+  });
+  if(!rows.length){ alert('Aktarılacak kayıt yok.'); return; }
+  await exportRows('doluluk-'+y,'Doluluk '+y,[
+    {key:'mecra',label:'Mecra',w:24},{key:'alt',label:'Alt Mecra',w:22},
+    {key:'pozisyon',label:'Pozisyon',w:14},{key:'yuzey',label:'Yüzey',w:8},
+    {key:'ay',label:'Ay',w:10},{key:'durum',label:'Durum',w:10},
+    {key:'firma',label:'Firma',w:26},{key:'not',label:'Not',w:30}],rows);
+}
+function bookImport(){
+  const y=ui._lyear||new Date().getFullYear();
+  importOpen({
+    title:'Doluluk Verisini Excel\'den Al',
+    hint:`Her satır bir pozisyon-ay kaydıdır. Pozisyon "P1-A" gibi tek sütunda olabilir ya da Pozisyon + Yüzey ayrı sütunlarda. Ay boşsa ${y} varsayılır.`,
+    fields:[
+      {key:'mecra',label:'Mecra',required:true,alias:['lokasyon','yer','bölge']},
+      {key:'alt',label:'Alt Mecra',alias:['ürün','urun','tip','reklam alanı'],hint:'opsiyonel'},
+      {key:'pozisyon',label:'Pozisyon',required:true,alias:['ünite','unite','alan','no','kod']},
+      {key:'yuzey',label:'Yüzey',alias:['yön','yon','cephe','a/b'],hint:'boşsa pozisyon adından okunur'},
+      {key:'ay',label:'Ay',required:true,alias:['dönem','donem','tarih','periyot']},
+      {key:'durum',label:'Durum',required:true,alias:['statü','statu','durumu','kiralama']},
+      {key:'firma',label:'Firma',alias:['müşteri','musteri','kiralayan','cari'],hint:'opsiyonel'},
+      {key:'not',label:'Not',alias:['açıklama','aciklama']}
+    ],
+    modes:[['ow','Mevcut kaydın ÜZERİNE yaz'],['keep','Mevcut kayıt varsa DOKUNMA']],
+    onApply:async (data,mode)=>{
+      const [mc,al,un,cu]=await Promise.all([
+        api('mecra_list'), sb.from('alt_mecralar').select('*'), sb.from('units').select('*'), api('customers_list')]);
+      const norm=t=>String(t||'').toLocaleLowerCase('tr').replace(/\s+/g,' ').trim();
+      const alt={}; (al.data||[]).forEach(a=>alt[a.id]=a);
+      /* pozisyon dizini: mecra adı + taban + yüzey */
+      const uidx={};
+      (un.data||[]).forEach(u=>{ const a=alt[u.alt_mecra_id]||{};
+        const m=mc.find(x=>x.id===(a.mecra_id||u.mecra_id))||{};
+        const p=posParts(u.name);
+        uidx[norm(m.name)+'|'+norm(p.base)+'|'+p.surf]=u.id; });
+      const cidx={}; cu.forEach(c=>cidx[norm(c.firma)]=c.id);
+      const mevcut={}; 
+      const {data:bk}=await sb.from('bookings').select('unit_id,ym,id');
+      (bk||[]).forEach(b=>mevcut[b.unit_id+'|'+b.ym]=b.id);
+
+      let ok=0,atla=0; const hatalar=[];
+      for(const r of data){
+        const ym=ymParse(r.ay,y);
+        const st=durumParse(r.durum);
+        if(!ym){ hatalar.push(`Ay okunamadı: "${r.ay}" (${r.mecra}/${r.pozisyon})`); continue; }
+        if(st===null){ hatalar.push(`Durum okunamadı: "${r.durum}" (${r.mecra}/${r.pozisyon})`); continue; }
+        /* pozisyon + yüzey çöz */
+        let base=r.pozisyon, surf=String(r.yuzey||'').trim().toUpperCase();
+        if(!surf){ const p=posParts(r.pozisyon); base=p.base; surf=p.surf; }
+        const key=norm(r.mecra)+'|'+norm(base)+'|'+(surf==='B'?'B':'A');
+        const uid=uidx[key];
+        if(!uid){ hatalar.push(`Pozisyon bulunamadı: ${r.mecra} › ${base}-${surf}`); continue; }
+        const varMi=mevcut[uid+'|'+ym];
+        if(varMi && mode==='keep'){ atla++; continue; }
+        if(st==='bos'){ if(varMi){ await sb.from('bookings').delete().eq('id',varMi); ok++; } else atla++; continue; }
+        const cid=r.firma?(cidx[norm(r.firma)]||null):null;
+        await api('booking_toggle',{unit_id:uid,ym,status:st,customer_id:cid,note:r.not||null});
+        ok++;
+      }
+      let msg=`Tamamlandı.\n${ok} kayıt işlendi.\n${atla} satır atlandı.`;
+      if(hatalar.length) msg+=`\n\n${hatalar.length} satır aktarılamadı:\n`+hatalar.slice(0,12).join('\n')+(hatalar.length>12?`\n… ve ${hatalar.length-12} tane daha`:'');
+      return msg;
+    }});
+}
+
 /* ---------- LİSTELER ---------- */
 async function listeler(c){
   if(!ui._lyear) ui._lyear=new Date().getFullYear();
@@ -897,7 +1142,11 @@ async function listeler(c){
   }
   const custOpts=custs.map(x=>`<option value="${x.id}">${esc(x.firma||x.ilgili_kisi||('#'+x.id))}</option>`).join('');
   c.innerHTML=`<div class="sec-head"><h3>Doluluk / Kiralama</h3>
-    <div class="year-nav" style="margin:0"><button onclick="lYear(-1)">‹</button><span class="yr">${y}</span><button onclick="lYear(1)">›</button></div></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="bookExport()">${ic('download',15)} Excel'e Aktar</button>
+      <button class="btn btn-outline btn-sm" onclick="bookImport()">${ic('upload',15)} Excel'den Al</button>
+      <div class="year-nav" style="margin:0"><button onclick="lYear(-1)">‹</button><span class="yr">${y}</span><button onclick="lYear(1)">›</button></div>
+    </div></div>
     <div class="banner">Her ayın altında iki kutu vardır: <b>soldaki A (ön yüz)</b>, <b>sağdaki B (arka yüz)</b>. Kutuya tıkla: Boş → Dolu → Rezerve → Boş. Dolu/Rezerve yaparken aşağıda seçili müşteri atanır ve anında kaydedilir. Kutunun üzerine gelince kiralayan firma bilgi kartında görünür. Ziyaretçi firma adını görmez, yalnızca durumu görür.</div>
     <div class="field" style="max-width:380px"><label class="flabel">Atanacak müşteri (dolu/rezerve için)</label><select class="inp" id="lcust"><option value="">— müşteri atama —</option>${custOpts}</select></div>
     ${html||'<p class="muted">Mecra yok.</p>'}`;
@@ -919,10 +1168,134 @@ function lYear(d){ ui._lyear=(ui._lyear||new Date().getFullYear())+d; renderSect
 /* ---------- MÜŞTERİLER ---------- */
 async function musteriler(c){
   const list=await api('customers_list'); ui._cust=list;
-  const rows=list.map(x=>`<div class="list-item"><div class="nm">${esc(x.firma)}</div><div class="meta">${esc(x.ilgili_kisi||'')} · ${esc(x.telefon||'')}</div>
+  const rows=list.map(x=>`<div class="list-item"><div class="nm">${esc(x.firma)}</div><div class="meta">${esc(x.ilgili_kisi||'')} · ${esc(x.telefon||'')}${x.eposta?' · '+esc(x.eposta):''}</div>
     <button class="btn btn-outline btn-sm" onclick="custForm(${x.id})">Düzenle</button><button class="btn btn-danger btn-sm" onclick="custDel(${x.id})">Sil</button></div>`).join('');
-  c.innerHTML=`<div class="sec-head"><h3>Müşteriler</h3><button class="btn btn-primary btn-sm" onclick="custForm(0)">+ Müşteri</button></div>${rows||'<p class="muted">Müşteri yok.</p>'}`;
+  c.innerHTML=`<div class="sec-head">
+      <div><h3>Müşteriler</h3><p class="sub">${list.length} kayıt</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="custExport()">${ic('download',15)} Excel'e Aktar</button>
+        <button class="btn btn-outline btn-sm" onclick="custImport()">${ic('upload',15)} Excel'den Al</button>
+        <button class="btn btn-primary btn-sm" onclick="custForm(0)">${ic('plus',15)} Müşteri</button></div>
+    </div>${rows||'<p class="empty">Müşteri yok.</p>'}`;
 }
+const CUST_COLS=[
+  {key:'firma',label:'Firma',w:28},{key:'ilgili_kisi',label:'İlgili Kişi',w:20},
+  {key:'birim',label:'Birim',w:16},{key:'telefon',label:'Telefon',w:16},
+  {key:'eposta',label:'E-posta',w:24},{key:'adres',label:'Adres',w:34},
+  {key:'vergi_no',label:'Vergi No',w:14},{key:'vergi_dairesi',label:'Vergi Dairesi',w:18},
+  {key:'mersis',label:'Mersis',w:16},{key:'fatura_basligi',label:'Fatura Başlığı',w:24},
+  {key:'puan',label:'Puan',w:8}];
+async function custExport(){
+  const list=ui._cust||await api('customers_list');
+  if(!list.length){ alert('Aktarılacak müşteri yok.'); return; }
+  await exportRows('musteriler','Müşteriler',CUST_COLS,list);
+}
+function custImport(){
+  importOpen({
+    title:'Müşterileri Excel\'den Al',
+    hint:'Firma adı zorunlu. Aynı firma adı varsa seçiminize göre güncellenir veya atlanır.',
+    fields:CUST_COLS.map(c=>({key:c.key,label:c.label,required:c.key==='firma',
+      alias:{firma:['unvan','müşteri','musteri','firma adı','cari'],ilgili_kisi:['yetkili','kişi','kisi','ilgili'],
+             telefon:['tel','gsm','cep'],eposta:['email','mail','e posta'],adres:['adress','address'],
+             vergi_no:['vkn','vergi numarası'],vergi_dairesi:['vd'],fatura_basligi:['fatura ünvanı','fatura unvani'],
+             birim:['departman'],puan:['yıldız']}[c.key]||[]})),
+    modes:[['update','Aynı firma varsa GÜNCELLE'],['skip','Aynı firma varsa ATLA']],
+    onApply:async (data,mode)=>{
+      const mevcut=await api('customers_list');
+      const idx={}; mevcut.forEach(x=>idx[String(x.firma||'').toLocaleLowerCase('tr').trim()]=x);
+      let eklendi=0,guncellendi=0,atlandi=0;
+      for(const r of data){
+        const k=String(r.firma).toLocaleLowerCase('tr').trim();
+        const body={...r}; if(body.puan!=='' && body.puan!=null) body.puan=parseInt(body.puan,10)||0; else delete body.puan;
+        if(idx[k]){
+          if(mode==='skip'){ atlandi++; continue; }
+          await api('customer_save',{...body,id:idx[k].id}); guncellendi++;
+        } else { await api('customer_save',{...body,id:0}); eklendi++; }
+      }
+      return `Tamamlandı.\n${eklendi} yeni kayıt eklendi.\n${guncellendi} kayıt güncellendi.\n${atlandi} kayıt atlandı.`;
+    }});
+}
+async function custDel(id){ if(!confirm('Bu müşteri silinsin mi?'))return; await api('customer_delete',{id}); renderSection(); }
+
+/* ---------- TEDARİKÇİLER ---------- */
+const SUP_COLS=[
+  {key:'firma',label:'Firma',w:28},{key:'kategori',label:'Kategori',w:18},
+  {key:'ilgili_kisi',label:'İlgili Kişi',w:20},{key:'telefon',label:'Telefon',w:16},
+  {key:'eposta',label:'E-posta',w:24},{key:'adres',label:'Adres',w:34},
+  {key:'vergi_no',label:'Vergi No',w:14},{key:'vergi_dairesi',label:'Vergi Dairesi',w:18},
+  {key:'iban',label:'IBAN',w:30},{key:'notlar',label:'Notlar',w:34}];
+async function tedarikciler(c){
+  const list=await api('suppliers_list'); ui._sup=list;
+  const kat={}; list.forEach(x=>{ const k=x.kategori||'Diğer'; (kat[k]=kat[k]||[]).push(x); });
+  const bloklar=Object.keys(kat).sort().map(k=>`
+    <div class="sec-card"><div class="sec-head" style="margin-bottom:10px">
+      <h4 style="font-size:14px;margin:0">${esc(k)} <span class="chip">${kat[k].length}</span></h4></div>
+      ${kat[k].map(x=>`<div class="list-item">
+        <div class="nm">${esc(x.firma)}${x.aktif===false?' <span class="pill">pasif</span>':''}</div>
+        <div class="meta">${esc(x.ilgili_kisi||'')}${x.telefon?' · '+esc(x.telefon):''}${x.eposta?' · '+esc(x.eposta):''}</div>
+        <button class="btn btn-outline btn-sm" onclick="supForm(${x.id})">Düzenle</button>
+        <button class="btn btn-danger btn-sm" onclick="supDel(${x.id})">Sil</button></div>`).join('')}
+    </div>`).join('');
+  c.innerHTML=`<div class="sec-head">
+      <div><h3>Tedarikçiler</h3><p class="sub">${list.length} kayıt · baskı, montaj, malzeme vb.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="supExport()">${ic('download',15)} Excel'e Aktar</button>
+        <button class="btn btn-outline btn-sm" onclick="supImport()">${ic('upload',15)} Excel'den Al</button>
+        <button class="btn btn-primary btn-sm" onclick="supForm(0)">${ic('plus',15)} Tedarikçi</button></div>
+    </div>${bloklar||'<p class="empty">Tedarikçi yok. Excel\'den toplu aktarabilir veya tek tek ekleyebilirsiniz.</p>'}`;
+}
+function supForm(id){ const x=(ui._sup||[]).find(s=>s.id===id)||{aktif:true};
+  const kats=['Baskı','Montaj','Malzeme','Nakliye','Elektrik','Tasarım','Diğer'];
+  modal(`<h3 style="margin:0 0 14px">${id?'Tedarikçi Düzenle':'Yeni Tedarikçi'}</h3><input type="hidden" id="sid" value="${id||0}">
+    <div class="row2"><div class="field"><label class="flabel">Firma *</label><input class="inp" id="sf" value="${esc(x.firma)}"></div>
+    <div class="field"><label class="flabel">Kategori</label><input class="inp" id="sk" list="supkat" value="${esc(x.kategori)}" placeholder="Baskı, Montaj…">
+      <datalist id="supkat">${kats.map(k=>`<option value="${k}">`).join('')}</datalist></div></div>
+    <div class="row2"><div class="field"><label class="flabel">İlgili Kişi</label><input class="inp" id="sik" value="${esc(x.ilgili_kisi)}"></div>
+    <div class="field"><label class="flabel">Telefon</label><input class="inp" id="st" value="${esc(x.telefon)}"></div></div>
+    <div class="row2"><div class="field"><label class="flabel">E-posta</label><input class="inp" id="se" value="${esc(x.eposta)}"></div>
+    <div class="field"><label class="flabel">IBAN</label><input class="inp" id="sib" value="${esc(x.iban)}"></div></div>
+    <div class="field"><label class="flabel">Adres</label><input class="inp" id="sa" value="${esc(x.adres)}"></div>
+    <div class="row2"><div class="field"><label class="flabel">Vergi No</label><input class="inp" id="sv" value="${esc(x.vergi_no)}"></div>
+    <div class="field"><label class="flabel">Vergi Dairesi</label><input class="inp" id="svd" value="${esc(x.vergi_dairesi)}"></div></div>
+    <div class="field"><label class="flabel">Notlar</label><textarea class="inp" id="sn">${esc(x.notlar)}</textarea></div>
+    <label class="switch" style="margin-bottom:14px"><input type="checkbox" id="sak" ${x.aktif===false?'':'checked'}><span class="sl"></span><span class="txt">Aktif tedarikçi</span></label>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="closeModal()">Vazgeç</button>
+      <button class="btn btn-primary btn-sm" onclick="supSave()">Kaydet</button></div>`);
+}
+async function supSave(){
+  if(!gv('sf').trim()){ alert('Firma adı zorunlu.'); return; }
+  await api('supplier_save',{id:+gv('sid'),firma:gv('sf'),kategori:gv('sk'),ilgili_kisi:gv('sik'),telefon:gv('st'),
+    eposta:gv('se'),iban:gv('sib'),adres:gv('sa'),vergi_no:gv('sv'),vergi_dairesi:gv('svd'),notlar:gv('sn'),
+    aktif:document.getElementById('sak').checked});
+  closeModal(); renderSection();
+}
+async function supDel(id){ if(!confirm('Bu tedarikçi silinsin mi?'))return; await api('supplier_delete',{id}); renderSection(); }
+async function supExport(){
+  const list=ui._sup||await api('suppliers_list');
+  if(!list.length){ alert('Aktarılacak tedarikçi yok.'); return; }
+  await exportRows('tedarikciler','Tedarikçiler',SUP_COLS,list);
+}
+function supImport(){
+  importOpen({
+    title:'Tedarikçileri Excel\'den Al',
+    fields:SUP_COLS.map(c=>({key:c.key,label:c.label,required:c.key==='firma',
+      alias:{firma:['unvan','tedarikçi','tedarikci','cari'],kategori:['tür','tur','grup','hizmet'],
+             ilgili_kisi:['yetkili','kişi','ilgili'],telefon:['tel','gsm','cep'],eposta:['email','mail'],
+             vergi_no:['vkn'],vergi_dairesi:['vd'],notlar:['açıklama','aciklama','not']}[c.key]||[]})),
+    modes:[['update','Aynı firma varsa GÜNCELLE'],['skip','Aynı firma varsa ATLA']],
+    onApply:async (data,mode)=>{
+      const mevcut=await api('suppliers_list');
+      const idx={}; mevcut.forEach(x=>idx[String(x.firma||'').toLocaleLowerCase('tr').trim()]=x);
+      let e=0,g=0,a=0;
+      for(const r of data){
+        const k=String(r.firma).toLocaleLowerCase('tr').trim();
+        if(idx[k]){ if(mode==='skip'){a++;continue;} await api('supplier_save',{...r,id:idx[k].id}); g++; }
+        else { await api('supplier_save',{...r,id:0}); e++; }
+      }
+      return `Tamamlandı.\n${e} yeni tedarikçi eklendi.\n${g} kayıt güncellendi.\n${a} kayıt atlandı.`;
+    }});
+}
+
 function custForm(id){ const x=(ui._cust||[]).find(c=>c.id===id)||{};
   modal(`<h3 style="margin:0 0 14px">${id?'Müşteri Düzenle':'Yeni Müşteri'}</h3><input type="hidden" id="cid" value="${id||0}">
     <div class="row2"><div class="field"><label class="flabel">Firma</label><input class="inp" id="cf" value="${esc(x.firma)}"></div>
