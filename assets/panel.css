@@ -527,3 +527,9 @@ details.grp>summary:hover .chev{color:var(--c-accent);}
   .fl-r{padding:0;} .fl-track{margin:14px 0 20px;}
   .fl-badge{justify-self:start;}
 }
+
+/* ---- bilgi balonu ---- */
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,14px);z-index:9999;
+  background:#0d1730;color:#fff;border-radius:11px;padding:11px 18px;font-size:13px;font-weight:500;
+  box-shadow:0 14px 40px -14px rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:.22s;max-width:88vw;text-align:center;}
+.toast.on{opacity:1;transform:translate(-50%,0);}

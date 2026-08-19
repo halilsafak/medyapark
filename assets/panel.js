@@ -7,15 +7,72 @@ const gv=id=>{const e=document.getElementById(id);return e?e.value:'';};
 const pad=n=>String(n).padStart(2,'0');
 
 /* ---- Storage yükleme ---- */
-async function uploadFile(f){
-  const ext=(f.name.split('.').pop()||'bin').toLowerCase();
+/* ==========================================================
+   GÖRSEL OPTİMİZASYONU
+   Yüklemeden önce tarayıcıda küçültülür ve WebP'ye çevrilir.
+   SVG/GIF'e dokunulmaz (vektör / animasyon bozulmasın).
+   ========================================================== */
+let _webpOK=null;
+function webpDestegi(){
+  if(_webpOK!==null) return Promise.resolve(_webpOK);
+  return new Promise(res=>{ const c=document.createElement('canvas'); c.width=c.height=1;
+    c.toBlob(b=>{ _webpOK=!!b && b.type==='image/webp'; res(_webpOK); },'image/webp',0.8); });
+}
+const _kb=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB';
+
+async function optimizeImage(file,opt){
+  opt=opt||{};
+  const max=opt.max||1920, q=opt.q||0.82;
+  if(!file.type||!file.type.startsWith('image/')) return {file,note:null};
+  if(/svg|gif/i.test(file.type)) return {file,note:null};
+  let img;
+  const url=URL.createObjectURL(file);
+  try{ img=await new Promise((res,rej)=>{ const i=new Image();
+        i.onload=()=>res(i); i.onerror=()=>rej(new Error('okunamadı')); i.src=url; }); }
+  catch(e){ URL.revokeObjectURL(url); return {file,note:null}; }
+  const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+  const sc=Math.min(1, max/Math.max(w,h));
+  const nw=Math.max(1,Math.round(w*sc)), nh=Math.max(1,Math.round(h*sc));
+  const cv=document.createElement('canvas'); cv.width=nw; cv.height=nh;
+  const cx=cv.getContext('2d'); cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality='high';
+  cx.drawImage(img,0,0,nw,nh);
+  URL.revokeObjectURL(url);
+  const webp=await webpDestegi();
+  /* WebP yoksa: saydamlığı olan PNG'yi PNG bırak, diğerlerini JPEG yap */
+  const tip = webp ? 'image/webp' : (file.type==='image/png' ? 'image/png' : 'image/jpeg');
+  const blob=await new Promise(res=>cv.toBlob(res,tip,q));
+  if(!blob) return {file,note:null};
+  if(blob.size>=file.size && sc===1) return {file,note:null};   /* iyileştirme yoksa dokunma */
+  const uz = tip==='image/webp'?'webp':(tip==='image/png'?'png':'jpg');
+  const yeni=new File([blob], String(file.name||'gorsel').replace(/\.[^.]+$/,'')+'.'+uz, {type:tip});
+  return {file:yeni, note:`${w}×${h} → ${nw}×${nh} · ${_kb(file.size)} → ${_kb(blob.size)}`};
+}
+
+async function uploadFile(f,opt){
+  const r=await optimizeImage(f,opt);
+  const g=r.file;
+  const ext=(g.name.split('.').pop()||'bin').toLowerCase();
   const path='u/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ext;
-  const {error}=await sb.storage.from('media').upload(path,f,{upsert:false,contentType:f.type||undefined});
+  const {error}=await sb.storage.from('media').upload(path,g,{upsert:false,contentType:g.type||undefined});
   if(error)throw error;
+  if(r.note) toast('Görsel optimize edildi · '+r.note);
   return sb.storage.from('media').getPublicUrl(path).data.publicUrl;
 }
-function pickUpload(accept, cb){ const inp=document.createElement('input'); inp.type='file'; inp.accept=accept;
-  inp.onchange=async()=>{ const f=inp.files[0]; if(!f)return; try{ const url=await uploadFile(f); cb(url); }catch(e){ alert('Yükleme hatası: '+(e.message||e)); } }; inp.click(); }
+
+/* kısa bilgi balonu */
+let _toastT=null;
+function toast(msg){
+  let el=document.getElementById('toast');
+  if(!el){ el=document.createElement('div'); el.id='toast'; el.className='toast'; document.body.appendChild(el); }
+  el.textContent=msg; el.classList.add('on');
+  clearTimeout(_toastT); _toastT=setTimeout(()=>el.classList.remove('on'),4000);
+}
+function pickUpload(accept, cb, opt){ const inp=document.createElement('input'); inp.type='file'; inp.accept=accept;
+  inp.onchange=async()=>{ const f=inp.files[0]; if(!f)return;
+    toast('Yükleniyor…');
+    try{ const url=await uploadFile(f,opt); cb(url); }
+    catch(e){ alert('Yükleme hatası: '+(e.message||e)); } };
+  inp.click(); }
 
 /* ---- Veri katmanı köprüsü: eski api(action,body) -> Supabase ---- */
 const DELMAP={product_delete:'products',mecra_delete:'mecralar',alt_delete:'alt_mecralar',unit_delete:'units',customer_delete:'customers',team_delete:'team',note_delete:'notes',quote_delete:'quotes',job_delete:'jobs'};
@@ -577,10 +634,20 @@ function collectVis(idPrefix,keys,prev){
   keys.forEach(k=>{ const el=document.getElementById(idPrefix+'vis_'+k); if(el) out[k]=el.value; });
   return out; }
 /* görsel alanı + mobil sürümü */
-function imgField(id,val,label,hint){
+function imgField(id,val,label,hint,opt){
+  const o=JSON.stringify(opt||upOpt(id)).replace(/"/g,'&quot;');
   return `<div class="field"><label class="flabel">${esc(label)}</label>
     <div style="display:flex;gap:8px"><input class="inp" id="${id}" value="${esc(val)}" placeholder="${esc(hint||'https://...')}">
-    <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('${id}').value=u;})">Yükle</button></div></div>`; }
+    <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('${id}').value=u;},${o})">Yükle</button></div></div>`; }
+/* alan tipine göre en uzun kenar sınırı */
+function upOpt(id){
+  const s=String(id||'').toLowerCase();
+  if(s.includes('kroki')) return {max:2600,q:.88};          /* ince çizgiler okunsun */
+  if(s.includes('logo')) return {max:800,q:.92};
+  if(s.includes('kapak')||s.includes('bd'))  return {max:2000,q:.82};
+  if(s.includes('m'))    return {max:1200,q:.82};           /* mobil sürümler */
+  return {max:1600,q:.82};
+}
 
 
 /* adres (slug) yardımcıları */
