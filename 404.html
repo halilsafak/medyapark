@@ -2,11 +2,17 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
+<script>
+/* Site kökünü bul: alt klasörde (/medyapark/) ve temiz adreslerde (/mecra/...) doğru çalışsın.
+   Bu olmadan derin adreslerde CSS/JS yolları kayar. */
+(function(){var p=location.pathname,m=p.match(/^(.*?)\/(?:mecra|sayfa|harita)(?:\/|$)/);
+document.write('<base href="'+(m?m[1]+'/':p.replace(/[^\/]*$/,''))+'">');})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Medyapark Adana — Açık Hava Reklam</title>
 <meta name="description" id="metaDesc" content="Adana açık hava reklam alanları — megalight, megaboard, raket, LED ekran.">
-<link rel="stylesheet" href="assets/theme.css?v=20">
-<link rel="stylesheet" href="assets/site.css?v=20">
+<link rel="stylesheet" href="assets/theme.css?v=21">
+<link rel="stylesheet" href="assets/site.css?v=21">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
 </head>
@@ -57,6 +63,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/config.js"></script>
-<script src="assets/site.js?v=20"></script>
+<script src="assets/site.js?v=21"></script>
 </body>
 </html>
