@@ -30,8 +30,8 @@ function picture(desk,mob,cls,alt){
   return `<img class="${cls||''}" src="${esc(desk)}" alt="${esc(alt||'')}" loading="lazy">`; }
 function perMonth(p){ const pr=p.prices||{}; if(typeof pr['1 Ay']==='number')return pr['1 Ay']; for(const v of Object.values(pr)){ if(typeof v==='number')return v; } return 0; }
 function hexToRgb(h){ if(!h)return '63,111,99'; h=String(h).replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join(''); if(h.length!==6)return '63,111,99'; const n=parseInt(h,16); return `${(n>>16)&255},${(n>>8)&255},${n&255}`; }
-function gcard(onclick,title,sub,image,theme,label,imageM){ const rgb=hexToRgb(theme);
-  return `<a class="tile" href="#" onclick="${onclick};return false;" style="--tc-rgb:${rgb}">
+function gcard(onclick,title,sub,image,theme,label,imageM,href){ const rgb=hexToRgb(theme);
+  return `<a class="tile" href="${esc(href||'#')}" onclick="${onclick};return false;" style="--tc-rgb:${rgb}">
     ${bgLayers(image,imageM,'bg','')}<div class="ov"></div>
     <div class="ct"><h3>${esc(title)}</h3>${sub?`<p class="tsub">${esc(sub)}</p>`:''}
       <div class="xp"><b>${esc(label||'Keşfet')}</b><span class="arw">→</span></div></div></a>`; }
@@ -58,11 +58,20 @@ async function load(){
   document.getElementById('brand').innerHTML = s.logoImage?`<img class="brandimg" src="${esc(s.logoImage)}" alt="logo">`:logo(s.logoText);
   if(s.seoTitle) document.title=s.seoTitle; if(s.seoDesc){ const md=document.getElementById('metaDesc'); if(md)md.setAttribute('content',s.seoDesc); }
   if(s.catalogPdf){ const b=document.getElementById('pdfBtn'); b.href=s.catalogPdf; b.style.display='flex'; }
-  buildFilter(); renderFooter(); renderMenu(); render();
+  buildFilter(); renderFooter(); renderMenu();
+  view=pathToView(location.pathname);
+  render(); pushRoute(true);
 }
 function logo(t){ t=t||'medyapark'; return String(t).toLowerCase().startsWith('medya')?('medya<span>'+esc(String(t).slice(5))+'</span>'):esc(t); }
 
-function render(){ if(view.type==='home')renderHome(); else if(view.type==='mec')renderMec(); else if(view.type==='alt')renderAlt(); else if(view.type==='map')renderMap(); else renderPage(view.slug); badge(); window.scrollTo({top:0,behavior:'smooth'}); }
+function render(fromHistory){
+  if(view.type==='home')renderHome(); else if(view.type==='mec')renderMec();
+  else if(view.type==='alt')renderAlt(); else if(view.type==='map')renderMap();
+  else renderPage(view.slug);
+  badge();
+  if(!fromHistory) pushRoute();
+  else setMeta();
+  window.scrollTo({top:0,behavior:'smooth'}); }
 function goHome(){ view={type:'home',filter:view.filter||null}; const s=document.getElementById('search'); if(s)s.value=''; render(); }
 function openMec(id){ view={type:'mec',id}; render(); }
 function openAlt(mecId,altId){ view={type:'alt',mecId,altId,gidx:0}; roll=0; render(); }
@@ -106,6 +115,92 @@ function introBlock(o,bare){ o=o||{};
 function altPrices(alt,p){ const f=alt&&alt.fiyat; if(f&&f.baz!=null&&f.baz!==''){ const baz=+f.baz; const per=(mon,ind)=>Math.round(baz*mon*(1-(+ind||0)/100)); const rows=[]; if(f.hafta!=null&&f.hafta!=='')rows.push(['Haftalık',Math.round(+f.hafta)]); rows.push(['1 Ay',Math.round(baz)]); rows.push(['3 Ay',per(3,f.ind3)]); rows.push(['6 Ay',per(6,f.ind6)]); rows.push(['1 Yıl',per(12,f.ind12)]); return rows; } return Object.entries((p&&p.prices)||{}); }
 function altPerMonth(alt,p){ const f=alt&&alt.fiyat; if(f&&f.baz!=null&&f.baz!=='')return Math.round(+f.baz); return perMonth(p); }
 
+
+/* ================= ADRES YÖNETİMİ (temiz linkler) ================= */
+/* Sitenin kök dizini script yolundan otomatik bulunur (alt klasörde de çalışır) */
+const BASE=(function(){ const sc=document.querySelector('script[src*="site.js"]');
+  if(!sc) return '/';
+  const u=new URL(sc.getAttribute('src'), location.href).pathname;
+  return u.replace(/assets\/site\.js.*$/,''); })();
+
+function slugify(t){ return String(t||'').toLocaleLowerCase('tr')
+  .replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c')
+  .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,70) || 'sayfa'; }
+const mSlug=m=>(m&&m.slug)||slugify(m&&m.name);
+const aSlug=a=>(a&&a.slug)||slugify((a&&a.product&&a.product.name)||(a&&a.name));
+
+/* görünüm -> adres */
+function viewPath(v){
+  v=v||view;
+  if(v.type==='mec'){ const m=mec(v.id); return m?`mecra/${mSlug(m)}`:''; }
+  if(v.type==='alt'){ const m=mec(v.mecId), a=(D.altById||{})[v.altId];
+    return (m&&a)?`mecra/${mSlug(m)}/${aSlug(a)}`:''; }
+  if(v.type==='map') return 'harita';
+  if(v.type==='page') return `sayfa/${v.slug}`;
+  return '';
+}
+/* adres -> görünüm */
+function pathToView(pathname){
+  let p=decodeURIComponent(pathname||'');
+  if(p.startsWith(BASE)) p=p.slice(BASE.length);
+  p=p.replace(/^\/+|\/+$/g,'').replace(/\.html$/,'');
+  if(!p) return {type:'home'};
+  const seg=p.split('/');
+  if(seg[0]==='harita') return {type:'map'};
+  if(seg[0]==='sayfa'&&seg[1]) return {type:'page',slug:seg[1]};
+  if(seg[0]==='mecra'&&seg[1]){
+    const m=D.mecralar.find(x=>mSlug(x)===seg[1]);
+    if(!m) return {type:'home'};
+    if(seg[2]){ const a=(m.alts||[]).find(x=>aSlug(x)===seg[2]);
+      if(a) return {type:'alt',mecId:m.id,altId:a.id,gidx:0}; }
+    return {type:'mec',id:m.id};
+  }
+  return {type:'home'};
+}
+function pushRoute(replace){
+  try{
+    const url=BASE+viewPath();
+    if(location.pathname!==url) history[replace?'replaceState':'pushState']({v:view},'',url);
+  }catch(e){ /* file:// veya kısıtlı ortam — adres güncellenemese de site çalışır */ }
+  try{ setMeta(); }catch(e){}
+}
+window.addEventListener('popstate',()=>{ view=pathToView(location.pathname); render(true); });
+
+/* ================= SAYFA BAŞLIĞI / META ================= */
+function setMeta(){
+  const st=D.settings||{}, site=st.logoText||'Medyapark Adana';
+  let t=st.seoTitle||site, d=st.seoDesc||'', img=st.logoImage||'';
+  if(view.type==='mec'){ const m=mec(view.id);
+    if(m){ t=`${m.name} Reklam Alanları — ${site}`;
+      d=(m.aciklama||'').slice(0,155)|| `${m.name} lokasyonundaki açık hava reklam alanları, pozisyonlar ve doluluk durumu.`;
+      img=m.kapak||m.image||img; } }
+  else if(view.type==='alt'){ const m=mec(view.mecId), a=(D.altById||{})[view.altId];
+    if(m&&a){ const pn=(a.product&&a.product.name)||a.name;
+      t=`${m.name} ${pn} — ${site}`;
+      d=(a.aciklama||'').slice(0,155)|| `${m.name} ${pn} reklam alanları: ölçü, teknik özellik ve aylık doluluk durumu.`;
+      img=a.image||a.kapak||m.image||img; } }
+  else if(view.type==='map'){ t=`Reklam Alanları Haritası — ${site}`; d='Adana genelindeki tüm açık hava reklam alanlarımızı harita üzerinde inceleyin.'; }
+  else if(view.type==='page'){ const pg=(D.pages||[]).find(p=>p.slug===view.slug);
+    if(pg){ t=`${pg.title} — ${site}`; d=String(pg.body||'').replace(/<[^>]*>/g,'').slice(0,155); } }
+  document.title=t;
+  const setTag=(sel,attr,val)=>{ let el=document.head.querySelector(sel);
+    if(!el){ el=document.createElement('meta');
+      if(sel.includes('property')) el.setAttribute('property',sel.match(/"([^"]+)"/)[1]);
+      else el.setAttribute('name',sel.match(/"([^"]+)"/)[1]);
+      document.head.appendChild(el); }
+    el.setAttribute(attr,val||''); };
+  setTag('meta[name="description"]','content',d);
+  setTag('meta[property="og:title"]','content',t);
+  setTag('meta[property="og:description"]','content',d);
+  setTag('meta[property="og:type"]','content','website');
+  setTag('meta[property="og:image"]','content',img);
+  setTag('meta[property="og:url"]','content',location.origin+BASE+viewPath());
+  setTag('meta[name="twitter:card"]','content','summary_large_image');
+  let cn=document.head.querySelector('link[rel="canonical"]');
+  if(!cn){ cn=document.createElement('link'); cn.rel='canonical'; document.head.appendChild(cn); }
+  cn.href=location.origin+BASE+viewPath();
+}
+
 /* ---- ANASAYFA ---- */
 function renderHome(q){
   q=(q||'').trim().toLowerCase();
@@ -114,7 +209,7 @@ function renderHome(q){
   if(q) list=list.filter(m=>m.name.toLowerCase().includes(q)||(m.alts||[]).some(a=>a.name.toLowerCase().includes(q)||(a.product&&a.product.name||'').toLowerCase().includes(q)));
   const h=D.settings.hero||{};
   const cards=list.map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
-    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil);}).join('');
+    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m));}).join('');
   app().innerHTML=`<section class="hero"><div class="counters"><span><b class="cnt" data-to="250">0</b>+ Reklam Alanı</span><span><b class="cnt" data-to="1000">0</b>+ Müşteri</span><span><b class="cnt" data-to="36">0</b>+ Yıllık Tecrübe</span></div><h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>
     <div class="grid3">${cards||'<p class="muted">Sonuç yok.</p>'}</div>`;
   animateCounters();
@@ -127,7 +222,7 @@ function renderMec(){
   /* tek alt mecra + tanıtım kapalı ise doğrudan alt mecraya git */
   if(alts.length===1 && m.hub===false) return openAlt(m.id,alts[0].id);
 
-  const nav=`<a href="#" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <span>${esc(m.name)}</span>`;
+  const nav=`<a href="${BASE}" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <span>${esc(m.name)}</span>`;
 
   /* --- istatistikler --- */
   const units=alts.reduce((n,a)=>n+(a.units||[]).length,0);
@@ -145,10 +240,10 @@ function renderMec(){
 
   /* --- sidebar: bu lokasyonun alanları --- */
   const altLinks=alts.map(a=>{ const p=a.product||{}; const n=(a.units||[]).length;
-    return `<a class="qi" href="#" onclick="openAlt('${m.id}','${a.id}');return false;">
+    return `<a class="qi" href="${BASE}mecra/${mSlug(m)}/${aSlug(a)}" onclick="openAlt('${m.id}','${a.id}');return false;">
       <span class="qi-n">${esc(p.name||a.name)}</span><span class="qi-m">${n} pozisyon</span></a>`;}).join('');
   const others=D.mecralar.filter(x=>String(x.id)!==String(m.id)).map(x=>
-    `<a class="qi sm" href="#" onclick="openMec('${x.id}');return false;">
+    `<a class="qi sm" href="${BASE}mecra/${mSlug(x)}" onclick="openMec('${x.id}');return false;">
       <span class="qi-n">${esc(x.name)}</span><span class="qi-m">${(x.alts||[]).length} alan</span></a>`).join('');
 
   /* --- sidebar: mini harita (pozisyon koordinatlarının ortalaması) --- */
@@ -197,7 +292,7 @@ function renderMec(){
   /* --- ürün kartları --- */
   const cards=alts.map(a=>{ const p=a.product||{}; const n=(a.units||[]).length;
     const sub=[`${n} pozisyon`, a.toplam_alan].filter(Boolean).join(' · ');
-    return gcard(`openAlt('${m.id}','${a.id}')`, (p.name||a.name), sub, (a.image||m.image), m.theme_color, 'Keşfet', a.image_mobil);}).join('');
+    return gcard(`openAlt('${m.id}','${a.id}')`, (p.name||a.name), sub, (a.image||m.image), m.theme_color, 'Keşfet', a.image_mobil, BASE+'mecra/'+mSlug(m)+'/'+aSlug(a));}).join('');
 
   app().innerHTML=`${banner(m,(m.baslik||m.name),nav)}
     <div class="hub">${side}
@@ -326,7 +421,7 @@ function renderAlt(){
   D.mecralar.filter(x=>x.id!==m.id).forEach(x=>rel.push({onclick:`openMec('${x.id}')`,title:x.name,sub:(x.gunluk_gosterim||''),image:x.image,theme:x.theme_color}));
   const relCards=rel.map(r=>`<div class="carslide">${gcard(r.onclick,r.title,r.sub,r.image,r.theme,'Keşfet')}</div>`).join('');
 
-  const nav=`<a href="#" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <a href="#" onclick="openMec('${m.id}');return false;">${esc(m.name)}</a> <i>/</i> <span>${esc(p.name||alt.name)}</span>`;
+  const nav=`<a href="${BASE}" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <a href="${BASE}mecra/${mSlug(m)}" onclick="openMec('${m.id}');return false;">${esc(m.name)}</a> <i>/</i> <span>${esc(p.name||alt.name)}</span>`;
   const bobj={kapak:(alt.kapak||m.kapak),kapak_color:(alt.kapak_color||m.kapak_color),kapak_opacity:(alt.kapak_opacity!=null?alt.kapak_opacity:m.kapak_opacity),kapak_height:(alt.kapak_height!=null?alt.kapak_height:m.kapak_height)};
 
   app().innerHTML=`${banner(bobj,(alt.baslik||p.name||alt.name),nav)}${introBlock(alt)}
@@ -399,7 +494,7 @@ function renderPage(slug){
   if(slug==='iletisim'){ const s=D.settings; inner+=`<div class="pg-contact"><div><b>Telefon:</b> ${esc(s.phone||'')}</div><div><b>E-Posta:</b> ${esc(s.email||'')}</div><div><b>Adres:</b> ${esc(s.address||'')}</div></div>`; }
   app().innerHTML=`<div class="pg-top"><div class="pg-crumb">${nav}</div><h1 class="pg-title">${esc(pg.title||'')}</h1></div>${inner}`;
 }
-function renderMenu(){ const el=document.getElementById('menuPages'); if(!el)return; el.innerHTML=(D.pages||[]).filter(p=>p.in_menu!==false).map(p=>`<a href="#" onclick="openPage('${p.slug}');closeMenu();return false;">${esc(p.title||p.slug)}</a>`).join(''); }
+function renderMenu(){ const el=document.getElementById('menuPages'); if(!el)return; el.innerHTML=(D.pages||[]).filter(p=>p.in_menu!==false).map(p=>`<a href="${BASE}sayfa/${esc(p.slug)}" onclick="openPage('${p.slug}');closeMenu();return false;">${esc(p.title||p.slug)}</a>`).join(''); }
 
 /* ---- sepet çekmecesi ---- */
 function removeItem(i){ const it=cart[i]; cart.splice(i,1); badge(); renderCart(); if(view.type==='alt'){ if(it)updateCell(it.unitId,it.ym); renderSepetInline(); } }
@@ -565,7 +660,7 @@ function initLeafletMap(note){
 }
 
 function renderMap(){
-  const nav=`<a href="#" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <span>Harita</span>`;
+  const nav=`<a href="${BASE}" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <span>Harita</span>`;
   const s=D.settings||{};
   app().innerHTML=`${banner({kapak:s.mapKapak||'',kapak_color:'#101014',kapak_opacity:0.45,kapak_height:220},'',nav)}
     <div class="map-wrap">
@@ -593,11 +688,11 @@ function renderMap(){
 
 /* ---- footer ---- */
 function renderFooter(){ const s=D.settings||{};
-  const mecLinks=D.mecralar.map(m=>`<a onclick="openMec('${m.id}')">${esc(m.name)}</a>`).join('');
+  const mecLinks=D.mecralar.map(m=>`<a href="${BASE}mecra/${mSlug(m)}" onclick="openMec('${m.id}');return false;">${esc(m.name)}</a>`).join('');
   const pdf=s.catalogPdf?`<a href="${esc(s.catalogPdf)}" download>PDF Katalog</a>`:`<a onclick="goHome()">PDF Katalog</a>`;
   document.getElementById('foot').innerHTML=`<div class="ftr"><div class="ftr-in">
     <div><div class="brand">${logo(s.logoText)}</div><p style="font-size:13px;color:#8a8a90;max-width:26ch">${esc(s.footer_about||"Adana açık hava reklam çözümleri.")}</p></div>
-    <div><h5>SAYFALAR</h5>${(D.pages||[]).filter(p=>p.in_menu!==false).map(p=>`<a onclick="openPage('${p.slug}')">${esc(p.title||p.slug)}</a>`).join('')}${pdf}</div>
+    <div><h5>SAYFALAR</h5>${(D.pages||[]).filter(p=>p.in_menu!==false).map(p=>`<a href="${BASE}sayfa/${esc(p.slug)}" onclick="openPage('${p.slug}');return false;">${esc(p.title||p.slug)}</a>`).join('')}${pdf}</div>
     <div><h5>MECRALARIMIZ</h5><div class="meccols">${mecLinks}</div></div>
     <div><h5>İLETİŞİM</h5><div class="il"><b>Adres:</b> ${esc(s.address||'')}<br><br><b>Telefon:</b> ${esc(s.phone||'')}<br><br><b>E-Posta:</b> ${esc(s.email||'')}<br><br>${esc(s.socials||'')}</div></div>
     <div class="news"><h5 style="text-align:center">${esc(s.footer_news||"Kampanya ve yeniliklerden haberdar olmak için;")}</h5><input class="inp" placeholder="E-Posta"><button class="abone" onclick="alert('Teşekkürler! Kaydınız alındı.')">Abone Ol</button></div>

@@ -331,3 +331,7 @@ textarea.inp{resize:vertical;min-height:70px;}
 .vis-sel{display:flex;align-items:center;gap:10px;margin-top:9px;padding-top:9px;border-top:1px solid var(--c-line2);}
 .vis-sel>span{font-size:12px;font-weight:600;color:var(--c-ink2);white-space:nowrap;flex:0 0 auto;}
 .vis-sel select{max-width:230px;font-size:12.5px;padding:6px 9px;}
+.slug-row{display:flex;align-items:center;gap:0;border:1px solid var(--c-line);border-radius:var(--r);overflow:hidden;background:#fff;}
+.slug-row>span{padding:8px 10px;background:var(--c-alt);color:var(--c-ink3);font-size:12.5px;font-family:var(--fm);border-right:1px solid var(--c-line);white-space:nowrap;}
+.slug-row .inp{border:0;border-radius:0;}
+.slug-row .inp:focus{box-shadow:none;}

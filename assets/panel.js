@@ -439,6 +439,32 @@ function imgField(id,val,label,hint){
     <div style="display:flex;gap:8px"><input class="inp" id="${id}" value="${esc(val)}" placeholder="${esc(hint||'https://...')}">
     <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('${id}').value=u;})">Yükle</button></div></div>`; }
 
+
+/* adres (slug) yardımcıları */
+function pslug(t){ return String(t||'').toLocaleLowerCase('tr')
+  .replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c')
+  .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,70) || 'sayfa'; }
+function slugHint(srcId,dstId){ const d=document.getElementById(dstId); if(d) d.placeholder='otomatik: '+pslug(gv(srcId)); }
+
+/* sitemap.xml üret ve indir */
+async function buildSitemap(){
+  const base=(gv('siteUrl')||'https://medyaparkadana.com').replace(/\/+$/,'');
+  const [mc,al,pg]=await Promise.all([api('mecra_list'), sb.from('alt_mecralar').select('*').order('sort'), api('pages_list')]);
+  const alts=(al.data||[]);
+  const today=new Date().toISOString().slice(0,10);
+  const urls=[[base+'/',1.0],[base+'/harita',0.8]];
+  mc.forEach(m=>{ const ms=m.slug||pslug(m.name); urls.push([base+'/mecra/'+ms,0.9]);
+    alts.filter(a=>a.mecra_id===m.id).forEach(a=>urls.push([base+'/mecra/'+ms+'/'+(a.slug||pslug(a.name)),0.7])); });
+  (pg||[]).forEach(p=>urls.push([base+'/sayfa/'+p.slug,0.5]));
+  const xml='<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    + urls.map(u=>`  <url><loc>${u[0]}</loc><lastmod>${today}</lastmod><priority>${u[1]}</priority></url>`).join('\n')
+    + '\n</urlset>';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([xml],{type:'application/xml'}));
+  a.download='sitemap.xml'; a.click(); URL.revokeObjectURL(a.href);
+  alert(urls.length+' adres içeren sitemap.xml indirildi.\nBu dosyayı sitenin ana klasörüne yükleyin.');
+}
+
 /* ---------- MECRALAR ---------- */
 async function mecralar(c){
   const list=await api('mecra_list'); ui._mecralar=list; ui._products=await api('products_list');
@@ -451,8 +477,11 @@ async function mecralar(c){
 function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_color:'#0071e3'};
   document.getElementById('mecEd').innerHTML=`<div class="sec-card" style="margin-top:16px"><h3 style="margin:0 0 14px;font-size:16px">${id?'Mecrayı Düzenle':'Yeni Mecra'}</h3>
     <input type="hidden" id="mid" value="${id||0}">
-    <div class="row2"><div class="field"><label class="flabel">İsim (kart başlığı)</label><input class="inp" id="mname" value="${esc(m.name)}"></div>
+    <div class="row2"><div class="field"><label class="flabel">İsim (kart başlığı)</label><input class="inp" id="mname" value="${esc(m.name)}" oninput="slugHint('mname','mslug')"></div>
     <div class="field"><label class="flabel">Tema rengi</label><div class="colorwrap"><input type="color" id="mcolor" value="${esc(m.theme_color||'#0071e3')}" oninput="document.getElementById('mcolor2').value=this.value"><input class="inp" id="mcolor2" value="${esc(m.theme_color)}" oninput="document.getElementById('mcolor').value=this.value"></div></div></div>
+    <div class="field"><label class="flabel">Sayfa adresi</label>
+      <div class="slug-row"><span>/mecra/</span><input class="inp" id="mslug" value="${esc(m.slug)}" placeholder="otomatik: ${esc(pslug(m.name))}"></div>
+      <p class="muted" style="font-size:11.5px;margin:5px 0 0">Boş bırakırsan isimden otomatik üretilir. Sonradan değiştirirsen eski linkler kırılır.</p></div>
     <div class="row2"><div class="field"><label class="flabel">Günlük gösterim</label><input class="inp" id="mgg" value="${esc(m.gunluk_gosterim)}" placeholder="≈ 250.000 gösterim"></div>
     <div class="field"><label class="flabel">Toplam reklam alanı</label><input class="inp" id="mta" value="${esc(m.toplam_alan)}" placeholder="3 alt mecra"></div></div>
     <div class="field"><label class="flabel">Kart görseli (yükle veya URL)</label><div style="display:flex;gap:8px"><input class="inp" id="mimage" value="${esc(m.image)}" placeholder="https://..."><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mimage').value=u;})">Yükle</button></div></div>
@@ -503,7 +532,7 @@ async function mecSave(){ const id=+gv('mid');
   const visible=collectVis('m',['kapak','aciklama','kroki','avantajlar','logo','gosterim','maps'],prev);
   const avantajlar=[]; for(let i=0;i<4;i++){ const t=(gv('mav_t'+i)||'').trim(), d=(gv('mav_d'+i)||'').trim(); if(t||d)avantajlar.push({t,d}); }
   const r=await api('mecra_save',{id,name:gv('mname'),theme_color:gv('mcolor'),badge:gv('mbadge'),
-    gunluk_gosterim:gv('mgg'),toplam_alan:gv('mta'),
+    gunluk_gosterim:gv('mgg'),toplam_alan:gv('mta'),slug:(gv('mslug').trim()||pslug(gv('mname'))),
     image:gv('mimage'),image_mobil:gv('mimagem'),
     kapak:gv('mkapak'),kapak_mobil:gv('mkapakm'),
     kapak_color:gv('mkcolor'),kapak_opacity:parseFloat(gv('mkop')||'0.4'),kapak_height:parseInt(gv('mkh')||'600',10),
@@ -537,11 +566,16 @@ async function altEdit(id,mid){
     <input type="hidden" id="aid" value="${id}"><input type="hidden" id="amid" value="${mid}">
     <div class="row2"><div class="field"><label class="flabel">Alt mecra adı</label><input class="inp" id="aname" value="${esc(a.name)}"></div>
       <div class="field"><label class="flabel">Ürün Seç</label><select class="inp" id="aprod">${ui._products.map(p=>`<option value="${p.id}" ${p.id==a.product_id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div></div>
+    <div class="field"><label class="flabel">Sayfa adresi</label>
+      <div class="slug-row"><span>/mecra/…/</span><input class="inp" id="aslug" value="${esc(a.slug)}" placeholder="otomatik"></div></div>
     <div class="field"><label class="flabel">Kapak başlığı (kapak görselinin üstünde)</label><input class="inp" id="abaslik" value="${esc(a.baslik)}"><br>${visSel('',a,'baslik','Kapak başlığı')}</div>
     <div class="fld-box"><label class="flabel" style="font-weight:700">Kapak altı tanıtım (kapağın hemen altında görünür)</label>
       <input class="inp" id="aintro" value="${esc(a.intro_baslik)}" placeholder="Başlık — ör. M1 AVM Megalight Alanları" style="margin-bottom:8px">
       <textarea class="inp" id="aacik" placeholder="Açıklama metni…" style="min-height:90px">${esc(a.aciklama)}</textarea>
       ${visSel('',a,'aciklama','Bu bölüm')}</div>
+    <div class="field"><label class="flabel">Sayfa adresi</label>
+      <div class="slug-row"><span>/mecra/</span><input class="inp" id="mslug" value="${esc(m.slug)}" placeholder="otomatik: ${esc(pslug(m.name))}"></div>
+      <p class="muted" style="font-size:11.5px;margin:5px 0 0">Boş bırakırsan isimden otomatik üretilir. Sonradan değiştirirsen eski linkler kırılır.</p></div>
     <div class="row2"><div class="field"><label class="flabel">Günlük gösterim</label><input class="inp" id="agg" value="${esc(a.gunluk_gosterim)}"></div>
       <div class="field"><label class="flabel">Toplam alan</label><input class="inp" id="ata" value="${esc(a.toplam_alan)}"></div></div>
     <div class="field"><label class="flabel">Kart görseli</label><div style="display:flex;gap:8px"><input class="inp" id="aimage" value="${esc(a.image)}"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('aimage').value=u;})">Yükle</button></div></div>
@@ -568,7 +602,7 @@ async function altSave(){ const id=+gv('aid'), mid=+gv('amid');
   const adv=[0,1,2,3].map(i=>({t:gv('av'+i+'t'),d:gv('av'+i+'d')})).filter(x=>x.t||x.d);
   const visible=collectVis('',['baslik','aciklama','maps','avantajlar','galeri'],a0.visible||{});
   const bz=gv('afbaz'); const fiyat = bz!==''? {baz:+bz, hafta:(gv('afhafta')!==''?+gv('afhafta'):null), ind3:+gv('afind3')||0, ind6:+gv('afind6')||0, ind12:+gv('afind12')||0} : null;
-  await api('alt_save',{id,name:gv('aname'),product_id:+gv('aprod'),baslik:gv('abaslik'),aciklama:gv('aacik'),intro_baslik:gv('aintro'),gunluk_gosterim:gv('agg'),toplam_alan:gv('ata'),image:gv('aimage'),image_mobil:gv('aimagem'),kapak:gv('akapak'),kapak_mobil:gv('akapakm'),kapak_color:gv('akcolor'),kapak_opacity:parseFloat(gv('akop')||'0.4'),kapak_height:parseInt(gv('akh')||'600',10),marquee:gv('amarquee'),yerlesim_plani:gv('ayerlesim'),maps:gv('amaps'),avantajlar:adv,fiyat,visible});
+  await api('alt_save',{id,name:gv('aname'),product_id:+gv('aprod'),slug:(gv('aslug').trim()||pslug(gv('aname'))),baslik:gv('abaslik'),aciklama:gv('aacik'),intro_baslik:gv('aintro'),gunluk_gosterim:gv('agg'),toplam_alan:gv('ata'),image:gv('aimage'),image_mobil:gv('aimagem'),kapak:gv('akapak'),kapak_mobil:gv('akapakm'),kapak_color:gv('akcolor'),kapak_opacity:parseFloat(gv('akop')||'0.4'),kapak_height:parseInt(gv('akh')||'600',10),marquee:gv('amarquee'),yerlesim_plani:gv('ayerlesim'),maps:gv('amaps'),avantajlar:adv,fiyat,visible});
   alert('Alt mecra kaydedildi.'); altEdit(id,mid); }
 async function altGalAdd(id,mid,url){ const alts=await api('alt_list&mecra_id='+mid); const a=alts.find(x=>x.id===id)||{}; const gal=Array.isArray(a.galeri)?a.galeri:[]; gal.push(url); await api('alt_save',{id,galeri:gal}); altEdit(id,mid); }
 async function altGalDel(id,mid,idx){ const alts=await api('alt_list&mecra_id='+mid); const a=alts.find(x=>x.id===id)||{}; const gal=Array.isArray(a.galeri)?a.galeri:[]; gal.splice(idx,1); await api('alt_save',{id,galeri:gal}); altEdit(id,mid); }
@@ -592,7 +626,7 @@ async function cycleMonth(uid,ym){ const st=calData[uid]; const cur=st.map[ym]; 
 /* ---------- HARİTA (konum işaretleme) ---------- */
 let hMap=null, hCluster=null, hMarker=null, hRows=[], hSel=null, hQ='';
 async function harita(c){
-  const st=await api('settings_get');
+  const st=await api('settings_get'); ui._settings=st;
   const [al,un]=await Promise.all([
     sb.from('alt_mecralar').select('*').order('sort').order('id'),
     sb.from('units').select('*').order('sort').order('id')
@@ -630,6 +664,7 @@ async function harita(c){
         <div id="hList" class="hlist"></div>
       </div>
       <div>
+        <div id="hMapNote" class="banner" style="display:none;margin-bottom:10px"></div>
         <div id="hSelBar" class="hselbar">Önce soldan bir pozisyon seçin.</div>
         <div id="hMapCanvas" class="hmap"></div>
       </div>
@@ -648,9 +683,48 @@ function hRenderList(){ const box=document.getElementById('hList'); if(!box)retu
       <div class="hnm"><b>${esc(r.unit)}</b><span>${esc(r.mec)} › ${esc(r.alt)}</span></div>
       <span class="hst">${ok?'✓':'—'}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px;padding:8px">Sonuç yok.</p>';
 }
+/* Google Maps yükleyici (anahtar Ayarlar > Harita bölümünden) */
+let hGoogleLoading=null, hEngine='leaflet', hgMap=null, hgMarkers=[], hgSel=null;
+function hLoadGoogle(key){
+  if(hGoogleLoading) return hGoogleLoading;
+  hGoogleLoading=new Promise((res,rej)=>{
+    if(window.google&&window.google.maps) return res();
+    const t=setTimeout(()=>rej(new Error('zaman asimi')),15000);
+    window.gm_authFailure=()=>{ clearTimeout(t); rej(new Error('anahtar reddedildi')); };
+    window.__gmPanelReady=()=>{ clearTimeout(t); res(); };
+    const g=document.createElement('script'); g.async=true;
+    g.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&callback=__gmPanelReady&language=tr&region=TR';
+    g.onerror=()=>{ clearTimeout(t); rej(new Error('yuklenemedi')); };
+    document.head.appendChild(g);
+  });
+  return hGoogleLoading;
+}
 function hInitMap(){
   const el=document.getElementById('hMapCanvas'); if(!el)return;
-  if(typeof L==='undefined'){ el.innerHTML='<p class="muted" style="padding:20px">Harita kütüphanesi yüklenemedi. Sayfayı yenileyin.</p>'; return; }
+  const key=String((ui._settings||{}).googleMapsKey||'').trim();
+  if(key){
+    hLoadGoogle(key).then(()=>hInitGoogle())
+      .catch(err=>{ console.warn('Panel Google Maps:',err.message);
+        const n=document.getElementById('hMapNote');
+        if(n){ n.textContent='Google Maps yüklenemedi ('+err.message+') — OpenStreetMap kullanılıyor.'; n.style.display='block'; }
+        hInitLeaflet(); });
+  } else hInitLeaflet();
+}
+function hInitGoogle(){
+  hEngine='google';
+  hgMap=new google.maps.Map(document.getElementById('hMapCanvas'),{
+    center:{lat:37.0000,lng:35.3213}, zoom:12, mapTypeId:'hybrid',
+    mapTypeControl:true, streetViewControl:true, fullscreenControl:true, tilt:0});
+  hgMap.addListener('click',e=>{
+    if(hSel==null){ alert('Önce soldaki listeden bir pozisyon seçin.'); return; }
+    hPlace(e.latLng.lat(), e.latLng.lng());
+  });
+  hDrawAll(); 
+}
+function hInitLeaflet(){
+  const el=document.getElementById('hMapCanvas');
+  if(typeof L==='undefined'){ el.innerHTML='<p class="muted" style="padding:20px">Harita yüklenemedi. Sayfayı yenileyin.</p>'; return; }
+  hEngine='leaflet';
   hMap=L.map('hMapCanvas').setView([37.0000,35.3213],12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(hMap);
   hCluster=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:50});
@@ -658,10 +732,20 @@ function hInitMap(){
   hMap.on('click',e=>{ if(hSel==null){ alert('Önce soldaki listeden bir pozisyon seçin.'); return; } hPlace(e.latlng.lat,e.latlng.lng); });
   hDrawAll(); setTimeout(()=>hMap.invalidateSize(),200);
 }
-function hDrawAll(){ if(!hCluster)return; hCluster.clearLayers();
-  const ms=hRows.filter(r=>r.lat!=null&&r.lng!=null&&r.id!==hSel).map(r=>
-    L.marker([r.lat,r.lng],{title:r.mec+' · '+r.unit}).bindPopup(`<b>${esc(r.unit)}</b><br>${esc(r.mec)} › ${esc(r.alt)}`));
-  hCluster.addLayers(ms);
+function hDrawAll(){
+  const list=hRows.filter(r=>r.lat!=null&&r.lng!=null&&r.id!==hSel);
+  if(hEngine==='google'){
+    if(!hgMap)return;
+    hgMarkers.forEach(m=>m.setMap(null)); hgMarkers=[];
+    hgMarkers=list.map(r=>{ const mk=new google.maps.Marker({position:{lat:+r.lat,lng:+r.lng},map:hgMap,
+        title:r.mec+' · '+r.unit, icon:{path:google.maps.SymbolPath.CIRCLE,scale:7,
+        fillColor:r.theme,fillOpacity:1,strokeColor:'#fff',strokeWeight:2}});
+      mk.addListener('click',()=>hPick(r.id)); return mk; });
+    return;
+  }
+  if(!hCluster)return; hCluster.clearLayers();
+  hCluster.addLayers(list.map(r=>L.marker([r.lat,r.lng],{title:r.mec+' · '+r.unit})
+    .bindPopup(`<b>${esc(r.unit)}</b><br>${esc(r.mec)} › ${esc(r.alt)}`)));
 }
 function hPick(id){ hSel=id; hRenderList(); const r=hRows.find(x=>x.id===id); if(!r)return;
   const bar=document.getElementById('hSelBar');
@@ -670,10 +754,24 @@ function hPick(id){ hSel=id; hRenderList(); const r=hRows.find(x=>x.id===id); if
     <button class="btn btn-primary btn-sm" onclick="hSave()">Konumu Kaydet</button>
     ${r.lat!=null?`<button class="btn btn-danger btn-sm" onclick="hClear()">Konumu Sil</button>`:''}`;
   hDrawAll();
+  if(hEngine==='google'){
+    if(hgSel){ hgSel.setMap(null); hgSel=null; }
+    if(r.lat!=null&&r.lng!=null){ hPlace(r.lat,r.lng,true); hgMap.panTo({lat:+r.lat,lng:+r.lng}); hgMap.setZoom(18); }
+    return;
+  }
   if(hMarker){ hMap.removeLayer(hMarker); hMarker=null; }
   if(r.lat!=null&&r.lng!=null){ hPlace(r.lat,r.lng,true); hMap.setView([r.lat,r.lng],16); }
 }
 function hPlace(lat,lng,quiet){
+  if(hEngine==='google'){
+    if(hgSel) hgSel.setMap(null);
+    hgSel=new google.maps.Marker({position:{lat:+lat,lng:+lng},map:hgMap,draggable:true,
+      icon:{path:google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,scale:6,fillColor:'#3455e6',fillOpacity:1,strokeColor:'#fff',strokeWeight:2}});
+    hgSel.addListener('dragend',()=>{ const p=hgSel.getPosition(); hSetCoordText(p.lat(),p.lng()); });
+    hSetCoordText(lat,lng);
+    if(!quiet) hgMap.panTo({lat:+lat,lng:+lng});
+    return;
+  }
   if(hMarker) hMap.removeLayer(hMarker);
   hMarker=L.marker([lat,lng],{draggable:true}).addTo(hMap);
   hMarker.on('dragend',()=>{ const p=hMarker.getLatLng(); hSetCoordText(p.lat,p.lng); });
@@ -682,8 +780,9 @@ function hPlace(lat,lng,quiet){
 }
 function hSetCoordText(lat,lng){ const el=document.getElementById('hCoord'); if(el)el.textContent=(+lat).toFixed(6)+', '+(+lng).toFixed(6); }
 async function hSave(){
-  if(hSel==null||!hMarker){ alert('Haritaya tıklayarak konumu işaretleyin.'); return; }
-  const p=hMarker.getLatLng();
+  const has = hEngine==='google' ? !!hgSel : !!hMarker;
+  if(hSel==null||!has){ alert('Haritaya tıklayarak konumu işaretleyin.'); return; }
+  const p = hEngine==='google' ? {lat:hgSel.getPosition().lat(), lng:hgSel.getPosition().lng()} : hMarker.getLatLng();
   await api('unit_save',{id:hSel,lat:p.lat,lng:p.lng});
   const r=hRows.find(x=>x.id===hSel); if(r){ r.lat=p.lat; r.lng=p.lng; }
   hRenderList(); hDrawAll(); alert('Konum kaydedildi.');
@@ -692,7 +791,8 @@ async function hClear(){
   if(hSel==null)return; if(!confirm('Bu pozisyonun konumu silinsin mi?'))return;
   await api('unit_save',{id:hSel,lat:null,lng:null});
   const r=hRows.find(x=>x.id===hSel); if(r){ r.lat=null; r.lng=null; }
-  if(hMarker){ hMap.removeLayer(hMarker); hMarker=null; }
+  if(hEngine==='google'){ if(hgSel){hgSel.setMap(null);hgSel=null;} }
+  else if(hMarker){ hMap.removeLayer(hMarker); hMarker=null; }
   hRenderList(); hDrawAll(); hPick(hSel);
 }
 
@@ -973,6 +1073,13 @@ async function ayarlar(c){
     <div class="field"><label class="flabel">Açıklama (description)</label><textarea class="inp" id="seoD">${esc(st.seoDesc||'')}</textarea></div>
     <div class="field"><label class="flabel">Anahtar kelimeler</label><input class="inp" id="seoK" value="${esc(st.seoKeywords||'')}"></div>
     <button class="btn btn-primary btn-sm" onclick="saveSeo()">Kaydet</button></div>
+
+  <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Site Haritası (SEO)</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 12px">Google'a hangi sayfaların var olduğunu bildiren dosya. Mecra veya sayfa ekledikçe yeniden üretip sitenin ana klasörüne yükleyin.</p>
+    <div class="field"><label class="flabel">Site adresi</label><input class="inp" id="siteUrl" value="${esc(st.siteUrl||'https://medyaparkadana.com')}"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="api('settings_save',{siteUrl:gv('siteUrl')}).then(()=>alert('Kaydedildi.'))">Adresi Kaydet</button>
+      <button class="btn btn-primary btn-sm" onclick="buildSitemap()">sitemap.xml Üret ve İndir</button></div></div>
 
   <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Fiyat Gösterimi</h3>
     <p class="muted" style="font-size:13px;margin:0 0 12px">Kapalıyken sitede hiçbir yerde fiyat görünmez: mecra detayındaki <b>Fiyatlar</b> kutusu, sepetteki tutarlar ve toplam, PDF/Excel çıktılarındaki fiyat sütunu. Müşteri yine ay seçip <b>Teklif Al</b> ile talep gönderebilir.</p>
