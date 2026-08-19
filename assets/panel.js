@@ -74,6 +74,42 @@ function pickUpload(accept, cb, opt){ const inp=document.createElement('input');
     catch(e){ alert('Yükleme hatası: '+(e.message||e)); } };
   inp.click(); }
 
+
+/* ==========================================================
+   İŞLEM KAYITLARI
+   Kaydetme/silme işlemleri arka planda loglanır; hata olursa
+   asıl işlemi etkilemez (sessizce geçilir).
+   ========================================================== */
+const LOG_AD={
+  product_save:['Ürün','kaydetti'], product_delete:['Ürün','sildi'],
+  mecra_save:['Mecra','kaydetti'], mecra_delete:['Mecra','sildi'],
+  alt_save:['Alt mecra','kaydetti'], alt_delete:['Alt mecra','sildi'],
+  unit_save:['Pozisyon','kaydetti'], unit_delete:['Pozisyon','sildi'],
+  customer_save:['Müşteri','kaydetti'], customer_delete:['Müşteri','sildi'],
+  supplier_save:['Tedarikçi','kaydetti'], supplier_delete:['Tedarikçi','sildi'],
+  job_save:['İş','kaydetti'], job_move:['İş','aşama değiştirdi'], job_delete:['İş','sildi'],
+  note_save:['Not','kaydetti'], note_delete:['Not','sildi'],
+  team_save:['Ekip üyesi','kaydetti'], team_delete:['Ekip üyesi','sildi'],
+  page_save:['Sayfa','kaydetti'], page_delete:['Sayfa','sildi'],
+  quote_status:['Teklif','durumunu değiştirdi'], quote_delete:['Teklif','sildi'],
+  booking_toggle:['Doluluk','güncelledi'],
+  settings_save:['Ayarlar','güncelledi'],
+  password_change:['Şifre','değiştirdi']
+};
+function logYaz(act, body, q){
+  const m=LOG_AD[act]; if(!m)return;
+  let detay='';
+  try{
+    if(act==='booking_toggle') detay=`${body.ym} · ${body.status}`;
+    else if(act==='settings_save') detay=Object.keys(body||{}).join(', ').slice(0,120);
+    else if(act==='job_move') detay=body.status||'';
+    else if(body) detay=(body.name||body.firma||body.title||body.konu||body.slug||'').toString().slice(0,90);
+  }catch(e){}
+  const row={kullanici:(ui._me&&ui._me.name)||ui._email||'—', islem:m[1], bolum:m[0],
+    kayit_id:String((body&&body.id)||(q&&q.id)||''), detay};
+  sb.from('activity_log').insert(row).then(()=>{},()=>{});   /* sessiz */
+}
+
 /* ---- Veri katmanı köprüsü: eski api(action,body) -> Supabase ---- */
 const DELMAP={product_delete:'products',mecra_delete:'mecralar',alt_delete:'alt_mecralar',unit_delete:'units',customer_delete:'customers',team_delete:'team',note_delete:'notes',quote_delete:'quotes',job_delete:'jobs'};
 async function saveRow(table, body){ const id=body.id; const row={...body}; delete row.id;
@@ -85,7 +121,7 @@ async function api(action, body){
   parts.slice(1).forEach(kv=>{ const i=kv.indexOf('='); if(i>=0)q[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1)); });
   const ok=(d)=>d;
 
-  if(act.endsWith('_delete')){ const {error}=await sb.from(DELMAP[act]).delete().eq('id',q.id); if(error)throw error; return ok(); }
+  if(act.endsWith('_delete') && DELMAP[act]){ const {error}=await sb.from(DELMAP[act]).delete().eq('id',q.id); if(error)throw error; logYaz(act,body,q); return ok(); }
 
   switch(act){
     case 'dashboard_stats':{
@@ -145,26 +181,27 @@ async function api(action, body){
     }
     case 'jobs_list':{ const {data,error}=await sb.from('jobs').select('*').order('sort').order('id'); if(error)throw error; return ok(data); }
     case 'job_move':{ const {error}=await sb.from('jobs').update({status:body.status}).eq('id',body.id); if(error)throw error; return ok(); }
-    case 'job_save': return ok(await saveRow('jobs',body));
+    case 'job_save': { const r=await saveRow('jobs',body); logYaz(act,body); return ok(r); }
 
     case 'products_list':{ const {data,error}=await sb.from('products').select('*').order('sort').order('id'); if(error)throw error; return ok(data); }
-    case 'product_save': return ok(await saveRow('products',body));
+    case 'product_save': { const r=await saveRow('products',body); logYaz(act,body); return ok(r); }
 
     case 'mecra_list':{
       const [ms,us]=await Promise.all([ sb.from('mecralar').select('*').order('sort').order('id'), sb.from('units').select('*').order('sort').order('id') ]);
       if(ms.error)throw ms.error; if(us.error)throw us.error;
       ms.data.forEach(m=>m.units=us.data.filter(u=>u.mecra_id===m.id)); return ok(ms.data);
     }
-    case 'mecra_save': return ok(await saveRow('mecralar',body));
-    case 'unit_save': return ok(await saveRow('units',body));
+    case 'mecra_save': { const r=await saveRow('mecralar',body); logYaz(act,body); return ok(r); }
+    case 'unit_save': { const r=await saveRow('units',body); logYaz(act,body); return ok(r); }
     case 'alt_all':{ const {data,error}=await sb.from('alt_mecralar').select('id,mecra_id,name,product_id').order('sort').order('id'); if(error)throw error; return ok(data); }
     case 'alt_list':{ const {data,error}=await sb.from('alt_mecralar').select('*').eq('mecra_id',q.mecra_id).order('sort').order('id'); if(error)throw error; return ok(data); }
-    case 'alt_save': return ok(await saveRow('alt_mecralar',body));
+    case 'alt_save': { const r=await saveRow('alt_mecralar',body); logYaz(act,body); return ok(r); }
     case 'unit_list':{ const {data,error}=await sb.from('units').select('*').eq('alt_mecra_id',q.alt_id).order('sort').order('id'); if(error)throw error; return ok(data); }
     case 'bookings_all':{ const {data,error}=await sb.from('bookings').select('unit_id,ym,status,customer_id'); if(error)throw error; return ok(data); }
 
     case 'booking_list':{ const {data,error}=await sb.from('bookings').select('ym,status').eq('unit_id',q.unit_id); if(error)throw error; return ok(data); }
     case 'booking_toggle':{
+      logYaz(act,body);
       if(body.status==='bos'){ const {error}=await sb.from('bookings').delete().eq('unit_id',body.unit_id).eq('ym',body.ym); if(error)throw error; }
       else { const row={unit_id:body.unit_id,ym:body.ym,status:body.status,customer_id:(body.customer_id!==undefined?body.customer_id:null)};
         if(body.note!==undefined) row.note=body.note;
@@ -173,11 +210,11 @@ async function api(action, body){
     }
 
     case 'customers_list':{ const {data,error}=await sb.from('customers').select('*').order('id',{ascending:false}); if(error)throw error; return ok(data); }
-    case 'customer_save': return ok(await saveRow('customers',body));
+    case 'customer_save': { const r=await saveRow('customers',body); logYaz(act,body); return ok(r); }
     case 'customer_delete':{ const {error}=await sb.from('customers').delete().eq('id',body.id); if(error)throw error; return ok(true); }
 
     case 'suppliers_list':{ const {data,error}=await sb.from('suppliers').select('*').order('firma'); if(error)throw error; return ok(data); }
-    case 'supplier_save': return ok(await saveRow('suppliers',body));
+    case 'supplier_save': { const r=await saveRow('suppliers',body); logYaz(act,body); return ok(r); }
     case 'supplier_delete':{ const {error}=await sb.from('suppliers').delete().eq('id',body.id); if(error)throw error; return ok(true); }
 
     case 'quotes_list':{ const {data,error}=await sb.from('quotes').select('*').order('created_at',{ascending:false}); if(error)throw error; return ok(data); }
@@ -187,21 +224,25 @@ async function api(action, body){
     }
     case 'quote_status':{
       if(body.status==='onaylandi'){ const {data,error}=await sb.rpc('approve_quote',{p_quote_id:body.id}); if(error)throw error; return ok(data); }
-      const {error}=await sb.from('quotes').update({status:body.status}).eq('id',body.id); if(error)throw error; return ok(null);
+      const {error}=await sb.from('quotes').update({status:body.status}).eq('id',body.id); if(error)throw error; logYaz(act,body); return ok(null);
     }
 
+    case 'log_list':{ const {data,error}=await sb.from('activity_log').select('*')
+        .order('created_at',{ascending:false}).limit(q.limit?+q.limit:200); if(error)throw error; return ok(data); }
+    case 'log_clear':{ const {error}=await sb.from('activity_log').delete()
+        .lt('created_at',new Date(Date.now()-(+body.gun||30)*864e5).toISOString()); if(error)throw error; return ok(); }
     case 'team_list':{ const {data,error}=await sb.from('team').select('*').order('id'); if(error)throw error; return ok(data); }
-    case 'team_save': return ok(await saveRow('team',body));
+    case 'team_save': { const r=await saveRow('team',body); logYaz(act,body); return ok(r); }
 
     case 'notes_list':{ const {data,error}=await sb.from('notes').select('*').order('created_at',{ascending:false}); if(error)throw error; return ok(data); }
-    case 'note_save': return ok(await saveRow('notes',body));
+    case 'note_save': { const r=await saveRow('notes',body); logYaz(act,body); return ok(r); }
 
     case 'pages_list':{ const {data,error}=await sb.from('pages').select('*').order('sort'); if(error)throw error; return ok(data); }
     case 'page_save':{ const row={slug:body.slug}; ['title','body','blocks','in_menu','sort'].forEach(k=>{ if(body[k]!==undefined)row[k]=body[k]; }); const {error}=await sb.from('pages').upsert(row,{onConflict:'slug'}); if(error)throw error; return ok(); }
     case 'page_delete':{ const {error}=await sb.from('pages').delete().eq('slug',q.slug); if(error)throw error; return ok(); }
 
     case 'settings_get':{ const {data,error}=await sb.from('settings').select('k,v'); if(error)throw error; const o={}; data.forEach(r=>o[r.k]=r.v); return ok(o); }
-    case 'settings_save':{ const rows=Object.entries(body).map(([k,v])=>({k,v})); const {error}=await sb.from('settings').upsert(rows,{onConflict:'k'}); if(error)throw error; return ok(); }
+    case 'settings_save':{ const rows=Object.entries(body).map(([k,v])=>({k,v})); const {error}=await sb.from('settings').upsert(rows,{onConflict:'k'}); if(error)throw error; logYaz(act,body); return ok(); }
 
     case 'password_change':{ const {error}=await sb.auth.updateUser({password:body.password}); if(error)throw error; return ok(); }
   }
@@ -229,6 +270,7 @@ function showLogin(err){
 async function doLogin(){ const {error}=await sb.auth.signInWithPassword({email:gv('lu'),password:gv('lp')});
   if(error){ showLogin(error.message); return; }
   ui._email=gv('lu');
+  sb.from('activity_log').insert({kullanici:ui._email,islem:'giriş yaptı',bolum:'Oturum',detay:''}).then(()=>{},()=>{});
   try{ ui._settings=await api('settings_get'); }catch(e){ ui._settings={}; }
   try{ const t=await api('team_list'); ui._me=(t||[]).find(x=>String(x.eposta||'').toLowerCase()===ui._email.toLowerCase())||null; }catch(e){}
   showApp(); }
@@ -392,7 +434,7 @@ function chartRows(items){
 
 /* ---- Alan grafiği: yumuşak eğri + degrade dolgu ---- */
 function chartArea(rows,opt){
-  opt=opt||{}; const W=760,H=opt.h||212, PL=40,PR=14,PT=16,PB=34;
+  opt=opt||{}; const W=760,H=opt.h||196, PL=30,PR=12,PT=18,PB=30;
   const n=rows.length; if(!n) return '<p class="empty">Veri yok.</p>';
   const raw=Math.max(1,...rows.map(r=>r.v));
   const steps=Math.min(4,raw), max=Math.ceil(raw/steps)*steps;
@@ -419,9 +461,10 @@ function chartArea(rows,opt){
   }
   const fill=d+`L${x(n-1).toFixed(1)},${(H-PB).toFixed(1)}L${PL},${(H-PB).toFixed(1)}Z`;
   const gid='ag'+Math.random().toString(36).slice(2,7);
-  const grid=Array.from({length:steps+1},(_,i)=>{ const v=max*(steps-i)/steps, yy=yv(v);
-    return `<line x1="${PL}" x2="${W-PR}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" class="ag-grid"/>
-            <text x="${PL-8}" y="${(yy+3.5).toFixed(1)}" class="ag-yl">${v}</text>`;}).join('');
+  /* minimal: yalnızca taban ve tepe çizgisi, tek değer etiketi */
+  const grid=[0,max].map(v=>{ const yy=yv(v);
+    return `<line x1="${PL}" x2="${W-PR}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" class="ag-grid${v===0?' base':''}"/>`;}).join('')
+    + `<text x="${PL-6}" y="${(yv(max)+4).toFixed(1)}" class="ag-yl">${max}</text>`;
   const dots=rows.map((r,i)=>`<g class="ag-pt"><circle cx="${x(i).toFixed(1)}" cy="${yv(r.v).toFixed(1)}" r="4.5" class="ag-dot"/>
     <rect x="${(x(i)-26).toFixed(1)}" y="${(yv(r.v)-32).toFixed(1)}" width="52" height="21" rx="5" class="ag-tipbg"/>
     <text x="${x(i).toFixed(1)}" y="${(yv(r.v)-17.5).toFixed(1)}" class="ag-tipt">${esc(r.l)}: ${r.v}</text>
@@ -1411,6 +1454,31 @@ async function harita(c){
   setTimeout(hInitMap,80);
 }
 async function saveGmKey(){ await api('settings_save',{googleMapsKey:gv('gmKey').trim()}); alert('Kaydedildi. Siteyi Ctrl+F5 ile yenileyin.'); renderSection(); }
+async function logYukle(){
+  const box=document.getElementById('logBox'); box.innerHTML='<p class="muted" style="font-size:12.5px">Yükleniyor…</p>';
+  const lim=(document.getElementById('logLim')||{}).value||200;
+  let list=[];
+  try{ list=await api('log_list&limit='+lim); }
+  catch(e){ box.innerHTML='<div class="banner">Kayıtlar okunamadı: '+esc(e.message||e)+'</div>'; return; }
+  if(!list.length){ box.innerHTML='<p class="empty">Henüz kayıt yok. Panelde bir değişiklik yaptıktan sonra burada görünecek.</p>'; return; }
+  const gun=x=>{ const d=new Date(x); const b=new Date(); const f=y=>y.toISOString().slice(0,10);
+    if(f(d)===f(b))return 'Bugün';
+    const dun=new Date(b.getTime()-864e5); if(f(d)===f(dun))return 'Dün';
+    return d.toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'}); };
+  const saat=x=>new Date(x).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+  const grup={}; list.forEach(r=>{ const g=gun(r.created_at); (grup[g]=grup[g]||[]).push(r); });
+  box.innerHTML=Object.entries(grup).map(([g,rs])=>`
+    <div class="log-g">${esc(g)}</div>
+    ${rs.map(r=>`<div class="log-r">
+      <span class="log-t mono">${esc(saat(r.created_at))}</span>
+      <span class="log-u">${esc(r.kullanici||'—')}</span>
+      <span class="log-a"><b>${esc(r.bolum||'')}</b> ${esc(r.islem||'')}${r.detay?` <em>${esc(r.detay)}</em>`:''}</span>
+    </div>`).join('')}`).join('');
+}
+async function logTemizle(){
+  if(!confirm('30 günden eski işlem kayıtları silinsin mi?'))return;
+  await api('log_clear',{gun:30}); toast('Eski kayıtlar silindi.'); logYukle();
+}
 async function saveGa(){
   const v=gv('gaId').trim();
   if(v && !/^G-[A-Z0-9]+$/i.test(v)){ alert('Ölçüm kimliği G- ile başlamalı. Örnek: G-ABC123XYZ'); return; }
@@ -2022,9 +2090,20 @@ function pageNew(){ const t=prompt('Yeni sayfa başlığı:'); if(!t)return; con
 /* ---------- NOTLAR ---------- */
 async function notlar(c){
   const list=await api('notes_list'); ui._notes=list;
-  const rows=list.map(n=>`<div class="list-item"><div class="nm">${esc(n.konu)}</div><div class="meta">${esc(n.ilgili_kisi||'')} · ${esc(n.tarih||'')}</div>
-    <button class="btn btn-outline btn-sm" onclick="noteForm(${n.id})">Aç</button><button class="btn btn-danger btn-sm" onclick="noteDel(${n.id})">Sil</button></div>`).join('');
+  const rows=list.map(n=>`<div class="list-item note-row" onclick="noteView(${n.id})">
+    <div class="nm">${esc(n.konu)}</div>
+    <div class="meta">${esc(n.ilgili_kisi||'')}${n.tarih?' · '+esc(n.tarih):''} — ${esc(String(n.body||'').slice(0,70))}${String(n.body||'').length>70?'…':''}</div>
+    <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();noteForm(${n.id})">Düzenle</button>
+    <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();noteDel(${n.id})">Sil</button></div>`).join('');
   c.innerHTML=`<div class="sec-head"><h3>Notlar</h3><button class="btn btn-primary btn-sm" onclick="noteForm(0)">+ Not</button></div>${rows||'<p class="muted">Not yok.</p>'}`;
+}
+function noteView(id){ const n=(ui._notes||[]).find(x=>x.id===id); if(!n)return;
+  modal(`<div class="nv-head"><h3 style="margin:0">${esc(n.konu||'Not')}</h3>
+      <div class="nv-meta">${esc(n.ilgili_kisi||'')}${n.tarih?' · '+esc(n.tarih):''}${n.created_at?' · eklendi '+esc(String(n.created_at).slice(0,10)):''}</div></div>
+    <div class="nv-body">${esc(n.body||'—')}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Kapat</button>
+      <button class="btn btn-outline btn-sm" onclick="noteForm(${n.id})">Düzenle</button></div>`);
 }
 function noteForm(id){ const n=(ui._notes||[]).find(x=>x.id===id)||{};
   modal(`<h3 style="margin:0 0 14px">${id?'Not':'Yeni Not'}</h3><input type="hidden" id="nid" value="${id||0}">
@@ -2062,6 +2141,17 @@ async function ayarlar(c){
     <div class="field"><label class="flabel">Açıklama (description)</label><textarea class="inp" id="seoD">${esc(st.seoDesc||'')}</textarea></div>
     <div class="field"><label class="flabel">Anahtar kelimeler</label><input class="inp" id="seoK" value="${esc(st.seoKeywords||'')}"></div>
     <button class="btn btn-primary btn-sm" onclick="saveSeo()">Kaydet</button></div>
+
+  <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">İşlem Kayıtları</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 12px">Panelde kim ne yaptı, en yeniden eskiye doğru listelenir. Girişler, kaydetmeler, silmeler ve doluluk değişiklikleri kaydedilir.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <button class="btn btn-outline btn-sm" onclick="logYukle()">${ic('clock',15)} Kayıtları Getir</button>
+      <select class="inp" id="logLim" style="max-width:150px" onchange="logYukle()">
+        <option value="50">son 50 kayıt</option><option value="200" selected>son 200 kayıt</option>
+        <option value="500">son 500 kayıt</option></select>
+      <button class="btn btn-ghost btn-sm" onclick="logTemizle()">30 günden eskileri sil</button>
+    </div>
+    <div id="logBox"><p class="muted" style="font-size:12.5px">Görüntülemek için "Kayıtları Getir" deyin.</p></div></div>
 
   <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Google Analytics</h3>
     <p class="muted" style="font-size:13px;margin:0 0 12px">Ziyaretçi istatistiklerini görmek için Google Analytics 4 ölçüm kimliğini girin. Boş bırakırsanız hiçbir takip kodu yüklenmez.
