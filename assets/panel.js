@@ -244,37 +244,54 @@ const ICON={
 function ic(n,sz){ return `<svg class="ic" viewBox="0 0 24 24" width="${sz||18}" height="${sz||18}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[n]||''}</svg>`; }
 
 /* ================= MİNİ GRAFİKLER (bağımlılıksız SVG) ================= */
+/* Sütun grafiği — CSS tabanlı (SVG'de yatay esneme köşeleri bozuyordu) */
 function chartBars(rows,opt){
-  opt=opt||{}; const h=opt.h||150, max=Math.max(1,...rows.map(r=>r.a+(r.b||0)));
-  const n=rows.length, gap=opt.gap||6, w=100/n;
-  const bars=rows.map((r,i)=>{
-    const ha=(r.a/max)*h, hb=((r.b||0)/max)*h;
-    const x=i*w+gap/n/2, bw=w-gap/n;
-    return `<g class="cb"><title>${esc(r.l)}: ${r.a} dolu${r.b?' · '+r.b+' rezerve':''}</title>
-      <rect x="${x}%" y="${h-ha-hb}" width="${bw}%" height="${hb||0}" fill="var(--c-warn)" rx="2"/>
-      <rect x="${x}%" y="${h-ha}" width="${bw}%" height="${ha}" fill="var(--c-accent)" rx="2"/>
-      <rect x="${x}%" y="0" width="${bw}%" height="${h}" fill="transparent"/></g>`;
+  opt=opt||{}; const h=opt.h||160;
+  const raw=Math.max(1,...rows.map(r=>r.a+(r.b||0)));
+  const steps=Math.min(4,raw);              /* küçük değerlerde etiket tekrarlamasın */
+  const max=Math.ceil(raw/steps)*steps;     /* eksen tam bölünsün */
+  const grid=Array.from({length:steps+1},(_,i)=>
+    `<div class="cg-l"><span>${max*(steps-i)/steps}</span></div>`).join('');
+  const cols=rows.map(r=>{
+    const tot=r.a+(r.b||0);
+    const pa=(r.a/max)*100, pb=((r.b||0)/max)*100;
+    return `<div class="bcol" style="--pa:${pa}%;--pb:${pb}%">
+      <div class="bstack">
+        <div class="btip">${esc(r.l)}<b>${r.a} dolu</b>${r.b?`<b class="rz">${r.b} rezerve</b>`:''}</div>
+        ${r.b?`<i class="b-rez"></i>`:''}${r.a?`<i class="b-dolu"></i>`:''}
+        ${tot===0?'<i class="b-zero"></i>':''}
+      </div>
+      <span class="blab">${esc(r.l)}</span></div>`;
   }).join('');
-  const labs=rows.map((r,i)=>`<span>${esc(r.l)}</span>`).join('');
-  return `<div class="chart"><svg viewBox="0 0 100 ${h}" preserveAspectRatio="none" height="${h}" width="100%">
-    ${[0,.25,.5,.75,1].map(p=>`<line x1="0" x2="100" y1="${h*p}" y2="${h*p}" stroke="var(--c-line)" stroke-width=".5" vector-effect="non-scaling-stroke"/>`).join('')}
-    ${bars}</svg><div class="chart-x">${labs}</div></div>`;
+  return `<div class="chart" style="--ch:${h}px"><div class="cgrid">${grid}</div><div class="bars">${cols}</div></div>`;
 }
+
+/* Halka grafik — yumuşak uçlar, gradyan, animasyonlu */
 function chartDonut(segs,center){
-  const tot=Math.max(1,segs.reduce((s,x)=>s+x.v,0)); let acc=0; const R=54,C=2*Math.PI*R;
-  const arcs=segs.filter(s=>s.v>0).map(s=>{ const len=(s.v/tot)*C; const off=C-acc; acc+=len;
-    return `<circle class="dseg" r="${R}" cx="70" cy="70" fill="none" stroke="${s.c}" stroke-width="18"
-      stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${off}" transform="rotate(-90 70 70)"><title>${esc(s.l)}: ${s.v}</title></circle>`;}).join('');
-  return `<div class="donut"><svg viewBox="0 0 140 140" width="140" height="140">
-    <circle r="${R}" cx="70" cy="70" fill="none" stroke="var(--c-line)" stroke-width="18"/>${arcs}</svg>
+  const tot=Math.max(1,segs.reduce((s,x)=>s+x.v,0));
+  const R=56,C=2*Math.PI*R; let acc=0;
+  const live=segs.filter(s=>s.v>0);
+  const cap=live.length===1?"round":"butt";
+  const arcs=live.map((s,i)=>{
+    const len=(s.v/tot)*C; const off=C-acc; acc+=len;
+    return `<circle class="dseg" r="${R}" cx="72" cy="72" fill="none" stroke="${s.c}" stroke-width="16"
+      stroke-linecap="${cap}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}"
+      stroke-dashoffset="${off.toFixed(2)}" transform="rotate(-90 72 72)"
+      style="animation-delay:${i*90}ms"><title>${esc(s.l)}: ${s.v}</title></circle>`;}).join('');
+  return `<div class="donut"><svg viewBox="0 0 144 144" width="150" height="150">
+    <circle r="${R}" cx="72" cy="72" fill="none" stroke="var(--c-line2)" stroke-width="16"/>${arcs}</svg>
     <div class="donut-c"><b>${esc(center.v)}</b><span>${esc(center.l)}</span></div></div>`;
 }
+
+/* Yatay bar listesi — gradyanlı, animasyonlu */
 function chartRows(items){
   const max=Math.max(1,...items.map(i=>i.v));
-  return `<div class="hbars">${items.map(i=>`<div class="hb">
-    <span class="hb-l" title="${esc(i.l)}">${esc(i.l)}</span>
-    <span class="hb-t"><i style="width:${(i.v/max)*100}%;background:${i.c||'var(--c-accent)'}"></i></span>
-    <b class="hb-v">${i.v}</b></div>`).join('')}</div>`;
+  return `<div class="hbars">${items.map((i,n)=>{
+    const c=i.c||'var(--c-accent)';
+    return `<div class="hb">
+      <span class="hb-l" title="${esc(i.l)}">${esc(i.l)}</span>
+      <span class="hb-t"><i style="--w:${(i.v/max)*100}%;--c:${c};animation-delay:${n*70}ms"></i></span>
+      <b class="hb-v">${i.v}</b></div>`;}).join('')}</div>`;
 }
 
 /* ---------- DASHBOARD ---------- */
