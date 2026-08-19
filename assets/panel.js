@@ -34,7 +34,7 @@ async function api(action, body){
     case 'dashboard_stats':{
       const y=new Date().getFullYear();
       const d7=new Date(Date.now()-7*864e5).toISOString();
-      const [un,mc,al,jb,qs,bk,rq,nt,tm]=await Promise.all([
+      const [un,mc,al,jb,qs,bk,rq,nt,tm,cu]=await Promise.all([
         sb.from('units').select('id,mecra_id'),
         sb.from('mecralar').select('id,name,theme_color').order('sort'),
         sb.from('alt_mecralar').select('id'),
@@ -43,7 +43,8 @@ async function api(action, body){
         sb.from('bookings').select('unit_id,ym,status').like('ym',y+'-%'),
         sb.from('quotes').select('*').order('created_at',{ascending:false}).limit(5),
         sb.from('notes').select('*').order('created_at',{ascending:false}).limit(5),
-        sb.from('team').select('id,name,role,photo,eposta')
+        sb.from('team').select('id,name,role,photo,eposta'),
+        sb.from('customers').select('id,firma,ilgili_kisi')
       ]);
       const units=(un.data||[]), mecras=(mc.data||[]), alts=(al.data||[]);
       const jobs=(jb.data||[]), quotes=(qs.data||[]), bks=(bk.data||[]);
@@ -68,7 +69,15 @@ async function api(action, body){
         newQuotes:quotes.filter(q=>(q.status||'yeni')==='yeni').length,
         son30Teklif:quotes.filter(q=>q.created_at&&q.created_at>ay30).length,
         yil:y, recentQuotes:rq.data||[], notes:nt.data||[], team:tm.data||[],
-        takvim:jobs.filter(j=>j.start_day).map(j=>({d:j.start_day,t:j.title,s:j.status}))
+        takvim:jobs.filter(j=>j.start_day).map(j=>({d:j.start_day,t:j.title,s:j.status})),
+        jobList:(()=>{ const cm={}; (cu.data||[]).forEach(x=>cm[x.id]=x);
+          const mm={}; mecras.forEach(x=>mm[x.id]=x.name);
+          const sira={tasarim:0,baski:1,montaj:2,yayin:3,arsiv:4};
+          return jobs.filter(j=>j.status!=='arsiv')
+            .sort((a,b)=>(sira[a.status]??9)-(sira[b.status]??9))
+            .slice(0,8).map(j=>{ const c=cm[j.customer_id]||{};
+              return {id:j.id,title:j.title,status:j.status,start:j.start_day,end:j.end_day,
+                      firma:c.firma||mm[j.mecra_id]||'—',kisi:c.ilgili_kisi||'',mecra:mm[j.mecra_id]||''}; }); })()
       });
     }
     case 'jobs_list':{ const {data,error}=await sb.from('jobs').select('*').order('sort').order('id'); if(error)throw error; return ok(data); }
@@ -355,19 +364,34 @@ function chartArea(rows,opt){
   const xl=rows.map((r,i)=>(n>8&&i%2)?'':`<text x="${x(i).toFixed(1)}" y="${H-8}" class="ag-xl">${esc(r.l)}</text>`).join('');
   return `<div class="areachart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:${H}px">
     <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="var(--c-lime)" stop-opacity=".55"/>
-      <stop offset="100%" stop-color="var(--c-lime)" stop-opacity=".02"/></linearGradient></defs>
+      <stop offset="0%" stop-color="var(--c-brand)" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="var(--c-brand)" stop-opacity=".02"/></linearGradient></defs>
     ${grid}<path d="${fill}" fill="url(#${gid})"/><path d="${d}" class="ag-line"/>${dots}${xl}</svg></div>`;
 }
 
-/* ---- Gruplu sütun: iş takip akışı ---- */
-function chartGroup(rows){
-  const max=Math.max(1,...rows.map(r=>Math.max(r.a,r.b)));
-  return `<div class="gbars">${rows.map(r=>`<div class="gcol">
-    <div class="gpair">
-      <i class="ga" style="height:${(r.a/max)*100}%"><span class="gtip">${esc(r.l)} · toplam ${r.a}</span></i>
-      <i class="gb" style="height:${(r.b/max)*100}%"><span class="gtip">${esc(r.l)} · son 7 gün ${r.b}</span></i>
-    </div><span class="glab">${esc(r.l)}</span></div>`).join('')}</div>`;
+/* ---- İş akışı listesi: solda firma, sağda soldan sağa aşamalar ---- */
+const JOB_STEPS=[['tasarim','Tasarım'],['baski','Baskı'],['montaj','Montaj'],['yayin','Yayın']];
+function flowList(jobs){
+  if(!jobs||!jobs.length) return '<p class="empty">Devam eden iş yok.</p>';
+  return `<div class="flow">${jobs.map(j=>{
+    const idx=JOB_STEPS.findIndex(x=>x[0]===j.status);
+    const cur=idx<0?0:idx;
+    const yuzde=(cur/(JOB_STEPS.length-1))*100;
+    const alt=[j.kisi,j.title].filter(Boolean).join(' · ');
+    return `<div class="fl-row" onclick="go('is-takibi')">
+      <div class="fl-l">
+        <div class="fl-f">${esc(j.firma)}</div>
+        <div class="fl-s">${esc(alt||'—')}</div>
+        ${j.start?`<div class="fl-d">${esc(String(j.start).slice(0,10))}${j.end?' → '+esc(String(j.end).slice(0,10)):''}</div>`:''}
+      </div>
+      <div class="fl-r">
+        <div class="fl-track"><i style="width:${yuzde}%"></i>
+          ${JOB_STEPS.map((st,i)=>`<span class="fl-node ${i<cur?'done':(i===cur?'now':'')}" style="left:${(i/(JOB_STEPS.length-1))*100}%">
+            <b></b><em>${esc(st[1])}</em></span>`).join('')}
+        </div>
+      </div>
+      <span class="fl-badge s-${esc(j.status)}">${esc((JOB_STEPS[cur]||['','?'])[1])}</span>
+    </div>`;}).join('')}</div>`;
 }
 
 /* ---- Takvim ---- */
@@ -410,8 +434,6 @@ async function dashboard(c){
     <div class="kpi2-t">${esc(k[1])}</div><div class="kpi2-s">${esc(k[2])}</div></div>`).join('');
 
   const area=chartArea(s.aylik.map((a,i)=>({l:AY[i],v:a.dolu+a.rezerve})),{h:210});
-  const jobRows=['tasarim','baski','montaj','yayin','arsiv'].map(k=>
-    ({l:JL[k],a:s.jobStat[k]||0,b:(s.jobYeni||{})[k]||0}));
 
   const notlar=(s.notes||[]).length ? s.notes.map(n=>{
     const ad=n.ilgili_kisi||n.konu||'Not';
@@ -437,10 +459,8 @@ async function dashboard(c){
         <div class="card-b">${area}</div>
       </section>
       <section class="card">
-        <div class="card-h"><h3>İş Takip Akışı</h3>
-          <div class="lgnd"><span><i style="background:var(--c-lime)"></i>Toplam</span><span><i style="background:var(--c-green-d)"></i>Son 7 gün</span></div>
-        </div>
-        <div class="card-b">${chartGroup(jobRows)}</div>
+        <div class="card-h"><h3>İş Takip Akışı</h3><button class="btn-link" onclick="go('is-takibi')">Tümü</button></div>
+        <div class="card-b">${flowList(s.jobList||[])}</div>
       </section>
     </div>
     <div class="dash-r">
