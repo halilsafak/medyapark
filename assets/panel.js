@@ -905,6 +905,77 @@ function grpAll(btn,open){
 }
 
 
+
+/* ==========================================================
+   FOOTER MENÜ DÜZENLEYİCİ
+   ========================================================== */
+const FTR_TIP=[['sayfa','İçerik sayfası'],['mecra','Mecra'],['harita','Harita sayfası'],
+               ['anasayfa','Anasayfa'],['pdf','PDF katalog'],['tel','Telefon'],['url','Serbest bağlantı']];
+function ftrInit(st){
+  const f=(st.footer&&Array.isArray(st.footer.cols))?JSON.parse(JSON.stringify(st.footer)):null;
+  ui._ftr = f || {cols:[
+    {title:'SAYFALAR',grid:false,items:(ui._pages||[]).filter(p=>p.in_menu!==false).map(p=>({label:p.title||p.slug,type:'sayfa',value:p.slug}))},
+    {title:'MECRALARIMIZ',grid:true,items:(ui._mecralar||[]).map(m=>({label:m.name,type:'mecra',value:String(m.id)}))}
+  ],hideContact:false,hideNews:false};
+  if(!ui._ftr.cols.length) ui._ftr.cols=[{title:'',grid:false,items:[]}];
+}
+function ftrRender(){
+  const box=document.getElementById('ftrBox'); if(!box)return;
+  const pages=ui._pages||[], mecs=ui._mecralar||[];
+  box.innerHTML=ui._ftr.cols.map((c,ci)=>`
+    <div class="blk">
+      <div class="blk-head">
+        <input class="inp" style="max-width:230px;font-weight:600" value="${esc(c.title)}"
+          placeholder="Sütun başlığı" oninput="ui._ftr.cols[${ci}].title=this.value">
+        <div style="display:flex;gap:6px;align-items:center">
+          <label class="mini"><input type="checkbox" ${c.grid?'checked':''} onchange="ui._ftr.cols[${ci}].grid=this.checked;ftrRender()"> 2 sütun</label>
+          <button class="btn btn-danger btn-sm" onclick="ftrColDel(${ci})">Sütunu sil</button>
+        </div>
+      </div>
+      ${(c.items||[]).map((it,ii)=>`
+        <div class="ftr-item">
+          <input class="inp" placeholder="Görünecek yazı" value="${esc(it.label)}"
+            oninput="ui._ftr.cols[${ci}].items[${ii}].label=this.value">
+          <select class="inp" onchange="ui._ftr.cols[${ci}].items[${ii}].type=this.value;ui._ftr.cols[${ci}].items[${ii}].value='';ftrRender()">
+            ${FTR_TIP.map(t=>`<option value="${t[0]}" ${(it.type||'url')===t[0]?'selected':''}>${t[1]}</option>`).join('')}
+          </select>
+          ${it.type==='sayfa'
+            ? `<select class="inp" onchange="ui._ftr.cols[${ci}].items[${ii}].value=this.value">
+                 <option value="">— seç —</option>${pages.map(p=>`<option value="${esc(p.slug)}" ${it.value===p.slug?'selected':''}>${esc(p.title||p.slug)}</option>`).join('')}</select>`
+            : it.type==='mecra'
+            ? `<select class="inp" onchange="ui._ftr.cols[${ci}].items[${ii}].value=this.value">
+                 <option value="">— seç —</option>${mecs.map(m=>`<option value="${m.id}" ${String(it.value)===String(m.id)?'selected':''}>${esc(m.name)}</option>`).join('')}</select>`
+            : ['harita','anasayfa','pdf','tel'].includes(it.type)
+            ? `<input class="inp" value="" placeholder="ek bilgi gerekmiyor" disabled>`
+            : `<input class="inp" value="${esc(it.value)}" placeholder="https://..." oninput="ui._ftr.cols[${ci}].items[${ii}].value=this.value">`}
+          <button class="btn btn-ghost btn-sm" title="Yukarı" onclick="ftrMove(${ci},${ii},-1)">↑</button>
+          <button class="btn btn-ghost btn-sm" title="Aşağı" onclick="ftrMove(${ci},${ii},1)">↓</button>
+          <button class="btn btn-danger btn-sm" title="Sil" onclick="ftrDel(${ci},${ii})">×</button>
+        </div>`).join('')}
+      <button class="btn btn-outline btn-sm" onclick="ftrAdd(${ci})">+ Bağlantı</button>
+    </div>`).join('')
+    + `<button class="btn btn-outline btn-sm" onclick="ftrColAdd()">+ Sütun ekle</button>`;
+}
+function ftrAdd(ci){ ui._ftr.cols[ci].items.push({label:'',type:'sayfa',value:''}); ftrRender(); }
+function ftrDel(ci,ii){ ui._ftr.cols[ci].items.splice(ii,1); ftrRender(); }
+function ftrMove(ci,ii,d){ const a=ui._ftr.cols[ci].items, j=ii+d; if(j<0||j>=a.length)return;
+  [a[ii],a[j]]=[a[j],a[ii]]; ftrRender(); }
+function ftrColAdd(){ if(ui._ftr.cols.length>=4){alert('En fazla 4 sütun eklenebilir.');return;}
+  ui._ftr.cols.push({title:'YENİ SÜTUN',grid:false,items:[]}); ftrRender(); }
+function ftrColDel(ci){ if(!confirm('Bu sütun silinsin mi?'))return; ui._ftr.cols.splice(ci,1);
+  if(!ui._ftr.cols.length)ui._ftr.cols=[{title:'',grid:false,items:[]}]; ftrRender(); }
+async function ftrSave(){
+  ui._ftr.hideContact=document.getElementById('ftrHideC').checked;
+  ui._ftr.hideNews=document.getElementById('ftrHideN').checked;
+  const temiz={...ui._ftr, cols:ui._ftr.cols
+    .map(c=>({...c,items:(c.items||[]).filter(i=>i.type&&(['harita','anasayfa','pdf','tel'].includes(i.type)||i.value))}))
+    .filter(c=>c.title||c.items.length)};
+  await api('settings_save',{footer:temiz});
+  toast('Footer menüsü kaydedildi. Siteyi Ctrl+F5 ile yenileyin.');
+}
+async function ftrReset(){ if(!confirm('Footer menüsü varsayılana dönsün mü?'))return;
+  await api('settings_save',{footer:null}); renderSection(); }
+
 /* ==========================================================
    RAPORLAR
    ========================================================== */
@@ -1340,6 +1411,11 @@ async function harita(c){
   setTimeout(hInitMap,80);
 }
 async function saveGmKey(){ await api('settings_save',{googleMapsKey:gv('gmKey').trim()}); alert('Kaydedildi. Siteyi Ctrl+F5 ile yenileyin.'); renderSection(); }
+async function saveGa(){
+  const v=gv('gaId').trim();
+  if(v && !/^G-[A-Z0-9]+$/i.test(v)){ alert('Ölçüm kimliği G- ile başlamalı. Örnek: G-ABC123XYZ'); return; }
+  await api('settings_save',{gaId:v}); toast(v?'Analytics açıldı. Siteyi Ctrl+F5 ile yenileyin.':'Analytics kapatıldı.'); renderSection();
+}
 async function saveMapTexts(){ await api('settings_save',{mapTitle:gv('mapTitle'),mapDesc:gv('mapDesc'),mapKapak:gv('mapKapak')}); alert('Kaydedildi.'); }
 function hFilter(q){ hQ=(q||'').toLowerCase(); hRenderList(); }
 function hRenderList(){ const box=document.getElementById('hList'); if(!box)return;
@@ -1963,7 +2039,8 @@ async function noteDel(id){ if(confirm('Silinsin mi?')){ await api('note_delete&
 
 /* ---------- AYARLAR ---------- */
 async function ayarlar(c){
-  const st=await api('settings_get');
+  const [st,pg,mc]=await Promise.all([api('settings_get'),api('pages_list'),api('mecra_list')]);
+  ui._settings=st; ui._pages=pg; ui._mecralar=mc; ftrInit(st);
   c.innerHTML=`
   <div class="sec-card"><h3 style="margin:0 0 14px;font-size:16px">Ajans Bilgileri</h3>
     <div class="row2"><div class="field"><label class="flabel">Site adı</label><input class="inp" id="sName" value="${esc(st.siteName||'')}"></div>
@@ -1985,6 +2062,27 @@ async function ayarlar(c){
     <div class="field"><label class="flabel">Açıklama (description)</label><textarea class="inp" id="seoD">${esc(st.seoDesc||'')}</textarea></div>
     <div class="field"><label class="flabel">Anahtar kelimeler</label><input class="inp" id="seoK" value="${esc(st.seoKeywords||'')}"></div>
     <button class="btn btn-primary btn-sm" onclick="saveSeo()">Kaydet</button></div>
+
+  <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Google Analytics</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 12px">Ziyaretçi istatistiklerini görmek için Google Analytics 4 ölçüm kimliğini girin. Boş bırakırsanız hiçbir takip kodu yüklenmez.
+      <br>Kimliği almak için: analytics.google.com → Yönetici → Veri akışları → web akışınız → <b>Ölçüm Kimliği</b> (G- ile başlar).</p>
+    <div class="field" style="max-width:320px"><label class="flabel">Ölçüm Kimliği</label>
+      <input class="inp" id="gaId" value="${esc(st.gaId||'')}" placeholder="G-XXXXXXXXXX"></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="saveGa()">Kaydet</button>
+      <span class="muted" style="font-size:12.5px">Durum: <b>${st.gaId?'Takip açık':'Kapalı'}</b></span></div>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">Sayfa geçişleri tek sayfalık sitelerde otomatik sayılmaz; bu yüzden her sayfa değişiminde görüntüleme kaydı ayrıca gönderilir.</p></div>
+
+  <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Footer Menüleri</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 14px">Sitenin altındaki bağlantı sütunlarını buradan düzenleyin. Sütun ekleyip silebilir, bağlantıları sıralayabilirsiniz. Marka açıklaması, iletişim ve bülten blokları ayrı ayarlardan gelir.</p>
+    <div id="ftrBox"></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin:14px 0 4px">
+      <label class="mini"><input type="checkbox" id="ftrHideC" ${st.footer&&st.footer.hideContact?'checked':''}> İletişim bloğunu gizle</label>
+      <label class="mini"><input type="checkbox" id="ftrHideN" ${st.footer&&st.footer.hideNews?'checked':''}> Bülten bloğunu gizle</label>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn btn-primary btn-sm" onclick="ftrSave()">Footer'ı Kaydet</button>
+      <button class="btn btn-ghost btn-sm" onclick="ftrReset()">Varsayılana dön</button></div></div>
 
   <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Site Haritası (SEO)</h3>
     <p class="muted" style="font-size:13px;margin:0 0 12px">Google'a hangi sayfaların var olduğunu bildiren dosya. Mecra veya sayfa ekledikçe yeniden üretip sitenin ana klasörüne yükleyin.</p>
@@ -2010,6 +2108,7 @@ async function ayarlar(c){
   <div class="sec-card"><h3 style="margin:0 0 8px;font-size:16px">Panel Şifresi</h3>
     <div class="row2"><div class="field"><input class="inp" id="npw" type="password" placeholder="Yeni şifre"></div>
     <div class="field"><button class="btn btn-primary" onclick="changePw()">Şifreyi Güncelle</button></div></div></div>`;
+  ftrRender();
 }
 async function savePrices(){ await api('settings_save',{showPrices:document.getElementById('showPrices').checked}); alert('Kaydedildi. Siteyi yenileyin.'); }
 async function saveSettings(){ await api('settings_save',{siteName:gv('sName'),phone:gv('sPhone'),email:gv('sMail'),address:gv('sAddr'),catalogPdf:gv('sPdf')}); alert('Kaydedildi.'); }

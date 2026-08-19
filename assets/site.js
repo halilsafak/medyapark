@@ -58,7 +58,7 @@ async function load(){
   document.getElementById('brand').innerHTML = s.logoImage?`<img class="brandimg" src="${esc(s.logoImage)}" alt="logo">`:logo(s.logoText);
   if(s.seoTitle) document.title=s.seoTitle; if(s.seoDesc){ const md=document.getElementById('metaDesc'); if(md)md.setAttribute('content',s.seoDesc); }
   if(s.catalogPdf){ const b=document.getElementById('pdfBtn'); b.href=s.catalogPdf; b.style.display='flex'; }
-  buildFilter(); renderFooter(); renderMenu();
+  buildFilter(); renderFooter(); renderMenu(); initAnalytics();
   view=pathToView(location.pathname);
   render(); pushRoute(true);
 }
@@ -164,6 +164,7 @@ function pushRoute(replace){
     if(location.pathname!==url) history[replace?'replaceState':'pushState']({v:view},'',url);
   }catch(e){ /* file:// veya kısıtlı ortam — adres güncellenemese de site çalışır */ }
   try{ setMeta(); }catch(e){}
+  gaPage();
 }
 window.addEventListener('popstate',()=>{ view=pathToView(location.pathname); render(true); });
 
@@ -749,16 +750,63 @@ function renderMap(){
 }
 
 /* ---- footer ---- */
+/* footer bağlantısı: panelde seçilen türe göre adres üretir */
+function ftrLink(it){
+  const t=it.type||'url', v=it.value||'';
+  const lbl=esc(it.label||'');
+  if(t==='sayfa'){ const p=(D.pages||[]).find(x=>x.slug===v);
+    return `<a href="${BASE}sayfa/${esc(v)}" onclick="openPage('${esc(v)}');return false;">${lbl||esc((p||{}).title||v)}</a>`; }
+  if(t==='mecra'){ const m=mec(v); if(!m)return '';
+    return `<a href="${BASE}mecra/${mSlug(m)}" onclick="openMec('${m.id}');return false;">${lbl||esc(m.name)}</a>`; }
+  if(t==='harita') return `<a href="${BASE}harita" onclick="openMapPage();return false;">${lbl||'Harita'}</a>`;
+  if(t==='anasayfa') return `<a href="${BASE}" onclick="goHome();return false;">${lbl||'Anasayfa'}</a>`;
+  if(t==='pdf'){ const u=(D.settings||{}).catalogPdf; return u?`<a href="${esc(u)}" download>${lbl||'PDF Katalog'}</a>`:''; }
+  if(t==='tel'){ const u=(D.settings||{}).phone||v; return `<a href="tel:${esc(String(u).replace(/\s/g,''))}">${lbl||esc(u)}</a>`; }
+  if(!v) return '';
+  const dis=/^https?:/i.test(v);
+  return `<a href="${esc(v)}"${dis?' target="_blank" rel="noopener"':''}>${lbl||esc(v)}</a>`;
+}
 function renderFooter(){ const s=D.settings||{};
-  const mecLinks=D.mecralar.map(m=>`<a href="${BASE}mecra/${mSlug(m)}" onclick="openMec('${m.id}');return false;">${esc(m.name)}</a>`).join('');
-  const pdf=s.catalogPdf?`<a href="${esc(s.catalogPdf)}" download>PDF Katalog</a>`:`<a onclick="goHome()">PDF Katalog</a>`;
+  const cfg=s.footer&&Array.isArray(s.footer.cols)&&s.footer.cols.length?s.footer:null;
+  let cols;
+  if(cfg){
+    cols=cfg.cols.filter(c=>c&&(c.title||(c.items||[]).length)).map(c=>{
+      const links=(c.items||[]).map(ftrLink).filter(Boolean).join('');
+      return `<div><h5>${esc(c.title||'')}</h5>${(c.grid?`<div class="meccols">${links}</div>`:links)}</div>`;
+    }).join('');
+  } else {
+    /* panelde ayar yoksa eski davranış */
+    const mecLinks=D.mecralar.map(m=>`<a href="${BASE}mecra/${mSlug(m)}" onclick="openMec('${m.id}');return false;">${esc(m.name)}</a>`).join('');
+    const pdf=s.catalogPdf?`<a href="${esc(s.catalogPdf)}" download>PDF Katalog</a>`:'';
+    cols=`<div><h5>SAYFALAR</h5>${(D.pages||[]).filter(p=>p.in_menu!==false).map(p=>`<a href="${BASE}sayfa/${esc(p.slug)}" onclick="openPage('${p.slug}');return false;">${esc(p.title||p.slug)}</a>`).join('')}${pdf}</div>
+      <div><h5>MECRALARIMIZ</h5><div class="meccols">${mecLinks}</div></div>`;
+  }
+  const iletisim=(cfg&&cfg.hideContact)?'':`<div><h5>İLETİŞİM</h5><div class="il"><b>Adres:</b> ${esc(s.address||'')}<br><br><b>Telefon:</b> ${esc(s.phone||'')}<br><br><b>E-Posta:</b> ${esc(s.email||'')}<br><br>${esc(s.socials||'')}</div></div>`;
+  const bulten=(cfg&&cfg.hideNews)?'':`<div class="news"><h5 style="text-align:center">${esc(s.footer_news||"Kampanya ve yeniliklerden haberdar olmak için;")}</h5><input class="inp" placeholder="E-Posta"><button class="abone" onclick="alert('Teşekkürler! Kaydınız alındı.')">Abone Ol</button></div>`;
   document.getElementById('foot').innerHTML=`<div class="ftr"><div class="ftr-in">
     <div><div class="brand">${logo(s.logoText)}</div><p style="font-size:13px;color:#8a8a90;max-width:26ch">${esc(s.footer_about||"Adana açık hava reklam çözümleri.")}</p></div>
-    <div><h5>SAYFALAR</h5>${(D.pages||[]).filter(p=>p.in_menu!==false).map(p=>`<a href="${BASE}sayfa/${esc(p.slug)}" onclick="openPage('${p.slug}');return false;">${esc(p.title||p.slug)}</a>`).join('')}${pdf}</div>
-    <div><h5>MECRALARIMIZ</h5><div class="meccols">${mecLinks}</div></div>
-    <div><h5>İLETİŞİM</h5><div class="il"><b>Adres:</b> ${esc(s.address||'')}<br><br><b>Telefon:</b> ${esc(s.phone||'')}<br><br><b>E-Posta:</b> ${esc(s.email||'')}<br><br>${esc(s.socials||'')}</div></div>
-    <div class="news"><h5 style="text-align:center">${esc(s.footer_news||"Kampanya ve yeniliklerden haberdar olmak için;")}</h5><input class="inp" placeholder="E-Posta"><button class="abone" onclick="alert('Teşekkürler! Kaydınız alındı.')">Abone Ol</button></div>
+    ${cols}${iletisim}${bulten}
   </div><div class="ftr-bottom"><div class="inner">${esc(s.footer_note||"Tüm hakları saklıdır. Polat Medya Tanıtım Paz. Org. San. ve Tic. Ltd. Şti.")}</div></div></div>`;
+}
+
+/* ---- Google Analytics (GA4) ---- */
+function initAnalytics(){
+  const id=String((D.settings||{}).gaId||'').trim();
+  if(!id || !/^G-[A-Z0-9]+$/i.test(id)) return;
+  if(window.__gaOn) return; window.__gaOn=true;
+  const sc=document.createElement('script'); sc.async=true;
+  sc.src='https://www.googletagmanager.com/gtag/js?id='+encodeURIComponent(id);
+  document.head.appendChild(sc);
+  window.dataLayer=window.dataLayer||[];
+  window.gtag=function(){ window.dataLayer.push(arguments); };
+  gtag('js',new Date());
+  gtag('config',id,{send_page_view:false});   /* sayfa görüntülemeyi biz gönderiyoruz */
+  gaPage();
+}
+function gaPage(){
+  if(!window.gtag)return;
+  try{ gtag('event','page_view',{page_title:document.title,
+    page_location:location.origin+BASE+viewPath(), page_path:BASE+viewPath()}); }catch(e){}
 }
 
 function toggleMenu(e){e.stopPropagation();document.getElementById('menu').classList.toggle('open');}
