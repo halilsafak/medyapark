@@ -34,13 +34,17 @@ async function api(action, body){
     case 'dashboard_stats':{
       const y=new Date().getFullYear();
       const d7=new Date(Date.now()-7*864e5).toISOString();
+      /* kayan 12 ay: bu aydan başlar, ay geçtikçe kendiliğinden ilerler */
+      const _n=new Date(); const roll=[];
+      for(let i=0;i<12;i++){ const dd=new Date(_n.getFullYear(),_n.getMonth()+i,1);
+        roll.push(dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0')); }
       const [un,mc,al,jb,qs,bk,rq,nt,tm,cu]=await Promise.all([
         sb.from('units').select('id,mecra_id'),
         sb.from('mecralar').select('id,name,theme_color').order('sort'),
         sb.from('alt_mecralar').select('id'),
         sb.from('jobs').select('id,title,status,start_day,end_day,created_at,mecra_id'),
         sb.from('quotes').select('id,status,created_at'),
-        sb.from('bookings').select('unit_id,ym,status').like('ym',y+'-%'),
+        sb.from('bookings').select('unit_id,ym,status').gte('ym',roll[0]).lte('ym',roll[11]),
         sb.from('quotes').select('*').order('created_at',{ascending:false}).limit(5),
         sb.from('notes').select('*').order('created_at',{ascending:false}).limit(5),
         sb.from('team').select('id,name,role,photo,eposta'),
@@ -48,8 +52,10 @@ async function api(action, body){
       ]);
       const units=(un.data||[]), mecras=(mc.data||[]), alts=(al.data||[]);
       const jobs=(jb.data||[]), quotes=(qs.data||[]), bks=(bk.data||[]);
-      const aylik=Array.from({length:12},(_,i)=>({ay:i+1,dolu:0,rezerve:0}));
-      bks.forEach(b=>{ const i=(+String(b.ym).slice(5,7))-1; if(i<0||i>11)return;
+      const AYK=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+      const aylik=roll.map(ym=>({ym,label:AYK[(+ym.slice(5,7))-1],yil:ym.slice(0,4),dolu:0,rezerve:0}));
+      const rIdx={}; roll.forEach((ym,i)=>rIdx[ym]=i);
+      bks.forEach(b=>{ const i=rIdx[b.ym]; if(i==null)return;
         if(b.status==='dolu')aylik[i].dolu++; else if(b.status==='rezerve')aylik[i].rezerve++; });
       const kapasite=units.length, slot=Math.max(1,kapasite*12);
       const toplamDolu=bks.filter(b=>b.status==='dolu').length;
@@ -68,7 +74,7 @@ async function api(action, body){
         activeJobs:jobs.filter(j=>j.status!=='arsiv').length,
         newQuotes:quotes.filter(q=>(q.status||'yeni')==='yeni').length,
         son30Teklif:quotes.filter(q=>q.created_at&&q.created_at>ay30).length,
-        yil:y, recentQuotes:rq.data||[], notes:nt.data||[], team:tm.data||[],
+        yil:y, rollBas:roll[0], rollSon:roll[11], recentQuotes:rq.data||[], notes:nt.data||[], team:tm.data||[],
         takvim:jobs.filter(j=>j.start_day).map(j=>({d:j.start_day,t:j.title,s:j.status})),
         jobList:(()=>{ const cm={}; (cu.data||[]).forEach(x=>cm[x.id]=x);
           const mm={}; mecras.forEach(x=>mm[x.id]=x.name);
@@ -327,7 +333,7 @@ function chartRows(items){
 
 /* ---- Alan grafiği: yumuşak eğri + degrade dolgu ---- */
 function chartArea(rows,opt){
-  opt=opt||{}; const W=760,H=opt.h||210, PL=38,PR=10,PT=14,PB=26;
+  opt=opt||{}; const W=760,H=opt.h||212, PL=40,PR=14,PT=16,PB=34;
   const n=rows.length; if(!n) return '<p class="empty">Veri yok.</p>';
   const raw=Math.max(1,...rows.map(r=>r.v));
   const steps=Math.min(4,raw), max=Math.ceil(raw/steps)*steps;
@@ -361,8 +367,9 @@ function chartArea(rows,opt){
     <rect x="${(x(i)-26).toFixed(1)}" y="${(yv(r.v)-32).toFixed(1)}" width="52" height="21" rx="5" class="ag-tipbg"/>
     <text x="${x(i).toFixed(1)}" y="${(yv(r.v)-17.5).toFixed(1)}" class="ag-tipt">${esc(r.l)}: ${r.v}</text>
     <rect x="${(x(i)-14).toFixed(1)}" y="${PT}" width="28" height="${H-PT-PB}" fill="transparent"/></g>`).join('');
-  const xl=rows.map((r,i)=>(n>8&&i%2)?'':`<text x="${x(i).toFixed(1)}" y="${H-8}" class="ag-xl">${esc(r.l)}</text>`).join('');
-  return `<div class="areachart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:${H}px">
+  const xl=rows.map((r,i)=>`<text x="${x(i).toFixed(1)}" y="${H-19}" class="ag-xl">${esc(r.l)}</text>`
+    +(r.sub?`<text x="${x(i).toFixed(1)}" y="${H-5}" class="ag-xs">${esc(r.sub)}</text>`:'')).join('');
+  return `<div class="areachart"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
     <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="var(--c-brand)" stop-opacity=".55"/>
       <stop offset="100%" stop-color="var(--c-brand)" stop-opacity=".02"/></linearGradient></defs>
@@ -433,7 +440,12 @@ async function dashboard(c){
   ].map(k=>`<div class="kpi2 ${k[3]}"><div class="kpi2-n">${esc(k[0])}</div>
     <div class="kpi2-t">${esc(k[1])}</div><div class="kpi2-s">${esc(k[2])}</div></div>`).join('');
 
-  const area=chartArea(s.aylik.map((a,i)=>({l:AY[i],v:a.dolu+a.rezerve})),{h:210});
+  /* yıl değişimini alt satırda göster (Oca'nın altında yıl yazar) */
+  const area=chartArea((s.aylik||[]).map((a,i)=>({
+      l:a.label, v:(a.dolu||0)+(a.rezerve||0),
+      sub:(i===0||a.label==='Oca')?a.yil:''
+    })),{h:212});
+  const araligi=(s.rollBas&&s.rollSon)?(s.rollBas.replace('-','/')+' – '+s.rollSon.replace('-','/')):s.yil;
 
   const notlar=(s.notes||[]).length ? s.notes.map(n=>{
     const ad=n.ilgili_kisi||n.konu||'Not';
@@ -455,12 +467,16 @@ async function dashboard(c){
   <div class="dash-grid">
     <div class="dash-l">
       <section class="card">
-        <div class="card-h"><h3>Doluluk Trendi</h3><span class="chip">${s.yil}</span></div>
+        <div class="card-h"><h3>Doluluk Trendi</h3><span class="chip mono">${esc(araligi)}</span></div>
         <div class="card-b">${area}</div>
       </section>
       <section class="card">
         <div class="card-h"><h3>İş Takip Akışı</h3><button class="btn-link" onclick="go('is-takibi')">Tümü</button></div>
         <div class="card-b">${flowList(s.jobList||[])}</div>
+      </section>
+      <section class="card">
+        <div class="card-h"><h3>Son Teklifler</h3><button class="btn-link" onclick="go('teklifler')">Tümü</button></div>
+        ${rq?`<table class="tbl rowlink"><thead><tr><th>#</th><th>Müşteri</th><th>Durum</th><th>Tarih</th></tr></thead><tbody>${rq}</tbody></table>`:'<div class="card-b"><p class="empty">Henüz teklif yok.</p></div>'}
       </section>
     </div>
     <div class="dash-r">
@@ -475,10 +491,7 @@ async function dashboard(c){
       </section>
     </div>
   </div>
-  <section class="card">
-    <div class="card-h"><h3>Son Teklifler</h3><button class="btn-link" onclick="go('teklifler')">Tümü</button></div>
-    ${rq?`<table class="tbl rowlink"><thead><tr><th>#</th><th>Müşteri</th><th>Durum</th><th>Tarih</th></tr></thead><tbody>${rq}</tbody></table>`:'<div class="card-b"><p class="empty">Henüz teklif yok.</p></div>'}
-  </section>`;
+`;
 }
 
 /* ---------- İŞ TAKİBİ (kanban) ---------- */

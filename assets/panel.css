@@ -422,7 +422,7 @@ details.grp>summary:hover .chev{color:var(--c-accent);}
 .uc-b{display:flex;flex-direction:column;line-height:1.25;}
 .uc-b b{font-size:13px;font-weight:600;} .uc-b span{font-size:11px;color:var(--c-ink3);}
 
-.kpi2-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;}
+.kpi2-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px;}
 .kpi2{background:#fff;border:1px solid var(--c-hair);border-radius:18px;padding:20px 20px 18px;}
 .kpi2-n{font-size:34px;font-weight:600;letter-spacing:-.04em;line-height:1;}
 .kpi2-t{font-size:14px;font-weight:500;color:var(--c-ink);margin-top:9px;}
@@ -430,18 +430,21 @@ details.grp>summary:hover .chev{color:var(--c-accent);}
 .k-blue .kpi2-n{color:#1d4ed8;} .k-lime .kpi2-n{color:#3b6fe0;}
 .k-amber .kpi2-n{color:#e8a020;} .k-green .kpi2-n{color:#0f766e;}
 
-.dash-grid{display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start;}
+/* üstteki 4 KPI kutusuyla aynı ızgara: sol 3 kutu eni, sağ 1 kutu eni */
+.dash-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start;}
+.dash-l{grid-column:span 3;} .dash-r{grid-column:span 1;}
 .dash-l,.dash-r{display:flex;flex-direction:column;gap:14px;min-width:0;}
 .btn-link{color:var(--c-ink3);font-size:12.5px;font-weight:500;padding:7px 11px;min-height:32px;display:inline-flex;align-items:center;border-radius:8px;}
 .btn-link:hover{color:var(--c-accent);background:var(--c-accent-soft);}
 
 /* alan grafiği */
-.areachart{position:relative;}
+.areachart{position:relative;padding-bottom:6px;}
 .ag-line{fill:none;stroke:var(--c-brand-d);stroke-width:2.4;stroke-linecap:round;
   vector-effect:non-scaling-stroke;}
 .ag-grid{stroke:#eef0f3;stroke-width:1;vector-effect:non-scaling-stroke;}
 .ag-yl{font-size:10px;fill:var(--c-ink3);text-anchor:end;font-family:var(--fm);}
-.ag-xl{font-size:10.5px;fill:var(--c-ink3);text-anchor:middle;font-family:var(--fm);}
+.ag-xl{font-size:11px;fill:var(--c-ink2);text-anchor:middle;font-family:var(--f);font-weight:500;}
+.ag-xs{font-size:9.5px;fill:var(--c-ink3);text-anchor:middle;font-family:var(--fm);}
 .ag-dot{fill:#fff;stroke:var(--c-brand-d);stroke-width:2.4;opacity:0;transition:opacity .12s;}
 .ag-tipbg{fill:#101112;opacity:0;transition:opacity .12s;}
 .ag-tipt{font-size:10.5px;fill:#fff;text-anchor:middle;opacity:0;transition:opacity .12s;font-weight:500;}
@@ -478,14 +481,14 @@ details.grp>summary:hover .chev{color:var(--c-accent);}
 
 /* takvim */
 .calh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
-.calh b{font-size:14.5px;font-weight:600;letter-spacing:-.02em;}
+.calh b{font-size:15px;font-weight:600;letter-spacing:-.02em;}
 .calnav button{width:28px;height:28px;border-radius:50%;border:1px solid var(--c-hair);color:var(--c-ink2);
   font-size:15px;line-height:1;transition:.12s;}
 .calnav button:hover{border-color:var(--c-ink3);background:var(--c-alt);}
 .calnav button+button{margin-left:5px;}
-.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;}
+.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;text-align:center;}
 .calhead span{font-size:10.5px;color:var(--c-ink3);font-weight:600;padding-bottom:5px;}
-.cd{height:32px;display:flex;align-items:center;justify-content:center;font-size:12.5px;border-radius:50%;
+.cd{height:34px;display:flex;align-items:center;justify-content:center;font-size:12.5px;border-radius:50%;
   color:var(--c-ink2);transition:.12s;}
 .cd.has{background:var(--c-brand-d);color:#fff;font-weight:600;cursor:default;}
 .cd.today{outline:1.5px solid var(--c-ink);outline-offset:-1.5px;font-weight:600;color:var(--c-ink);}
@@ -503,8 +506,9 @@ details.grp>summary:hover .chev{color:var(--c-accent);}
 .msg-d{font-size:11px;color:var(--c-ink3);font-family:var(--fm);flex:0 0 auto;}
 
 @media(max-width:1200px){
-  .kpi2-row{grid-template-columns:repeat(2,1fr);}
+  .kpi2-row{grid-template-columns:repeat(2,minmax(0,1fr));}
   .dash-grid{grid-template-columns:1fr;}
+  .dash-l,.dash-r{grid-column:span 1;}
 }
 @media(max-width:560px){
   .kpi2-row{grid-template-columns:1fr;}
