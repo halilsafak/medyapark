@@ -118,10 +118,11 @@ function altPerMonth(alt,p){ const f=alt&&alt.fiyat; if(f&&f.baz!=null&&f.baz!==
 
 /* ================= ADRES YÖNETİMİ (temiz linkler) ================= */
 /* Sitenin kök dizini script yolundan otomatik bulunur (alt klasörde de çalışır) */
-const BASE=(function(){ const sc=document.querySelector('script[src*="site.js"]');
-  if(!sc) return '/';
-  const u=new URL(sc.getAttribute('src'), location.href).pathname;
-  return u.replace(/assets\/site\.js.*$/,''); })();
+const BASE=(function(){
+  const p=location.pathname;
+  const m=p.match(/^(.*?)\/(?:mecra|sayfa|harita)(?:\/|$)/);
+  return m ? m[1]+'/' : p.replace(/[^\/]*$/,'');
+})();
 
 function slugify(t){ return String(t||'').toLocaleLowerCase('tr')
   .replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c')
