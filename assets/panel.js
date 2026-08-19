@@ -665,7 +665,7 @@ function collapsify(root,sec){
 }
 function grpAll(btn,open){
   const scope=btn.closest('#mecEd, #altEd, .content')||document;
-  scope.querySelectorAll('details.grp').forEach(d=>{ d.open=open; });
+  scope.querySelectorAll('details.grp, details.lgrp').forEach(d=>{ d.open=open; });
 }
 
 /* ---------- ANASAYFA KARŞILAMA ---------- */
@@ -1245,7 +1245,9 @@ async function listeler(c){
   const monHead=MONTHS_SHORT.map(mo=>`<div class="rg-m rg-mh"><span>${mo}</span></div>`).join('');
   let html='';
   for(const m of mlist){ const as=altByMec[m.id]||[];
-    html+=`<details class="sec-card lgrp" open><summary>${esc(m.name)}</summary>`;
+    const _n=as.reduce((k,a)=>k+((uByAlt[a.id]||[]).length),0);
+    html+=`<details class="sec-card lgrp"><summary><span class="grp-t">${esc(m.name)}</span>
+      <span class="lgrp-m">${as.length} alan · ${_n} pozisyon</span><i class="chev"></i></summary>`;
     if(!as.length){ html+='<p class="muted">Alt mecra yok.</p></details>'; continue; }
     for(const a of as){ const us=uByAlt[a.id]||[];
       html+=`<div class="sec-head" style="margin-top:10px"><h4 style="font-size:14px;margin:0">${esc(a.name)} <span class="muted">· ${esc(pmap[a.product_id]||'')}</span></h4><button class="btn btn-outline btn-sm" onclick="lAddPos(${a.id},${m.id},${a.product_id})">+ Pozisyon</button></div>`;
@@ -1272,6 +1274,7 @@ async function listeler(c){
     </div></div>
     <div class="banner">Her ayın altında iki kutu vardır: <b>soldaki A (ön yüz)</b>, <b>sağdaki B (arka yüz)</b>. Kutuya tıkla: Boş → Dolu → Rezerve → Boş. Dolu/Rezerve yaparken aşağıda seçili müşteri atanır ve anında kaydedilir. Kutunun üzerine gelince kiralayan firma bilgi kartında görünür. Ziyaretçi firma adını görmez, yalnızca durumu görür.</div>
     <div class="field" style="max-width:380px"><label class="flabel">Atanacak müşteri (dolu/rezerve için)</label><select class="inp" id="lcust"><option value="">— müşteri atama —</option>${custOpts}</select></div>
+    <div class="grp-all"><button type="button" onclick="grpAll(this,true)">Tümünü aç</button><span>·</span><button type="button" onclick="grpAll(this,false)">Tümünü kapat</button></div>
     ${html||'<p class="muted">Mecra yok.</p>'}`;
 }
 function lCycle(uid,ym){ const cur=(window.__lbmap[uid]||{})[ym]; const s=cur?cur.s:'bos'; const next=s==='bos'?'dolu':(s==='dolu'?'rezerve':'bos');
