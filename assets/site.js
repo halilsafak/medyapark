@@ -211,12 +211,73 @@ function renderHome(q){
   const h=D.settings.hero||{};
   const cards=list.map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
     return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m));}).join('');
-  app().innerHTML=`<section class="hero"><div class="counters"><span><b class="cnt" data-to="250">0</b>+ Reklam Alanı</span><span><b class="cnt" data-to="1000">0</b>+ Müşteri</span><span><b class="cnt" data-to="36">0</b>+ Yıllık Tecrübe</span></div><h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>
+  /* karşılama bölümü yalnızca filtresiz/aramasız anasayfada */
+  const hero2=(!q && !view.filter) ? heroBlock() : '';
+  /* karşılama bölümü varsa katalog başlığı sade olsun (başlık/sayaç tekrarı olmasın) */
+  const katalog = hero2
+    ? `<section class="hero compact" id="katalog"><h2>Reklam Alanlarımız</h2>${h.desc?`<p>${esc(h.desc)}</p>`:''}</section>`
+    : `<section class="hero" id="katalog"><div class="counters"><span><b class="cnt" data-to="250">0</b>+ Reklam Alanı</span><span><b class="cnt" data-to="1000">0</b>+ Müşteri</span><span><b class="cnt" data-to="36">0</b>+ Yıllık Tecrübe</span></div><h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>`;
+  app().innerHTML=`${hero2}${katalog}
     <div class="grid3">${cards||'<p class="muted">Sonuç yok.</p>'}</div>`;
   animateCounters();
+  if(hero2) heroInit();
 }
 
-/* ---- MECRA → ALT MECRALAR ---- */
+/* ================= KARŞILAMA BÖLÜMÜ ================= */
+function heroBlock(){
+  const H=(D.settings||{}).hero2||{};
+  if(H.enabled===false) return '';
+  const board=H.board||'', boardM=H.boardMobil||'';
+  if(!board && !(H.cards||[]).length && !H.title) return '';   /* içerik yoksa hiç basma */
+  const kartlar=(H.cards||[]).filter(c=>c&&c.img).slice(0,4).map((c,i)=>{
+    const m=c.mecraId?mec(c.mecraId):null;
+    const href=m?BASE+'mecra/'+mSlug(m):'';
+    const tag=m?`onclick="openMec('${m.id}');return false;"`:'onclick="heroScroll();return false;"';
+    return `<a class="h2-ph p${i+1}" href="${esc(href||'#')}" ${tag} style="--d:${i*0.9}">
+      ${bgLayers(c.img,c.imgMobil,'h2-ph-i','')}
+      ${c.label?`<span class="h2-ph-l">${esc(c.label)}</span>`:''}</a>`;}).join('');
+  const rozet=(H.stats||[]).filter(x=>x&&(x.n||x.l)).map(x=>
+    `<div class="h2-st"><b>${esc(x.n||'')}</b><span>${esc(x.l||'')}</span></div>`).join('');
+  return `<section class="hero2" id="hero2">
+    <div class="h2-top">
+      <h1>${esc(H.title||'Adana Açık Hava Reklam Mecralarını Keşfedin')}</h1>
+      ${H.sub?`<p>${esc(H.sub)}</p>`:''}
+      <button class="h2-btn" onclick="heroScroll()">${esc(H.btn||'Başla')}<span class="h2-ar">↓</span></button>
+    </div>
+    <div class="h2-stage">
+      ${kartlar}
+      <div class="h2-board-wrap"><div class="h2-board">
+        ${board||boardM?bgLayers(board,boardM,'h2-board-i',''):'<div class="h2-board-i ph">Pano görseli</div>'}
+        <div class="h2-board-glare"></div></div>
+        <div class="h2-pole"></div></div>
+    </div>
+    ${rozet?`<div class="h2-stats">${rozet}</div>`:''}
+  </section>`;
+}
+function heroScroll(){
+  const t=document.getElementById('katalog');
+  if(!t)return;
+  const y=t.getBoundingClientRect().top+window.scrollY-70;
+  window.scrollTo({top:y,behavior:'smooth'});
+}
+function heroInit(){
+  const sec=document.getElementById('hero2'); if(!sec)return;
+  const az=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(az||window.innerWidth<=760) return;      /* mobilde ve hareket azaltmada efekt yok */
+  let raf=null;
+  sec.addEventListener('mousemove',e=>{
+    if(raf)return;
+    raf=requestAnimationFrame(()=>{
+      const r=sec.getBoundingClientRect();
+      const x=(e.clientX-r.left)/r.width-0.5, y=(e.clientY-r.top)/r.height-0.5;
+      sec.style.setProperty('--mx',x.toFixed(3));
+      sec.style.setProperty('--my',y.toFixed(3));
+      raf=null;
+    });
+  });
+  sec.addEventListener('mouseleave',()=>{ sec.style.setProperty('--mx',0); sec.style.setProperty('--my',0); });
+}
+
 function renderMec(){
   const m=mec(view.id); if(!m)return goHome();
   const alts=m.alts||[];
