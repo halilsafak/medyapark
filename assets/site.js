@@ -604,14 +604,82 @@ function allPins(){ const out=[];
   D.mecralar.forEach(m=>{ (m.alts||[]).forEach(a=>{ const p=a.product||{};
     (a.units||[]).forEach(u=>{ const la=parseFloat(u.lat), ln=parseFloat(u.lng);
       if(!isFinite(la)||!isFinite(ln))return;
+      const pp=posParts(u.name);
+      const bk={}; (u.booked||[]).forEach(b=>bk[b.ym]=b.status);
       out.push({lat:la,lng:ln,mecId:m.id,altId:a.id,mec:m.name,alt:a.name,product:p.name||'',productId:a.product_id,
-        unit:u.name||'',image:(u.image||a.image||m.image||''),theme:(m.theme_color||'#0071e3'),konum:(u.konum||'')}); }); }); });
+        unit:u.name||'',image:(u.image||a.image||m.image||''),theme:(m.theme_color||'#0071e3'),konum:(u.konum||''),
+        yuzey:pp.surf, isikli:(p.isikli||''), olcu:(u.olcu||p.olcu||''), bk}); }); }); });
   return out; }
 
+let mapF={urun:[],mecra:[],yuzey:[],isik:'',ay:'',durum:''};
 function pinMatches(p){
   if(view.filter && String(p.productId)!==String(view.filter)) return false;
+  if(mapF.urun.length && !mapF.urun.includes(String(p.productId))) return false;
+  if(mapF.mecra.length && !mapF.mecra.includes(String(p.mecId))) return false;
+  if(mapF.yuzey.length && !mapF.yuzey.includes(p.yuzey)) return false;
+  if(mapF.isik){ const i=String(p.isikli||'').toLocaleLowerCase('tr');
+    if(mapF.isik==='var' && !i.includes('ışık')) return false;
+    if(mapF.isik==='yok' && i.includes('ışık')) return false;
+    if(mapF.isik==='var' && i.includes('ışıksız')) return false; }
+  if(mapF.ay && mapF.durum){
+    const st=p.bk[mapF.ay]||'bos';
+    if(mapF.durum==='musait' && st!=='bos') return false;
+    if(mapF.durum==='dolu'  && st!=='dolu') return false;
+    if(mapF.durum==='rezerve'&& st!=='rezerve') return false;
+  }
   const q=(mapQuery||'').trim().toLowerCase(); if(!q) return true;
   return [p.mec,p.alt,p.product,p.unit,p.konum].some(x=>String(x||'').toLowerCase().includes(q)); }
+
+/* --- filtre çubuğu --- */
+function mapFilterBar(){
+  const urunler=[]; const mecralar=[];
+  D.products.forEach(p=>{ if(mapPinsCache.some(x=>String(x.productId)===String(p.id))) urunler.push(p); });
+  D.mecralar.forEach(m=>{ if(mapPinsCache.some(x=>String(x.mecId)===String(m.id))) mecralar.push(m); });
+  const aylar=rollMonths().map(mo=>`<option value="${mo.ym}" ${mapF.ay===mo.ym?'selected':''}>${esc(mo.label)} ${mo.y}</option>`).join('');
+  const chip=(dizi,val,lbl,grup)=>`<button class="mf-chip ${dizi.includes(val)?'on':''}" onclick="mfTog('${grup}','${val}')">${esc(lbl)}</button>`;
+  const aktif=mapF.urun.length+mapF.mecra.length+mapF.yuzey.length+(mapF.isik?1:0)+((mapF.ay&&mapF.durum)?1:0);
+  return `<div class="mfilter${aktif?' has':''}">
+    <button class="mf-toggle" onclick="document.querySelector('.mfilter').classList.toggle('open')">
+      Filtreler${aktif?` <b>${aktif}</b>`:''} <span class="mf-ar">▾</span></button>
+    <div class="mf-body">
+      <div class="mf-grp"><span class="mf-l">Reklam alanı</span><div class="mf-chips">
+        ${urunler.map(p=>chip(mapF.urun,String(p.id),p.name,'urun')).join('')||'<i class="mf-none">—</i>'}</div></div>
+      <div class="mf-grp"><span class="mf-l">Lokasyon</span><div class="mf-chips">
+        ${mecralar.map(m=>chip(mapF.mecra,String(m.id),m.name,'mecra')).join('')||'<i class="mf-none">—</i>'}</div></div>
+      <div class="mf-grp"><span class="mf-l">Yüzey</span><div class="mf-chips">
+        ${chip(mapF.yuzey,'A','A · ön yüz','yuzey')}${chip(mapF.yuzey,'B','B · arka yüz','yuzey')}</div></div>
+      <div class="mf-grp"><span class="mf-l">Aydınlatma</span><div class="mf-chips">
+        <button class="mf-chip ${mapF.isik==='var'?'on':''}" onclick="mfSet('isik','var')">Işıklı</button>
+        <button class="mf-chip ${mapF.isik==='yok'?'on':''}" onclick="mfSet('isik','yok')">Işıksız</button></div></div>
+      <div class="mf-grp wide"><span class="mf-l">Döneme göre durum</span><div class="mf-row">
+        <select class="mf-sel" onchange="mapF.ay=this.value;refreshPins();renderFilterBar()">
+          <option value="">— ay seçin —</option>${aylar}</select>
+        <select class="mf-sel" onchange="mapF.durum=this.value;refreshPins();renderFilterBar()" ${mapF.ay?'':'disabled'}>
+          <option value="">— durum —</option>
+          <option value="musait" ${mapF.durum==='musait'?'selected':''}>Müsait</option>
+          <option value="dolu" ${mapF.durum==='dolu'?'selected':''}>Dolu</option>
+          <option value="rezerve" ${mapF.durum==='rezerve'?'selected':''}>Rezerve</option>
+        </select></div></div>
+      <div class="mf-foot">
+        <span class="mf-cnt"><b id="mapCount">0</b> alan bulundu</span>
+        ${aktif?'<button class="mf-clear" onclick="mfClear()">Filtreleri temizle</button>':''}
+      </div>
+    </div></div>`;
+}
+function renderFilterBar(){
+  try{
+    const el=document.getElementById('mfWrap'); if(!el)return;
+    let acik=false;
+    if(typeof el.querySelector==='function'){ const c=el.querySelector('.mfilter'); acik=!!(c&&c.classList.contains('open')); }
+    el.innerHTML=mapFilterBar();
+    if(acik&&typeof el.querySelector==='function'){ const c=el.querySelector('.mfilter'); if(c)c.classList.add('open'); }
+  }catch(e){ /* filtre çubuğu çizilemezse harita yine çalışsın */ }
+  try{ setMapMeta(mapPinsCache.filter(pinMatches).length); }catch(e){}
+}
+function mfTog(grup,val){ const a=mapF[grup]; const i=a.indexOf(val);
+  if(i>-1)a.splice(i,1); else a.push(val); refreshPins(); renderFilterBar(); }
+function mfSet(k,v){ mapF[k]=(mapF[k]===v)?'':v; refreshPins(); renderFilterBar(); }
+function mfClear(){ mapF={urun:[],mecra:[],yuzey:[],isik:'',ay:'',durum:''}; refreshPins(); renderFilterBar(); }
 
 function pinIcon(color){ return L.divIcon({className:'pin-wrap',iconSize:[30,40],iconAnchor:[15,38],popupAnchor:[0,-34],
   html:`<span class="pin" style="--pc:${color}"></span>`}); }
@@ -730,14 +798,15 @@ function renderMap(){
       <div class="map-head">
         <div><h1 class="map-t">${esc(s.mapTitle||'Reklam Alanlarımız — Adana Haritası')}</h1>
         <p class="map-d">${esc(s.mapDesc||'Üstteki arama ve Filtrele menüsü haritada da çalışır. Pinlere tıklayarak alan bilgisini görebilir, detay sayfasına geçebilirsiniz.')}</p></div>
-        <div class="map-cnt"><b id="mapCount">0</b> alan</div>
       </div>
+      <div id="mfWrap"></div>
       <div id="mapCanvas" class="map-canvas"></div>
       <div id="mapEmpty" class="map-empty" style="display:none">Bu arama/filtre için konumu işaretlenmiş alan bulunamadı.</div>
       <div id="mapNote" class="map-note" style="display:none"></div>
       <p class="muted" style="font-size:12.5px;margin:12px 2px 60px">Yakınlaştırdıkça gruplanmış pinler ayrışır. Sayılı daireler o bölgedeki alan sayısını gösterir.</p>
     </div>`;
   mapPinsCache=allPins();
+  renderFilterBar();
   setTimeout(function(){
     if(gKey()){
       loadGoogle().then(function(){ initGoogleMap(); })
