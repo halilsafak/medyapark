@@ -385,7 +385,7 @@ function showApp(){
   let nav='';
   NAV.forEach(n=>{
     if(n[3]) nav+=`<div class="nav-grp">${esc(n[3])}</div>`;
-    nav+=`<button class="navi" data-s="${n[0]}" onclick="go('${n[0]}')">${ic(n[2],17)}<span>${esc(n[1])}</span></button>`;
+    nav+=`<button class="navi" data-s="${n[0]}" onclick="go('${n[0]}')">${ic(n[2],17)}<span>${esc(n[1])}</span>${n[0]==='teklifler'?'<i class="nav-badge" id="qBadge"></i>':''}</button>`;
   });
   root().innerHTML=`<div class="app">
     <nav class="side">
@@ -404,6 +404,20 @@ function showApp(){
       <div class="content" id="content"></div>
     </div></div>`;
   go('dashboard');
+  yeniTeklifKontrol(); setInterval(yeniTeklifKontrol,60000);
+}
+/* okunmamış teklif sayısı — 60 saniyede bir kontrol */
+let _sonTeklif=null;
+async function yeniTeklifKontrol(){
+  try{
+    const {data,error}=await sb.from('quotes').select('id').eq('okundu',false);
+    if(error)return;
+    const n=(data||[]).length;
+    const b=document.getElementById('qBadge');
+    if(b){ b.textContent=n||''; b.style.display=n?'inline-flex':'none'; }
+    if(_sonTeklif!==null && n>_sonTeklif) toast(`${n-_sonTeklif} yeni teklif talebi geldi`);
+    _sonTeklif=n;
+  }catch(e){}
 }
 function go(s){ ui.section=s; document.querySelectorAll('.navi').forEach(n=>n.classList.toggle('on',n.dataset.s===s));
   document.getElementById('ttl').textContent=TITLES[s]||''; renderSection(); }
@@ -748,6 +762,9 @@ function prodEdit(id){ const p=(ui._products||[]).find(x=>x.id===id)||{prices:{}
     <div class="row3"><div class="field"><label class="flabel">Yüzey</label><input class="inp" id="pyuzey" value="${esc(p.yuzey)}"></div>
     <div class="field"><label class="flabel">Aydınlatma</label><input class="inp" id="pisikli" value="${esc(p.isikli)}"></div>
     <div class="field"><label class="flabel">Baskı Malzemesi</label><input class="inp" id="pbm" value="${esc(p.baski_malzemesi)}"></div></div>
+    <div class="field"><label class="flabel">Arama etiketleri</label>
+      <input class="inp" id="petiket" value="${esc(p.etiketler)}" placeholder="billboard, bilbord, dev pano">
+      <p class="muted" style="font-size:11.5px;margin:5px 0 0">Müşterinin arama kutusuna yazabileceği diğer isimler. Virgülle ayırın; sitede görünmez, yalnızca aramada kullanılır.</p></div>
     <div class="row3"><div class="field"><label class="flabel">Baskı Formatı</label><input class="inp" id="pbf" value="${esc(p.baski_format)}"></div>
     <div class="field"><label class="flabel">Yayın Formatı</label><input class="inp" id="pyf" value="${esc(p.yayin_format)}"></div>
     <div class="field"><label class="flabel">Baskı Ücreti</label><input class="inp" id="pbu" value="${esc(p.baski_ucreti)}"></div></div>
@@ -758,7 +775,7 @@ function prodEdit(id){ const p=(ui._products||[]).find(x=>x.id===id)||{prices:{}
   document.getElementById('prodEd').scrollIntoView({behavior:'smooth'});
 }
 function parsePrices(v){ const o={}; v.split('\n').forEach(l=>{const x=l.indexOf('=');if(x<0)return;const k=l.slice(0,x).trim();let val=l.slice(x+1).trim();const n=val.replace(/[.\s₺]/g,'');if(/^\d+$/.test(n))val=Number(n);if(k)o[k]=val;}); return o; }
-async function prodSave(){ await api('product_save',{id:+gv('pid'),name:gv('pname'),olcu:gv('polcu'),yuzey:gv('pyuzey'),isikli:gv('pisikli'),baski_malzemesi:gv('pbm'),baski_format:gv('pbf'),yayin_format:gv('pyf'),baski_ucreti:gv('pbu'),montaj_ucreti:gv('pmu'),extra_ucret:gv('pex'),prices:parsePrices(gv('pprices'))}); renderSection(); }
+async function prodSave(){ await api('product_save',{id:+gv('pid'),name:gv('pname'),olcu:gv('polcu'),yuzey:gv('pyuzey'),isikli:gv('pisikli'),baski_malzemesi:gv('pbm'),baski_format:gv('pbf'),yayin_format:gv('pyf'),etiketler:gv('petiket'),baski_ucreti:gv('pbu'),montaj_ucreti:gv('pmu'),extra_ucret:gv('pex'),prices:parsePrices(gv('pprices'))}); renderSection(); }
 async function prodDel(id){ if(confirm('Ürün silinsin mi?')){ await api('product_delete&id='+id); renderSection(); } }
 
 
@@ -2059,7 +2076,8 @@ async function teklifler(c){
   c.innerHTML=`<div class="sec-card"><div class="sec-head"><h3>Gelen Teklifler</h3></div>
     ${rows?`<table class="tbl"><thead><tr><th>#</th><th>Müşteri</th><th>Telefon</th><th>Tutar</th><th>Durum</th><th>Tarih</th><th></th></tr></thead><tbody>${rows}</tbody></table>`:'<p class="muted">Henüz teklif yok.</p>'}</div>`;
 }
-async function quoteView(id){ const d=await api('quote_get&id='+id); const q=d.quote;
+async function quoteView(id){
+  sb.from('quotes').update({okundu:true}).eq('id',id).then(()=>yeniTeklifKontrol(),()=>{}); const d=await api('quote_get&id='+id); const q=d.quote;
   const items=d.items.map(i=>`<tr><td>${esc(i.mecra_name)} — ${esc(i.unit_name)}</td><td>${esc(i.period)}</td><td>${esc(i.start_day||'-')}</td><td style="text-align:right">${money(i.price)}</td></tr>`).join('');
   modal(`<h3 style="margin:0 0 4px">Teklif #${q.id}</h3><p class="muted" style="margin:0 0 14px">${esc(q.customer_name||'')} · ${esc(q.firma||'')} · ${esc(q.telefon||'')} · ${esc(q.eposta||'')}</p>
     <table class="tbl"><thead><tr><th>Alan</th><th>Dönem</th><th>Başlangıç</th><th style="text-align:right">Fiyat</th></tr></thead><tbody>${items}</tbody></table>

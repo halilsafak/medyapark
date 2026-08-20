@@ -9,6 +9,24 @@ const pad=n=>String(n).padStart(2,'0');
 const curYm=()=> new Date().getFullYear()+'-'+pad(new Date().getMonth()+1);
 const prod=id=>D.products.find(p=>String(p.id)===String(id))||{};
 const mec=id=>D.mecralar.find(m=>String(m.id)===String(id));
+/* aramada kullanılan eş anlamlılar: müşteri kendi diliyle arasın */
+const ES_ANLAM={
+  megalight:['bilbord','billboard','pano','büyük pano','megalight'],
+  raket:['raket','clp','vitrin','küçük pano','durak panosu'],
+  'led ekran':['led','ekran','dijital','digital','led ekran'],
+  megaboard:['megaboard','dev pano','büyük board','board'],
+  'akıllı durak':['durak','otobüs','otobus','duraklar','akıllı durak'],
+  avm:['avm','alışveriş','alisveris','mall'],
+  stadyum:['stat','stadyum','maç','mac','spor']
+};
+function esAnlamEslesti(q,metin){
+  const m=String(metin||'').toLocaleLowerCase('tr');
+  for(const [anahtar,kelimeler] of Object.entries(ES_ANLAM)){
+    if(!m.includes(anahtar)) continue;
+    if(kelimeler.some(k=>k.includes(q)||q.includes(k))) return true;
+  }
+  return false;
+}
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 /* Görünürlük: 'both' | 'desktop' | 'mobile' | 'off'  (eski true/false ile uyumlu) */
 function visMode(o,key){ const v=o&&o.visible&&o.visible[key];
@@ -30,8 +48,10 @@ function picture(desk,mob,cls,alt){
   return `<img class="${cls||''}" src="${esc(desk)}" alt="${esc(alt||'')}" loading="lazy">`; }
 function perMonth(p){ const pr=p.prices||{}; if(typeof pr['1 Ay']==='number')return pr['1 Ay']; for(const v of Object.values(pr)){ if(typeof v==='number')return v; } return 0; }
 function hexToRgb(h){ if(!h)return '63,111,99'; h=String(h).replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join(''); if(h.length!==6)return '63,111,99'; const n=parseInt(h,16); return `${(n>>16)&255},${(n>>8)&255},${n&255}`; }
-function gcard(onclick,title,sub,image,theme,label,imageM,href){ const rgb=hexToRgb(theme);
-  return `<a class="tile" href="${esc(href||'#')}" onclick="${onclick};return false;" style="--tc-rgb:${rgb}">
+function gcard(onclick,title,sub,image,theme,label,imageM,href,karId){ const rgb=hexToRgb(theme);
+  const kar=karId?`<button class="tile-kar${karsi.includes(String(karId))?' on':''}" title="Karşılaştırmaya ekle"
+    onclick="karTog('${karId}',event)">${karsi.includes(String(karId))?'✓':'+'}</button>`:'';
+  return `<a class="tile" href="${esc(href||'#')}" onclick="${onclick};return false;" style="--tc-rgb:${rgb}">${kar}
     ${bgLayers(image,imageM,'bg','')}<div class="ov"></div>
     <div class="ct"><h3>${esc(title)}</h3>${sub?`<p class="tsub">${esc(sub)}</p>`:''}
       <div class="xp"><b>${esc(label||'Keşfet')}</b><span class="arw">→</span></div></div></a>`; }
@@ -208,20 +228,89 @@ function renderHome(q){
   q=(q||'').trim().toLowerCase();
   let list=D.mecralar.slice();
   if(view.filter) list=list.filter(m=>(m.alts||[]).some(a=>String(a.product_id)===String(view.filter)));
-  if(q) list=list.filter(m=>m.name.toLowerCase().includes(q)||(m.alts||[]).some(a=>a.name.toLowerCase().includes(q)||(a.product&&a.product.name||'').toLowerCase().includes(q)));
+  if(q) list=list.filter(m=>{
+    const havuz=[m.name,...(m.alts||[]).flatMap(a=>[a.name,(a.product||{}).name,(a.product||{}).etiketler])].filter(Boolean).join(' ');
+    return havuz.toLocaleLowerCase('tr').includes(q) || esAnlamEslesti(q,havuz); });
   const h=D.settings.hero||{};
   const cards=list.map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
-    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m));}).join('');
+    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m), m.id);}).join('');
   /* karşılama bölümü yalnızca filtresiz/aramasız anasayfada */
   const hero2=(!q && !view.filter) ? heroBlock() : '';
   /* karşılama bölümü varsa katalog başlığı sade olsun (başlık/sayaç tekrarı olmasın) */
   const katalog = hero2
     ? `<section class="hero compact" id="katalog"><h2>Reklam Alanlarımız</h2>${h.desc?`<p>${esc(h.desc)}</p>`:''}</section>`
     : `<section class="hero" id="katalog"><div class="counters"><span><b class="cnt" data-to="250">0</b>+ Reklam Alanı</span><span><b class="cnt" data-to="1000">0</b>+ Müşteri</span><span><b class="cnt" data-to="36">0</b>+ Yıllık Tecrübe</span></div><h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>`;
-  app().innerHTML=`${hero2}${katalog}
+  const nasil=hero2?'':`<section class="howto">
+      <div class="hw"><span>1</span><b>Alanı seçin</b><i>Lokasyon ve reklam alanına göz atın</i></div>
+      <div class="hw"><span>2</span><b>Dönemi seçin</b><i>Doluluk tablosundan müsait ayları işaretleyin</i></div>
+      <div class="hw"><span>3</span><b>Teklif alın</b><i>Bilgilerinizi bırakın, 1 iş günü içinde dönelim</i></div>
+    </section>`;
+  app().innerHTML=`${hero2}${katalog}${nasil}
     <div class="grid3">${cards||'<p class="muted">Sonuç yok.</p>'}</div>`;
-  animateCounters();
+  animateCounters(); renderKarBar();
   if(hero2) heroInit();
+}
+
+
+/* ================= KARŞILAŞTIRMA ================= */
+let karsi=[];
+function karTog(id,ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();}
+  const i=karsi.indexOf(String(id));
+  if(i>-1) karsi.splice(i,1);
+  else { if(karsi.length>=3){ bildir('<b>En fazla 3 lokasyon</b><span>Karşılaştırmadan birini çıkarın</span>'); return; }
+    karsi.push(String(id)); }
+  renderKarBar(); if(view.type==='home')renderHome();
+}
+function renderKarBar(){
+  let el=document.getElementById('karBar');
+  if(!el){ el=document.createElement('div'); el.id='karBar'; el.className='karbar'; document.body.appendChild(el); }
+  if(!karsi.length){ el.classList.remove('on'); return; }
+  const adlar=karsi.map(id=>{const m=mec(id);return m?esc(m.name):'';}).filter(Boolean);
+  el.innerHTML=`<span class="kb-n">${karsi.length} lokasyon seçildi</span>
+    <span class="kb-l">${adlar.join(' · ')}</span>
+    <button class="kb-go" onclick="karAc()">Karşılaştır</button>
+    <button class="kb-x" onclick="karsi=[];renderKarBar();renderHome()" title="Temizle">×</button>`;
+  el.classList.add('on');
+}
+function karAc(){
+  if(karsi.length<2){ bildir('<b>En az 2 lokasyon seçin</b>'); return; }
+  const list=karsi.map(id=>mec(id)).filter(Boolean);
+  const ozet=m=>{
+    const alts=m.alts||[];
+    const poz=alts.reduce((n,a)=>n+(a.units||[]).length,0);
+    const yuz=alts.reduce((n,a)=>n+groupUnits(a.units||[]).reduce((k,g)=>k+(g.A?1:0)+(g.B?1:0),0),0);
+    const now=curYm(); let dolu=0,top=0;
+    alts.forEach(a=>(a.units||[]).forEach(u=>{ rollMonths().forEach(mo=>{ top++;
+      const st=(u.booked||[]).find(b=>b.ym===mo.ym); if(st&&st.status!=='bos')dolu++; }); }));
+    return {
+      urun:[...new Set(alts.map(a=>(a.product||{}).name).filter(Boolean))],
+      poz, yuz, gosterim:m.gunluk_gosterim||'—', kapsam:m.toplam_alan||'—',
+      musait: top?Math.round((top-dolu)*100/top)+'%':'—',
+      isik:[...new Set(alts.map(a=>(a.product||{}).isikli).filter(Boolean))].join(', ')||'—'
+    };
+  };
+  const d=list.map(ozet);
+  const satir=(baslik,f)=>`<tr><th>${esc(baslik)}</th>${d.map(x=>`<td>${f(x)}</td>`).join('')}</tr>`;
+  app().innerHTML=`<div class="wrap">
+    <div class="crumbs" style="margin-top:22px"><a href="${BASE}" onclick="goHome();return false;">Katalog</a> › <span>Karşılaştırma</span></div>
+    <div class="sechead"><h1>Lokasyon Karşılaştırma</h1></div>
+    <div class="kar-wrap"><table class="kar">
+      <thead><tr><th></th>${list.map(m=>`<td class="kar-h">
+        <a href="${BASE}mecra/${mSlug(m)}" onclick="openMec('${m.id}');return false;">${esc(m.name)}</a>
+        <button class="kar-x" onclick="karTog('${m.id}');karAc()">çıkar</button></td>`).join('')}</tr></thead>
+      <tbody>
+        ${satir('Reklam alanı türü',x=>x.urun.length?x.urun.map(esc).join('<br>'):'—')}
+        ${satir('Pozisyon sayısı',x=>x.poz)}
+        ${satir('Toplam yüzey',x=>x.yuz)}
+        ${satir('Günlük gösterim',x=>esc(x.gosterim))}
+        ${satir('Kapsam',x=>esc(x.kapsam))}
+        ${satir('Aydınlatma',x=>esc(x.isik))}
+        ${satir('12 ayda müsaitlik',x=>`<b>${x.musait}</b>`)}
+      </tbody></table></div>
+    <div style="margin:22px 0 60px"><button class="btn btn-outline" onclick="goHome()">← Katalog'a dön</button></div>
+  </div>`;
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 /* ================= KARŞILAMA BÖLÜMÜ ================= */
@@ -333,7 +422,7 @@ function renderMec(){
     </div>
     ${stats.length?`<div class="hs-sec${visCls(m,'gosterim')}">${statsHTML}</div>`:''}
     ${mapBox?`<div class="hs-sec hs-nopad${visCls(m,'maps')}">${mapBox}</div>`:''}
-    ${altLinks?`<div class="hs-sec"><div class="hs-h">Bu lokasyondaki alanlar</div>${altLinks}</div>`:''}
+    ${altLinks?`<div class="hs-sec"><div class="hs-h">Bu lokasyondaki reklam alanları</div>${altLinks}</div>`:''}
     ${others?`<div class="hs-sec"><div class="hs-h">Diğer lokasyonlar</div>${others}</div>`:''}
     ${cta}
   </div></aside>`;
@@ -460,7 +549,8 @@ function renderAlt(){
   }).join('');
 
   const table=`<div class="restable"><div class="rh">
-      <div><span class="t">Rezervasyon Tablosu</span> &nbsp;<span class="flow">Yüzey Seç › Sepete Ekle › Teklif Al</span></div>
+      <div><span class="t">Rezervasyon Tablosu</span>
+        <span class="rt-help">Panonun <b>ön (A)</b> veya <b>arka (B)</b> yüzünü ve kiralamak istediğiniz ayı seçin</span></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="yr">${yr}</span><div class="nav"><button onclick="rollNav(-1)" title="Önceki yıl">‹</button><button onclick="rollNav(1)" title="Sonraki yıl">›</button></div></div></div>
     <div class="rtwrap"><div class="rgrid">
       <div class="rg-row rg-head"><div class="rg-lbl">Pozisyon</div>${monHead}</div>
@@ -491,7 +581,7 @@ function renderAlt(){
     <div class="gm-row${mapsInner?'':' solo'}"><div class="galbox">${galInner}</div>${mapsInner?`<div class="mapbox">${mapsInner}</div>`:''}</div>
     ${marquee}
     <div class="res-row"><div class="col-l">${table}</div><div class="side-col">${teknikAcc}${fiyatAcc}${sepetbox}</div></div>
-    <div class="related-h"><a onclick="goHome()">Diğer Mecralara Göz Atın</a></div>
+    <div class="related-h"><a onclick="goHome()">Diğer Lokasyonlara Göz Atın</a></div>
     <div class="carousel"><div class="cnav l" onclick="carScroll(-1)">‹</div><div class="cartrack" id="cartrack">${relCards}</div><div class="cnav r" onclick="carScroll(1)">›</div></div>`;
   renderSepetInline(); resetGalTimer();
   if(altPts.length) initAltMap(altPts, m.theme_color||'#0071e3');
@@ -523,7 +613,10 @@ function toggleMonth(uid,ym){
   const i=cart.findIndex(c=>String(c.unitId)===String(uid)&&c.ym===ym);
   if(i>-1){ cart.splice(i,1); }
   else{ const [y,mm]=ym.split('-'); const price=altPerMonth(alt,p);
-    cart.push({unitId:Number(uid),mecra:m.name,alt:alt.name,unit:u.name,product:p.name,olcu:u.olcu||p.olcu||'',ym,monthLabel:MONTHS_LONG[+mm-1]+' '+y,price,priceLabel:money(price)}); }
+    const donem=MONTHS_LONG[+mm-1]+' '+y;
+    cart.push({unitId:Number(uid),mecra:m.name,alt:alt.name,unit:u.name,product:p.name,olcu:u.olcu||p.olcu||'',ym,monthLabel:donem,price,priceLabel:money(price)});
+    bildir(`<b>Sepete eklendi</b><span>${esc(m.name)} · ${esc(u.name)} · ${esc(donem)}</span>`,'ok');
+    sepetCanlan(); }
   badge(); renderCart(); updateCell(uid,ym); renderSepetInline();
 }
 function updateCell(uid,ym){ const el=document.querySelector(`.rcell[data-u='${uid}'][data-ym='${ym}']`); if(!el)return;
@@ -580,7 +673,23 @@ async function sendQuote(){
   if(error){ alert('Gönderilemedi: '+error.message); return; }
   const items=cart.map(c=>({quote_id:q.id,unit_id:c.unitId,ym:c.ym,mecra_name:(c.mecra+(c.alt?' / '+c.alt:'')),unit_name:c.unit,product_name:c.product,olcu:c.olcu,start_day:c.ym+'-01',period:c.monthLabel,price:c.price}));
   const {error:e2}=await sb.from('quote_items').insert(items); if(e2){ alert('Kalemler kaydedilemedi: '+e2.message); return; }
-  cart=[]; badge(); document.getElementById('cartBody').innerHTML='<div class="empty">✓ Teklifiniz alındı.<br>Ekibimiz en kısa sürede iletişime geçecek.</div>'; document.getElementById('cartFoot').innerHTML=''; if(view.type==='alt')renderAlt();
+  const st=D.settings||{}; const ad=val('qName')||val('qFirma')||'';
+  const wa=st.social_whatsapp||'';
+  const mesaj=encodeURIComponent(`Merhaba, ${ad} olarak #${q.id} numaralı teklif talebini gönderdim. Bilgi alabilir miyim?`);
+  const waLink=wa?(wa.includes('?')?wa+'&text='+mesaj:wa+'?text='+mesaj):'';
+  cart=[]; badge();
+  document.getElementById('cartBody').innerHTML=`<div class="q-ok">
+      <div class="q-ic">✓</div>
+      <div class="q-t">Talebiniz alındı</div>
+      <div class="q-no">Referans no: <b>#${q.id}</b></div>
+      <p class="q-p">Ekibimiz <b>en geç 1 iş günü içinde</b> size özel fiyat teklifiyle dönecek.
+        Acele ediyorsanız doğrudan ulaşabilirsiniz:</p>
+      ${waLink?`<a class="q-wa" href="${esc(waLink)}" target="_blank" rel="noopener">WhatsApp'tan yaz</a>`:''}
+      ${st.phone?`<a class="q-tel" href="tel:${esc(String(st.phone).replace(/\s/g,''))}">${esc(st.phone)}</a>`:''}
+    </div>`;
+  document.getElementById('cartFoot').innerHTML='';
+  bildir('<b>Teklif talebiniz gönderildi</b><span>Referans no: #'+q.id+'</span>','ok');
+  if(view.type==='alt')renderAlt();
 }
 const val=id=>{const e=document.getElementById(id);return e?e.value:'';};
 function exportExcel(){ if(!cart.length)return; const sp=showPrices();
@@ -608,7 +717,7 @@ function allPins(){ const out=[];
       const bk={}; (u.booked||[]).forEach(b=>bk[b.ym]=b.status);
       out.push({lat:la,lng:ln,mecId:m.id,altId:a.id,mec:m.name,alt:a.name,product:p.name||'',productId:a.product_id,
         unit:u.name||'',image:(u.image||a.image||m.image||''),theme:(m.theme_color||'#0071e3'),konum:(u.konum||''),
-        yuzey:pp.surf, isikli:(p.isikli||''), olcu:(u.olcu||p.olcu||''), bk}); }); }); });
+        yuzey:pp.surf, isikli:(p.isikli||''), etiket:(p.etiketler||''), olcu:(u.olcu||p.olcu||''), bk}); }); }); });
   return out; }
 
 let mapF={urun:[],mecra:[],yuzey:[],isik:'',ay:'',durum:''};
@@ -628,7 +737,8 @@ function pinMatches(p){
     if(mapF.durum==='rezerve'&& st!=='rezerve') return false;
   }
   const q=(mapQuery||'').trim().toLowerCase(); if(!q) return true;
-  return [p.mec,p.alt,p.product,p.unit,p.konum].some(x=>String(x||'').toLowerCase().includes(q)); }
+  const havuz=[p.mec,p.alt,p.product,p.unit,p.konum,p.etiket].filter(Boolean).join(' ');
+  return havuz.toLocaleLowerCase('tr').includes(q) || esAnlamEslesti(q,havuz); }
 
 /* --- filtre çubuğu --- */
 function mapFilterBar(){
@@ -817,6 +927,17 @@ function renderMap(){
     } else { initLeafletMap(); }
   },60);
 }
+
+/* ---- kısa bildirim ---- */
+let _tT=null;
+function bildir(msg,tip){
+  let el=document.getElementById('sToast');
+  if(!el){ el=document.createElement('div'); el.id='sToast'; el.className='s-toast'; document.body.appendChild(el); }
+  el.className='s-toast'+(tip?' '+tip:''); el.innerHTML=msg; el.classList.add('on');
+  clearTimeout(_tT); _tT=setTimeout(()=>el.classList.remove('on'),3200);
+}
+function sepetCanlan(){ const b=document.querySelector('.iconbtn.cart');
+  if(!b)return; b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); }
 
 /* ---- footer ---- */
 /* footer bağlantısı: panelde seçilen türe göre adres üretir */

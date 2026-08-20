@@ -593,3 +593,5 @@ details.grp>summary:hover .chev{color:var(--c-accent);}
 .nv-meta{font-size:12.5px;color:var(--c-ink3);margin-top:5px;}
 .nv-body{font-size:14px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap;
   max-height:52vh;overflow-y:auto;}
+.nav-badge{margin-left:auto;background:#e5484d;color:#fff;border-radius:999px;min-width:19px;height:19px;
+  display:none;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-style:normal;padding:0 6px;}

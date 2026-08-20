@@ -639,3 +639,67 @@ body{overflow-x:hidden;}
   .mfilter.open .mf-body{display:grid;}
   .mf-chip{padding:8px 14px;font-size:13.5px;}
 }
+
+/* ================= KULLANILABİLİRLİK EKLERİ ================= */
+/* kısa bildirim */
+.s-toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,16px);z-index:9999;
+  background:var(--ink);color:#fff;border-radius:14px;padding:13px 20px;font-size:13.5px;
+  box-shadow:0 16px 44px -16px rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:.24s;
+  max-width:90vw;text-align:center;display:flex;flex-direction:column;gap:2px;}
+.s-toast.on{opacity:1;transform:translate(-50%,0);}
+.s-toast b{font-weight:600;} .s-toast span{font-size:12px;opacity:.75;}
+.s-toast.ok{background:#12653a;}
+@keyframes cartPulse{0%{transform:scale(1)}35%{transform:scale(1.18)}100%{transform:scale(1)}}
+.iconbtn.cart.pulse{animation:cartPulse .45s cubic-bezier(.22,1,.36,1);}
+
+/* teklif onayı */
+.q-ok{text-align:center;padding:26px 16px;}
+.q-ic{width:52px;height:52px;border-radius:50%;background:#e4f5ea;color:#12653a;font-size:26px;
+  display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+.q-t{font-size:18px;font-weight:700;letter-spacing:-.02em;}
+.q-no{margin-top:6px;font-size:13.5px;color:var(--ink2);}
+.q-no b{font-family:ui-monospace,Menlo,monospace;color:var(--ink);}
+.q-p{font-size:13px;color:var(--ink2);line-height:1.6;margin:14px 0 16px;}
+.q-wa,.q-tel{display:block;text-align:center;border-radius:12px;padding:12px;font-size:14px;font-weight:600;margin-bottom:8px;}
+.q-wa{background:#25d366;color:#0b3d20;} .q-wa:hover{background:#31e074;}
+.q-tel{background:var(--bg2);color:var(--ink);} .q-tel:hover{background:var(--line2);}
+
+/* rezervasyon tablosu yönergesi */
+.rt-help{display:block;font-size:12.5px;color:var(--ink2);margin-top:4px;font-weight:400;}
+.rt-help b{color:var(--ink);font-weight:600;}
+
+/* nasıl çalışır */
+.howto{max-width:1290px;margin:0 auto;padding:6px 20px 4px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.hw{display:flex;flex-direction:column;gap:3px;background:var(--bg2);border-radius:14px;padding:16px 18px;}
+.hw span{width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-size:13px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
+.hw b{font-size:14.5px;font-weight:650;} .hw i{font-style:normal;font-size:12.5px;color:var(--ink2);line-height:1.5;}
+@media(max-width:760px){.howto{grid-template-columns:1fr;padding:4px 14px;}}
+
+/* karşılaştırma */
+.tile-kar{position:absolute;top:12px;right:12px;z-index:6;width:32px;height:32px;border-radius:50%;
+  border:0;background:rgba(255,255,255,.92);color:var(--ink);font-size:16px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:.14s;}
+.tile-kar:hover{background:#fff;transform:scale(1.08);}
+.tile-kar.on{background:var(--teal);color:#fff;}
+.karbar{position:fixed;left:50%;bottom:20px;transform:translate(-50%,20px);z-index:900;
+  background:var(--ink);color:#fff;border-radius:999px;padding:11px 12px 11px 20px;display:flex;
+  align-items:center;gap:14px;box-shadow:0 16px 44px -16px rgba(0,0,0,.6);opacity:0;pointer-events:none;
+  transition:.24s;max-width:92vw;}
+.karbar.on{opacity:1;pointer-events:auto;transform:translate(-50%,0);}
+.kb-n{font-size:13.5px;font-weight:600;white-space:nowrap;}
+.kb-l{font-size:12px;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw;}
+.kb-go{background:#fff;color:var(--ink);border:0;border-radius:999px;padding:9px 18px;font-size:13.5px;
+  font-weight:600;cursor:pointer;white-space:nowrap;}
+.kb-go:hover{background:var(--bg2);}
+.kb-x{background:none;border:0;color:rgba(255,255,255,.6);font-size:20px;cursor:pointer;padding:0 6px;line-height:1;}
+.kb-x:hover{color:#fff;}
+.kar-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:#fff;}
+.kar{width:100%;border-collapse:collapse;min-width:520px;}
+.kar th,.kar td{padding:14px 16px;border-bottom:1px solid var(--line2);font-size:14px;text-align:left;}
+.kar tbody th{width:190px;font-weight:600;color:var(--ink2);font-size:13px;background:var(--bg2);}
+.kar-h{font-weight:700;font-size:15px;vertical-align:top;}
+.kar-h a{display:block;margin-bottom:5px;} .kar-h a:hover{color:var(--teal);}
+.kar-x{background:none;border:0;color:var(--ink3);font-size:12px;cursor:pointer;padding:0;text-decoration:underline;}
+.kar-x:hover{color:var(--clay);}
+@media(max-width:760px){.karbar{padding:10px 10px 10px 16px;gap:10px;} .kb-l{display:none;}}
