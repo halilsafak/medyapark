@@ -48,10 +48,8 @@ function picture(desk,mob,cls,alt){
   return `<img class="${cls||''}" src="${esc(desk)}" alt="${esc(alt||'')}" loading="lazy">`; }
 function perMonth(p){ const pr=p.prices||{}; if(typeof pr['1 Ay']==='number')return pr['1 Ay']; for(const v of Object.values(pr)){ if(typeof v==='number')return v; } return 0; }
 function hexToRgb(h){ if(!h)return '63,111,99'; h=String(h).replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join(''); if(h.length!==6)return '63,111,99'; const n=parseInt(h,16); return `${(n>>16)&255},${(n>>8)&255},${n&255}`; }
-function gcard(onclick,title,sub,image,theme,label,imageM,href,karId){ const rgb=hexToRgb(theme);
-  const kar=karId?`<button class="tile-kar${karsi.includes(String(karId))?' on':''}" title="Karşılaştırmaya ekle"
-    onclick="karTog('${karId}',event)">${karsi.includes(String(karId))?'✓':'+'}</button>`:'';
-  return `<a class="tile" href="${esc(href||'#')}" onclick="${onclick};return false;" style="--tc-rgb:${rgb}">${kar}
+function gcard(onclick,title,sub,image,theme,label,imageM,href){ const rgb=hexToRgb(theme);
+  return `<a class="tile" href="${esc(href||'#')}" onclick="${onclick};return false;" style="--tc-rgb:${rgb}">
     ${bgLayers(image,imageM,'bg','')}<div class="ov"></div>
     <div class="ct"><h3>${esc(title)}</h3>${sub?`<p class="tsub">${esc(sub)}</p>`:''}
       <div class="xp"><b>${esc(label||'Keşfet')}</b><span class="arw">→</span></div></div></a>`; }
@@ -250,7 +248,7 @@ function homeListe(){
 function homeKartlar(){
   const list=homeListe();
   return list.map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
-    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m), m.id);}).join('')
+    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m));}).join('')
     || '<p class="muted">Aramanıza uygun sonuç bulunamadı.</p>';
 }
 function renderHome(q){
@@ -264,20 +262,24 @@ function renderHome(q){
       ${(H.katalog&&H.katalog.alt)?`<p>${esc(H.katalog.alt)}</p>`:''}
     </section>
     <div class="grid3" id="cardGrid">${cards||'<p class="muted">Aramanıza uygun sonuç bulunamadı.</p>'}</div></div>`;
-  renderKarBar();
   if(homeMapAktif(H)) initHomeMap(H);
   sayacBaslat();
 }
 
 /* ---- harita bloğu ---- */
 function homeMapAktif(H){
-  if(H.map && H.map.enabled===false) return false;
-  return allPins().length>0;          /* hiç koordinat yoksa harita gösterilmez */
+  return !(H.map && H.map.enabled===false);   /* panelden kapatılmadıysa her zaman göster */
 }
 function homeMapBlock(H){
   if(!homeMapAktif(H)) return '';
   const s=H.search||{};
-  const urunler=D.products.filter(p=>allPins().some(x=>String(x.productId)===String(p.id)));
+  /* pin varsa haritada görünenlerden, yoksa alt mecralarda kullanılan tüm ürünlerden */
+  const pins=allPins();
+  const kullanilan=new Set();
+  D.mecralar.forEach(m=>(m.alts||[]).forEach(a=>{ if(a.product_id)kullanilan.add(String(a.product_id)); }));
+  const urunler=D.products.filter(p=> pins.length
+    ? pins.some(x=>String(x.productId)===String(p.id))
+    : kullanilan.has(String(p.id)));
   const cipler=urunler.map(p=>`<button class="hs-chip ${String(view.filter)===String(p.id)?'on':''}"
       onclick="homeFiltre('${p.id}')">${uIkon(p.ikon,16)}<span>${esc(p.name)}</span></button>`).join('');
   return `<section class="homemap">
@@ -293,7 +295,7 @@ function homeMapBlock(H){
         </div>
         ${cipler?`<div class="hm-chips">
           <button class="hs-chip ${view.filter?'':'on'}" onclick="homeFiltre('')">Tümü</button>${cipler}</div>`:''}
-        <div class="hm-foot"><b id="hmCount">0</b> alan haritada
+        <div class="hm-foot"><span id="hmInfo"><b id="hmCount">0</b> alan haritada</span>
           <a class="hm-all" href="${BASE}harita" onclick="openMapPage();return false;">Tam ekran harita →</a></div>
       </div>
     </div></section>`;
@@ -310,7 +312,6 @@ function homeTazele(){
     b.classList.toggle('on', v ? String(view.filter)===String(v) : !view.filter);
   });
   const x=document.querySelector('.hm-x'); if(x) x.style.display=homeQ?'':'none';
-  renderKarBar();
 }
 function homeAra(v){ homeQ=v||'';
   if(document.getElementById('homeMap')) homeTazele(); else renderHome(); }
@@ -357,7 +358,7 @@ function initHomeLeaflet(){
   const el=document.getElementById('homeMap'); if(!el||typeof L==='undefined')return;
   homeEngine='leaflet';
   if(homeMapObj){ try{homeMapObj.remove();}catch(e){} homeMapObj=null; }
-  homeMapObj=L.map('homeMap',{scrollWheelZoom:false,zoomControl:true,attributionControl:false});
+  homeMapObj=L.map('homeMap',{scrollWheelZoom:false,zoomControl:true,attributionControl:false}).setView(ADANA,12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(homeMapObj);
   homeCluster=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:52,
     iconCreateFunction:c=>{ const n=c.getChildCount(); const sz=n<10?36:(n<50?44:52);
@@ -369,6 +370,10 @@ function initHomeLeaflet(){
 function homePinTazele(){
   const list=homePinler();
   const c=document.getElementById('hmCount'); if(c)c.textContent=list.length;
+  const inf=document.getElementById('hmInfo');
+  if(inf) inf.innerHTML = allPins().length
+    ? `<b id="hmCount">${list.length}</b> alan haritada`
+    : 'Reklam alanlarımız yakında haritada';
   if(homeEngine==='google'){
     if(!hgHome)return;
     if(hgHomeCl)hgHomeCl.clearMarkers();
@@ -383,11 +388,12 @@ function homePinTazele(){
       list.forEach(p=>b.extend({lat:p.lat,lng:p.lng}));
       hgHome.fitBounds(b,{top:60,bottom:60,left:60,right:60});
       google.maps.event.addListenerOnce(hgHome,'idle',()=>{ if(hgHome.getZoom()>15)hgHome.setZoom(15); }); }
+    else { hgHome.setCenter({lat:ADANA[0],lng:ADANA[1]}); hgHome.setZoom(12); }
     return;
   }
   if(!homeCluster)return;
   homeCluster.clearLayers();
-  if(!list.length)return;
+  if(!list.length){ homeMapObj.setView(ADANA,12); return; }
   homeCluster.addLayers(list.map(p=>L.marker([p.lat,p.lng],{icon:pinIcon(p.theme),title:p.mec+' · '+p.unit})
     .bindPopup(popupHTML(p),{maxWidth:270,minWidth:230})));
   try{ homeMapObj.fitBounds(L.latLngBounds(list.map(p=>[p.lat,p.lng])).pad(0.2),{maxZoom:14}); }catch(e){}
@@ -430,67 +436,6 @@ function sayacBaslat(){
   if(!('IntersectionObserver' in window)){ els.forEach(anim); return; }
   const io=new IntersectionObserver(es=>es.forEach(x=>{ if(x.isIntersecting){ anim(x.target); io.unobserve(x.target); } }),{threshold:.4});
   els.forEach(e=>io.observe(e));
-}
-
-/* ================= KARŞILAŞTIRMA ================= */
-let karsi=[];
-function karTog(id,ev){
-  if(ev){ev.preventDefault();ev.stopPropagation();}
-  const i=karsi.indexOf(String(id));
-  if(i>-1) karsi.splice(i,1);
-  else { if(karsi.length>=3){ bildir('<b>En fazla 3 lokasyon</b><span>Karşılaştırmadan birini çıkarın</span>'); return; }
-    karsi.push(String(id)); }
-  renderKarBar(); if(view.type==='home')renderHome();
-}
-function renderKarBar(){
-  let el=document.getElementById('karBar');
-  if(!el){ el=document.createElement('div'); el.id='karBar'; el.className='karbar'; document.body.appendChild(el); }
-  if(!karsi.length){ el.classList.remove('on'); return; }
-  const adlar=karsi.map(id=>{const m=mec(id);return m?esc(m.name):'';}).filter(Boolean);
-  el.innerHTML=`<span class="kb-n">${karsi.length} lokasyon seçildi</span>
-    <span class="kb-l">${adlar.join(' · ')}</span>
-    <button class="kb-go" onclick="karAc()">Karşılaştır</button>
-    <button class="kb-x" onclick="karsi=[];renderKarBar();renderHome()" title="Temizle">×</button>`;
-  el.classList.add('on');
-}
-function karAc(){
-  if(karsi.length<2){ bildir('<b>En az 2 lokasyon seçin</b>'); return; }
-  const list=karsi.map(id=>mec(id)).filter(Boolean);
-  const ozet=m=>{
-    const alts=m.alts||[];
-    const poz=alts.reduce((n,a)=>n+(a.units||[]).length,0);
-    const yuz=alts.reduce((n,a)=>n+groupUnits(a.units||[]).reduce((k,g)=>k+(g.A?1:0)+(g.B?1:0),0),0);
-    const now=curYm(); let dolu=0,top=0;
-    alts.forEach(a=>(a.units||[]).forEach(u=>{ rollMonths().forEach(mo=>{ top++;
-      const st=(u.booked||[]).find(b=>b.ym===mo.ym); if(st&&st.status!=='bos')dolu++; }); }));
-    return {
-      urun:[...new Set(alts.map(a=>(a.product||{}).name).filter(Boolean))],
-      poz, yuz, gosterim:m.gunluk_gosterim||'—', kapsam:m.toplam_alan||'—',
-      musait: top?Math.round((top-dolu)*100/top)+'%':'—',
-      isik:[...new Set(alts.map(a=>(a.product||{}).isikli).filter(Boolean))].join(', ')||'—'
-    };
-  };
-  const d=list.map(ozet);
-  const satir=(baslik,f)=>`<tr><th>${esc(baslik)}</th>${d.map(x=>`<td>${f(x)}</td>`).join('')}</tr>`;
-  app().innerHTML=`<div class="wrap">
-    <div class="crumbs" style="margin-top:22px"><a href="${BASE}" onclick="goHome();return false;">Katalog</a> › <span>Karşılaştırma</span></div>
-    <div class="sechead"><h1>Lokasyon Karşılaştırma</h1></div>
-    <div class="kar-wrap"><table class="kar">
-      <thead><tr><th></th>${list.map(m=>`<td class="kar-h">
-        <a href="${BASE}mecra/${mSlug(m)}" onclick="openMec('${m.id}');return false;">${esc(m.name)}</a>
-        <button class="kar-x" onclick="karTog('${m.id}');karAc()">çıkar</button></td>`).join('')}</tr></thead>
-      <tbody>
-        ${satir('Reklam alanı türü',x=>x.urun.length?x.urun.map(esc).join('<br>'):'—')}
-        ${satir('Pozisyon sayısı',x=>x.poz)}
-        ${satir('Toplam yüzey',x=>x.yuz)}
-        ${satir('Günlük gösterim',x=>esc(x.gosterim))}
-        ${satir('Kapsam',x=>esc(x.kapsam))}
-        ${satir('Aydınlatma',x=>esc(x.isik))}
-        ${satir('12 ayda müsaitlik',x=>`<b>${x.musait}</b>`)}
-      </tbody></table></div>
-    <div style="margin:22px 0 60px"><button class="btn btn-outline" onclick="goHome()">← Katalog'a dön</button></div>
-  </div>`;
-  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 /* ================= KARŞILAMA BÖLÜMÜ ================= */
