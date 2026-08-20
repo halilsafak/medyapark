@@ -99,13 +99,13 @@ function gPick(i){ view.gidx=i; renderAlt(); }
 function gMove(d){ const a=D.altById[view.altId]; const n=(a&&Array.isArray(a.galeri)?a.galeri.length:0)||1; view.gidx=((view.gidx||0)+d+n)%n; renderAlt(); }
 function openPage(slug){ view={type:'page',slug}; render(); }
 function onSearch(q){ if(view.type==='map'){ mapQuery=q||''; refreshPins(); return; }
-  if(view.type!=='home')view={type:'home',filter:view.filter}; renderHome(q); }
+  if(view.type!=='home')view={type:'home',filter:view.filter}; homeQ=q||''; renderHome(); }
 
 /* ---- filtre (ürün türüne göre) ---- */
-function buildFilter(){ const m=document.getElementById('filterMenu');
+function buildFilter(){ const m=document.getElementById('filterMenu'); if(!m)return;
   m.innerHTML=`<a class="${!view.filter?'on':''}" onclick="setFilter(null)">Tümü</a>`+D.products.map(p=>`<a class="${String(view.filter)===String(p.id)?'on':''}" onclick="setFilter('${p.id}')">${esc(p.name)}</a>`).join(''); }
-function toggleFilter(e){ e.stopPropagation(); document.getElementById('filterMenu').classList.toggle('open'); }
-function setFilter(pid){ view.filter=pid; buildFilter(); document.getElementById('filterMenu').classList.remove('open');
+function toggleFilter(e){ e.stopPropagation(); const m=document.getElementById('filterMenu'); if(m)m.classList.toggle('open'); }
+function setFilter(pid){ view.filter=pid; buildFilter(); const fm=document.getElementById('filterMenu'); if(fm)fm.classList.remove('open');
   if(view.type==='map'){ refreshPins(); return; }
   view.type='home'; renderHome(); }
 
@@ -224,33 +224,213 @@ function setMeta(){
 }
 
 /* ---- ANASAYFA ---- */
-function renderHome(q){
-  q=(q||'').trim().toLowerCase();
+/* ---- reklam alanı ikonları ---- */
+const URUN_IKON={
+ billboard:'<rect x="3" y="4" width="18" height="11" rx="1.5"/><path d="M12 15v6M8.5 21h7"/>',
+ raket:'<rect x="6.5" y="3" width="11" height="15" rx="1.5"/><path d="M12 18v3"/>',
+ led:'<rect x="2.5" y="5" width="19" height="12" rx="1.5"/><path d="M7 21h10M12 17v4"/><path d="M7 9.5h3M7 12.5h6"/>',
+ durak:'<path d="M3 17V8.5A2.5 2.5 0 0 1 5.5 6H15v11"/><path d="M15 9h3.2l2.3 3v5H15"/><circle cx="7" cy="18.5" r="1.6"/><circle cx="17.5" cy="18.5" r="1.6"/>',
+ megaboard:'<rect x="2" y="5" width="20" height="9" rx="1"/><path d="M6 14v7M18 14v7"/>',
+ duvar:'<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9.5h18M3 15h18M9 4v5.5M15 9.5V15M9 15v5"/>',
+ totem:'<rect x="8" y="2.5" width="8" height="14" rx="1.5"/><path d="M12 16.5v5M8.5 21.5h7"/>',
+ diger:'<circle cx="12" cy="12" r="8.5"/><path d="M12 8v5M12 16h.01"/>'
+};
+function uIkon(ad,sz){ const p=URUN_IKON[ad||'diger']||URUN_IKON.diger;
+  return `<svg class="ui-ic" viewBox="0 0 24 24" width="${sz||17}" height="${sz||17}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`; }
+
+function homeListe(){
+  const q=(homeQ||'').trim().toLowerCase();
   let list=D.mecralar.slice();
   if(view.filter) list=list.filter(m=>(m.alts||[]).some(a=>String(a.product_id)===String(view.filter)));
   if(q) list=list.filter(m=>{
     const havuz=[m.name,...(m.alts||[]).flatMap(a=>[a.name,(a.product||{}).name,(a.product||{}).etiketler])].filter(Boolean).join(' ');
     return havuz.toLocaleLowerCase('tr').includes(q) || esAnlamEslesti(q,havuz); });
-  const h=D.settings.hero||{};
-  const cards=list.map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
-    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m), m.id);}).join('');
-  /* karşılama bölümü yalnızca filtresiz/aramasız anasayfada */
-  const hero2=(!q && !view.filter) ? heroBlock() : '';
-  /* karşılama bölümü varsa katalog başlığı sade olsun (başlık/sayaç tekrarı olmasın) */
-  const katalog = hero2
-    ? `<section class="hero compact" id="katalog"><h2>Reklam Alanlarımız</h2>${h.desc?`<p>${esc(h.desc)}</p>`:''}</section>`
-    : `<section class="hero" id="katalog"><div class="counters"><span><b class="cnt" data-to="250">0</b>+ Reklam Alanı</span><span><b class="cnt" data-to="1000">0</b>+ Müşteri</span><span><b class="cnt" data-to="36">0</b>+ Yıllık Tecrübe</span></div><h1>${esc(h.title||'')}</h1><p>${esc(h.desc||'')}</p></section>`;
-  const nasil=hero2?'':`<section class="howto">
-      <div class="hw"><span>1</span><b>Alanı seçin</b><i>Lokasyon ve reklam alanına göz atın</i></div>
-      <div class="hw"><span>2</span><b>Dönemi seçin</b><i>Doluluk tablosundan müsait ayları işaretleyin</i></div>
-      <div class="hw"><span>3</span><b>Teklif alın</b><i>Bilgilerinizi bırakın, 1 iş günü içinde dönelim</i></div>
-    </section>`;
-  app().innerHTML=`${hero2}${katalog}${nasil}
-    <div class="grid3">${cards||'<p class="muted">Sonuç yok.</p>'}</div>`;
-  animateCounters(); renderKarBar();
-  if(hero2) heroInit();
+  return list;
+}
+function homeKartlar(){
+  const list=homeListe();
+  return list.map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
+    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m), m.id);}).join('')
+    || '<p class="muted">Aramanıza uygun sonuç bulunamadı.</p>';
+}
+function renderHome(q){
+  if(typeof q==='string') homeQ=q;
+  const H=(D.settings||{}).home||{};
+  const cards=homeKartlar();
+
+  app().innerHTML=`${homeMapBlock(H)}${statsBlock(H)}
+    <div class="wrap"><section class="hero compact" id="katalog">
+      <h2>${esc((H.katalog&&H.katalog.baslik)||'Reklam Alanlarımız')}</h2>
+      ${(H.katalog&&H.katalog.alt)?`<p>${esc(H.katalog.alt)}</p>`:''}
+    </section>
+    <div class="grid3" id="cardGrid">${cards||'<p class="muted">Aramanıza uygun sonuç bulunamadı.</p>'}</div></div>`;
+  renderKarBar();
+  if(homeMapAktif(H)) initHomeMap(H);
+  sayacBaslat();
 }
 
+/* ---- harita bloğu ---- */
+function homeMapAktif(H){
+  if(H.map && H.map.enabled===false) return false;
+  return allPins().length>0;          /* hiç koordinat yoksa harita gösterilmez */
+}
+function homeMapBlock(H){
+  if(!homeMapAktif(H)) return '';
+  const s=H.search||{};
+  const urunler=D.products.filter(p=>allPins().some(x=>String(x.productId)===String(p.id)));
+  const cipler=urunler.map(p=>`<button class="hs-chip ${String(view.filter)===String(p.id)?'on':''}"
+      onclick="homeFiltre('${p.id}')">${uIkon(p.ikon,16)}<span>${esc(p.name)}</span></button>`).join('');
+  return `<section class="homemap">
+    <div id="homeMap" class="hm-canvas"></div>
+    <div class="hm-overlay">
+      <div class="hm-box">
+        <div class="hm-t">${esc(s.baslik||'Adana’nın her noktasında reklam alanı')}</div>
+        <div class="hm-sub">${esc(s.alt||'Lokasyon, reklam alanı veya pozisyon arayın; haritada ve listede anında görün.')}</div>
+        <div class="hm-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+          <input id="homeSearch" value="${esc(homeQ)}" placeholder="${esc(s.placeholder||'Örn. M1 AVM, billboard, durak…')}" oninput="homeAra(this.value)">
+          <button class="hm-x" onclick="document.getElementById('homeSearch').value='';homeAra('')" title="Temizle" style="${homeQ?'':'display:none'}">×</button>
+        </div>
+        ${cipler?`<div class="hm-chips">
+          <button class="hs-chip ${view.filter?'':'on'}" onclick="homeFiltre('')">Tümü</button>${cipler}</div>`:''}
+        <div class="hm-foot"><b id="hmCount">0</b> alan haritada
+          <a class="hm-all" href="${BASE}harita" onclick="openMapPage();return false;">Tam ekran harita →</a></div>
+      </div>
+    </div></section>`;
+}
+let homeQ='', homeMapObj=null, homeCluster=null;
+/* Arama/filtre değişince tüm sayfa yeniden çizilmez: yalnızca kartlar,
+   pinler ve düğme durumları güncellenir. Harita yerinde kalır, sayaç sıfırlanmaz. */
+function homeTazele(){
+  const g=document.getElementById('cardGrid'); if(g) g.innerHTML=homeKartlar();
+  homePinTazele();
+  document.querySelectorAll('.hm-chips .hs-chip').forEach(b=>{
+    const t=(b.getAttribute('onclick')||'').match(/homeFiltre\('([^']*)'\)/);
+    if(!t)return; const v=t[1];
+    b.classList.toggle('on', v ? String(view.filter)===String(v) : !view.filter);
+  });
+  const x=document.querySelector('.hm-x'); if(x) x.style.display=homeQ?'':'none';
+  renderKarBar();
+}
+function homeAra(v){ homeQ=v||'';
+  if(document.getElementById('homeMap')) homeTazele(); else renderHome(); }
+function homeFiltre(id){ view.filter=id||null;
+  if(document.getElementById('homeMap')) homeTazele(); else renderHome(); }
+function homePinler(){
+  const q=(homeQ||'').trim().toLowerCase();
+  return allPins().filter(p=>{
+    if(view.filter && String(p.productId)!==String(view.filter)) return false;
+    if(!q) return true;
+    const havuz=[p.mec,p.alt,p.product,p.unit,p.konum,p.etiket].filter(Boolean).join(' ');
+    return havuz.toLocaleLowerCase('tr').includes(q) || esAnlamEslesti(q,havuz); });
+}
+let homeEngine='leaflet', hgHome=null, hgHomeCl=null, hgHomeMk=[], hgHomeInfo=null;
+function initHomeMap(H){
+  const tercih=((H.map||{}).engine)||'auto';   /* auto | google | osm */
+  const key=gKey();
+  const googleKullan = key && tercih!=='osm';
+  setTimeout(()=>{
+    const el=document.getElementById('homeMap'); if(!el)return;
+    if(googleKullan){
+      loadGoogle().then(()=>initHomeGoogle())
+        .catch(err=>{ console.warn('Anasayfa haritası Google ile açılamadı:',err.message); initHomeLeaflet(); });
+    } else initHomeLeaflet();
+  },70);
+}
+function initHomeGoogle(){
+  homeEngine='google';
+  hgHome=new google.maps.Map(document.getElementById('homeMap'),{
+    center:{lat:ADANA[0],lng:ADANA[1]}, zoom:12,
+    mapTypeControl:false, streetViewControl:false, fullscreenControl:true,
+    scrollwheel:false, gestureHandling:'cooperative',
+    styles:[{featureType:'poi.business',stylers:[{visibility:'off'}]},
+            {featureType:'transit',elementType:'labels.icon',stylers:[{visibility:'off'}]}]});
+  hgHomeInfo=new google.maps.InfoWindow({maxWidth:270});
+  hgHomeCl=new markerClusterer.MarkerClusterer({map:hgHome,markers:[],renderer:{
+    render:function(o){ const count=o.count, position=o.position; const sz=count<10?38:(count<50?46:54);
+      return new google.maps.Marker({position:position,zIndex:1000+count,
+        label:{text:String(count),color:'#fff',fontSize:'13px',fontWeight:'700'},
+        icon:{url:gClusterSvg(sz),scaledSize:new google.maps.Size(sz,sz),anchor:new google.maps.Point(sz/2,sz/2)}}); }}});
+  homePinTazele();
+}
+function initHomeLeaflet(){
+  const el=document.getElementById('homeMap'); if(!el||typeof L==='undefined')return;
+  homeEngine='leaflet';
+  if(homeMapObj){ try{homeMapObj.remove();}catch(e){} homeMapObj=null; }
+  homeMapObj=L.map('homeMap',{scrollWheelZoom:false,zoomControl:true,attributionControl:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(homeMapObj);
+  homeCluster=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:52,
+    iconCreateFunction:c=>{ const n=c.getChildCount(); const sz=n<10?36:(n<50?44:52);
+      return L.divIcon({html:`<div class="cl-b" style="width:${sz}px;height:${sz}px;line-height:${sz}px">${n}</div>`,className:'cl-w',iconSize:[sz,sz]}); }});
+  homeMapObj.addLayer(homeCluster);
+  homePinTazele();
+  setTimeout(()=>homeMapObj.invalidateSize(),180);
+}
+function homePinTazele(){
+  const list=homePinler();
+  const c=document.getElementById('hmCount'); if(c)c.textContent=list.length;
+  if(homeEngine==='google'){
+    if(!hgHome)return;
+    if(hgHomeCl)hgHomeCl.clearMarkers();
+    hgHomeMk.forEach(mk=>mk.setMap(null));
+    hgHomeMk=list.map(p=>{
+      const mk=new google.maps.Marker({position:{lat:p.lat,lng:p.lng},title:p.mec+' · '+p.unit,
+        icon:{url:gPinSvg(p.theme),scaledSize:new google.maps.Size(32,42),anchor:new google.maps.Point(16,41)}});
+      mk.addListener('click',()=>{ hgHomeInfo.setContent(popupHTML(p)); hgHomeInfo.open({anchor:mk,map:hgHome}); });
+      return mk; });
+    if(hgHomeCl)hgHomeCl.addMarkers(hgHomeMk);
+    if(list.length){ const b=new google.maps.LatLngBounds();
+      list.forEach(p=>b.extend({lat:p.lat,lng:p.lng}));
+      hgHome.fitBounds(b,{top:60,bottom:60,left:60,right:60});
+      google.maps.event.addListenerOnce(hgHome,'idle',()=>{ if(hgHome.getZoom()>15)hgHome.setZoom(15); }); }
+    return;
+  }
+  if(!homeCluster)return;
+  homeCluster.clearLayers();
+  if(!list.length)return;
+  homeCluster.addLayers(list.map(p=>L.marker([p.lat,p.lng],{icon:pinIcon(p.theme),title:p.mec+' · '+p.unit})
+    .bindPopup(popupHTML(p),{maxWidth:270,minWidth:230})));
+  try{ homeMapObj.fitBounds(L.latLngBounds(list.map(p=>[p.lat,p.lng])).pad(0.2),{maxZoom:14}); }catch(e){}
+}
+
+/* ---- sayaç + referanslar ---- */
+function statsBlock(H){
+  const st=H.stats||{}, tr=H.trusted||{};
+  const sayac=(st.items||[]).filter(x=>x&&(x.n||x.label));
+  const kart=(tr.items||[]).filter(x=>x&&(x.quote||x.name));
+  if(!sayac.length && !kart.length) return '';
+  return `<section class="statsrow">
+    <div class="sr-l">
+      ${st.eyebrow?`<span class="sr-eye">${esc(st.eyebrow)}</span>`:''}
+      ${st.baslik?`<h2 class="sr-h">${esc(st.baslik)}</h2>`:''}
+      ${sayac.length?`<div class="sr-nums">${sayac.map(x=>`<div class="sr-n">
+        <div class="sr-num"><b class="cnt2" data-to="${esc(String(x.n||'0').replace(/[^\d]/g,''))}">0</b><i>${esc(String(x.n||'').replace(/[\d.]/g,'').trim())}</i></div>
+        <span>${esc(x.label||'')}</span></div>`).join('')}</div>`:''}
+      ${st.alt?`<p class="sr-p">${esc(st.alt)}</p>`:''}
+    </div>
+    ${kart.length?`<div class="sr-r">
+      ${tr.baslik?`<div class="tb-h">${esc(tr.baslik)}</div>`:''}
+      <div class="tcards">${kart.slice(0,4).map(x=>`<article class="tcard">
+        <div class="tc-img">${x.img?`<img src="${esc(x.img)}" alt="${esc(x.name||'')}" loading="lazy">`:''}<span class="tc-sc"></span></div>
+        <div class="tc-b"><p class="tc-q">${esc(x.quote||'')}</p>
+          <p class="tc-n">— ${esc(x.name||'')}</p>
+          ${x.role?`<p class="tc-r">${esc(x.role)}</p>`:''}</div></article>`).join('')}</div></div>`:''}
+  </section>`;
+}
+function sayacBaslat(){
+  const els=[...document.querySelectorAll('.cnt2')];
+  if(!els.length)return;
+  const anim=el=>{
+    const hedef=parseInt(el.dataset.to||'0',10)||0; const sure=1400; const bas=performance.now();
+    const adim=t=>{ const p=Math.min(1,(t-bas)/sure); const e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(hedef*e).toLocaleString('tr-TR');
+      if(p<1)requestAnimationFrame(adim); };
+    requestAnimationFrame(adim);
+  };
+  if(!('IntersectionObserver' in window)){ els.forEach(anim); return; }
+  const io=new IntersectionObserver(es=>es.forEach(x=>{ if(x.isIntersecting){ anim(x.target); io.unobserve(x.target); } }),{threshold:.4});
+  els.forEach(e=>io.observe(e));
+}
 
 /* ================= KARŞILAŞTIRMA ================= */
 let karsi=[];
@@ -1000,6 +1180,6 @@ function gaPage(){
 }
 
 function toggleMenu(e){e.stopPropagation();document.getElementById('menu').classList.toggle('open');}
-function closeMenu(){document.getElementById('menu').classList.remove('open');document.getElementById('filterMenu')?.classList.remove('open');}
+function closeMenu(){const m=document.getElementById('menu'); if(m)m.classList.remove('open'); const f=document.getElementById('filterMenu'); if(f)f.classList.remove('open');}
 document.addEventListener('click',closeMenu);
 load();

@@ -762,6 +762,8 @@ function prodEdit(id){ const p=(ui._products||[]).find(x=>x.id===id)||{prices:{}
     <div class="row3"><div class="field"><label class="flabel">Yüzey</label><input class="inp" id="pyuzey" value="${esc(p.yuzey)}"></div>
     <div class="field"><label class="flabel">Aydınlatma</label><input class="inp" id="pisikli" value="${esc(p.isikli)}"></div>
     <div class="field"><label class="flabel">Baskı Malzemesi</label><input class="inp" id="pbm" value="${esc(p.baski_malzemesi)}"></div></div>
+    <div class="field"><label class="flabel">İkon (filtre düğmelerinde görünür)</label>
+      <select class="inp" id="pikon" style="max-width:280px">${URUN_IKONLAR.map(x=>`<option value="${x[0]}" ${(p.ikon||'diger')===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>
     <div class="field"><label class="flabel">Arama etiketleri</label>
       <input class="inp" id="petiket" value="${esc(p.etiketler)}" placeholder="billboard, bilbord, dev pano">
       <p class="muted" style="font-size:11.5px;margin:5px 0 0">Müşterinin arama kutusuna yazabileceği diğer isimler. Virgülle ayırın; sitede görünmez, yalnızca aramada kullanılır.</p></div>
@@ -775,7 +777,7 @@ function prodEdit(id){ const p=(ui._products||[]).find(x=>x.id===id)||{prices:{}
   document.getElementById('prodEd').scrollIntoView({behavior:'smooth'});
 }
 function parsePrices(v){ const o={}; v.split('\n').forEach(l=>{const x=l.indexOf('=');if(x<0)return;const k=l.slice(0,x).trim();let val=l.slice(x+1).trim();const n=val.replace(/[.\s₺]/g,'');if(/^\d+$/.test(n))val=Number(n);if(k)o[k]=val;}); return o; }
-async function prodSave(){ await api('product_save',{id:+gv('pid'),name:gv('pname'),olcu:gv('polcu'),yuzey:gv('pyuzey'),isikli:gv('pisikli'),baski_malzemesi:gv('pbm'),baski_format:gv('pbf'),yayin_format:gv('pyf'),etiketler:gv('petiket'),baski_ucreti:gv('pbu'),montaj_ucreti:gv('pmu'),extra_ucret:gv('pex'),prices:parsePrices(gv('pprices'))}); renderSection(); }
+async function prodSave(){ await api('product_save',{id:+gv('pid'),name:gv('pname'),olcu:gv('polcu'),yuzey:gv('pyuzey'),isikli:gv('pisikli'),baski_malzemesi:gv('pbm'),baski_format:gv('pbf'),yayin_format:gv('pyf'),etiketler:gv('petiket'),ikon:gv('pikon'),baski_ucreti:gv('pbu'),montaj_ucreti:gv('pmu'),extra_ucret:gv('pex'),prices:parsePrices(gv('pprices'))}); renderSection(); }
 async function prodDel(id){ if(confirm('Ürün silinsin mi?')){ await api('product_delete&id='+id); renderSection(); } }
 
 
@@ -1263,71 +1265,81 @@ async function rapUret(){
   out.innerHTML=n?`<div class="imp-info" style="margin-top:14px">Rapor indirildi · ${S.filter(x=>x.rows.length).length} sayfa, ${n} satır</div>`:'';
 }
 
-/* ---------- ANASAYFA KARŞILAMA ---------- */
+/* ---------- ANASAYFA ---------- */
+const URUN_IKONLAR=[['billboard','Billboard / Megalight'],['raket','Raket / CLP'],['led','LED Ekran'],
+  ['durak','Akıllı Durak'],['megaboard','Megaboard'],['duvar','Duvar / Cephe'],['totem','Totem'],['diger','Diğer']];
 async function anasayfaBolum(c){
   const st=await api('settings_get'); ui._settings=st;
-  const H=st.hero2||{};
-  const mecs=ui._mecralar||await api('mecra_list'); ui._mecralar=mecs;
-  ui._h2=JSON.parse(JSON.stringify({enabled:H.enabled!==false,title:H.title||'',sub:H.sub||'',btn:H.btn||'Başla',
-    board:H.board||'',boardMobil:H.boardMobil||'',cards:H.cards||[],stats:H.stats||[]}));
-  const mecOpt=v=>`<option value="">— bağlantı yok —</option>`+mecs.map(m=>`<option value="${m.id}" ${String(v)===String(m.id)?'selected':''}>${esc(m.name)}</option>`).join('');
-  const kart=(i)=>{ const k=(ui._h2.cards[i]||{});
-    return `<div class="blk"><div class="blk-head"><b style="font-size:13px">Fotoğraf ${i+1}</b>
-      <button class="btn btn-danger btn-sm" onclick="h2CardClear(${i})">Temizle</button></div>
-      ${imgField('h2c'+i, k.img, 'Görsel')}
-      ${imgField('h2cm'+i, k.imgMobil, 'Mobil sürüm (opsiyonel)')}
-      <div class="row2"><div class="field"><label class="flabel">Etiket</label><input class="inp" id="h2cl${i}" value="${esc(k.label)}" placeholder="ör. M1 Adana AVM"></div>
-      <div class="field"><label class="flabel">Tıklayınca gideceği mecra</label><select class="inp" id="h2cs${i}">${mecOpt(k.mecraId)}</select></div></div></div>`; };
-  const rozet=(i)=>{ const r=(ui._h2.stats[i]||{});
-    return `<div class="row2"><div class="field"><input class="inp" id="h2sn${i}" value="${esc(r.n)}" placeholder="Sayı — ör. 81+"></div>
-      <div class="field"><input class="inp" id="h2sl${i}" value="${esc(r.l)}" placeholder="Etiket — ör. Reklam Alanı"></div></div>`; };
+  const H=st.home||{};
+  ui._home=JSON.parse(JSON.stringify({
+    map:{enabled:(H.map&&H.map.enabled)!==false, engine:(H.map&&H.map.engine)||'auto'},
+    search:{baslik:(H.search||{}).baslik||'',alt:(H.search||{}).alt||'',placeholder:(H.search||{}).placeholder||''},
+    katalog:{baslik:(H.katalog||{}).baslik||'',alt:(H.katalog||{}).alt||''},
+    stats:{eyebrow:(H.stats||{}).eyebrow||'',baslik:(H.stats||{}).baslik||'',alt:(H.stats||{}).alt||'',items:(H.stats||{}).items||[]},
+    trusted:{baslik:(H.trusted||{}).baslik||'',items:(H.trusted||{}).items||[]}
+  }));
+  const sayac=i=>{ const x=ui._home.stats.items[i]||{};
+    return `<div class="row2" style="margin-bottom:8px">
+      <input class="inp" id="hn${i}" value="${esc(x.n)}" placeholder="Sayı — ör. 250+">
+      <input class="inp" id="hl${i}" value="${esc(x.label)}" placeholder="Etiket — ör. Reklam Alanı"></div>`; };
+  const kart=i=>{ const x=ui._home.trusted.items[i]||{};
+    return `<div class="blk"><div class="blk-head"><b style="font-size:13px">Referans ${i+1}</b>
+      <button class="btn btn-danger btn-sm" onclick="hmKartTemizle(${i})">Temizle</button></div>
+      ${imgField('tq'+i, x.img, 'Fotoğraf')}
+      <div class="field"><label class="flabel">Görüş / alıntı</label><textarea class="inp" id="tt${i}" placeholder="Kampanyamız icin dogru lokasyonu hizla bulduk.">${esc(x.quote)}</textarea></div>
+      <div class="row2"><div class="field"><label class="flabel">İsim</label><input class="inp" id="tn${i}" value="${esc(x.name)}" placeholder="Ahmet Yılmaz"></div>
+      <div class="field"><label class="flabel">Ünvan / firma</label><input class="inp" id="tr${i}" value="${esc(x.role)}" placeholder="Pazarlama Müdürü, Koç Holding"></div></div></div>`; };
 
   c.innerHTML=`<div class="sec-head">
-      <div><h3>Anasayfa Karşılama Bölümü</h3><p class="sub">Ziyaretçinin siteyi ilk açtığında gördüğü tanıtım alanı</p></div>
-      <button class="btn btn-primary btn-sm" onclick="h2Save()">Kaydet</button></div>
+      <div><h3>Anasayfa</h3><p class="sub">Ziyaretçinin ilk gördüğü ekranı buradan yönetin</p></div>
+      <button class="btn btn-primary btn-sm" onclick="hmSave()">Kaydet</button></div>
 
-    <div class="sec-card">
-      <label class="switch"><input type="checkbox" id="h2en" ${ui._h2.enabled?'checked':''}><span class="sl"></span><span class="txt">Karşılama bölümünü göster</span></label>
-      <p class="muted" style="font-size:12.5px;margin:10px 0 0">Kapatırsan ziyaretçi doğrudan mecra kartlarını görür. Arama veya filtre yapıldığında bu bölüm zaten otomatik gizlenir.</p>
-    </div>
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Harita ve arama</label>
+      <label class="switch" style="margin-bottom:12px"><input type="checkbox" id="hmap" ${ui._home.map.enabled?'checked':''}><span class="sl"></span><span class="txt">Anasayfada haritayı göster</span></label>
+      <p class="muted" style="font-size:12.5px;margin:0 0 12px">Harita yalnızca konumu işaretlenmiş pozisyon varsa görünür. Henüz işaretleme yapmadıysanız <b>Harita</b> bölümünden başlayın; o zamana kadar sayfa doğrudan sayaç ve kartlarla açılır.</p>
+      <div class="field"><label class="flabel">Harita altyapısı</label>
+        <select class="inp" id="hmeng" style="max-width:330px">
+          <option value="auto" ${ui._home.map.engine==='auto'?'selected':''}>Google Maps (anahtar varsa)</option>
+          <option value="osm" ${ui._home.map.engine==='osm'?'selected':''}>OpenStreetMap (ücretsiz, kota harcamaz)</option>
+        </select>
+        <p class="muted" style="font-size:12px;margin:6px 0 0">Anasayfa en çok açılan sayfadır; Google seçilirse her ziyaret günlük kotanızdan düşer. Kota dolarsa harita otomatik olarak OpenStreetMap'e döner, sayfa çökmez.</p></div>
+      <div class="field"><label class="flabel">Harita üzerindeki başlık</label><input class="inp" id="hsb" value="${esc(ui._home.search.baslik)}" placeholder="Adana'nın her noktasında reklam alanı"></div>
+      <div class="field"><label class="flabel">Alt metin</label><input class="inp" id="hsa" value="${esc(ui._home.search.alt)}" placeholder="Lokasyon, reklam alanı veya pozisyon arayın"></div>
+      <div class="field"><label class="flabel">Arama kutusu ipucu</label><input class="inp" id="hsp" value="${esc(ui._home.search.placeholder)}" placeholder="Örn. M1 AVM, billboard, durak"></div>
+      <p class="muted" style="font-size:12px;margin:0">Arama kutusunun altındaki filtre düğmeleri ürünlerinizden otomatik oluşur. İkonlarını <b>Ürünler</b> bölümünden seçebilirsiniz.</p></div>
 
-    <div class="sec-card"><h4 style="font-size:14px;margin:0 0 12px">Metinler</h4>
-      <div class="field"><label class="flabel">Başlık / slogan</label><input class="inp" id="h2t" value="${esc(ui._h2.title)}" placeholder="Adana Açık Hava Reklam Mecralarını Keşfedin"></div>
-      <div class="field"><label class="flabel">Alt metin (opsiyonel)</label><textarea class="inp" id="h2s" placeholder="Kısa tanıtım cümlesi…">${esc(ui._h2.sub)}</textarea></div>
-      <div class="field" style="max-width:260px"><label class="flabel">Buton yazısı</label><input class="inp" id="h2b" value="${esc(ui._h2.btn)}"></div>
-      <p class="muted" style="font-size:12px;margin:0">Butona basınca sayfa aşağıdaki mecra kartlarına yumuşak biçimde kayar.</p>
-    </div>
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Sayaç bölümü (haritanın altı, solda)</label>
+      <div class="row2"><div class="field"><label class="flabel">Üst etiket</label><input class="inp" id="hse" value="${esc(ui._home.stats.eyebrow)}" placeholder="GÜVENİLİR İŞ ORTAĞI"></div>
+      <div class="field"><label class="flabel">Başlık</label><input class="inp" id="hsh" value="${esc(ui._home.stats.baslik)}" placeholder="Adana'nın en geniş açık hava ağı"></div></div>
+      <label class="flabel">Sayaçlar (en fazla 4)</label>
+      ${[0,1,2,3].map(sayac).join('')}
+      <p class="muted" style="font-size:12px;margin:2px 0 10px">Sayıdaki rakamlar sayfa açılırken animasyonla artar; artı gibi işaretler sabit kalır.</p>
+      <div class="field"><label class="flabel">Açıklama (opsiyonel)</label><textarea class="inp" id="hsd">${esc(ui._home.stats.alt)}</textarea></div></div>
 
-    <div class="sec-card"><h4 style="font-size:14px;margin:0 0 6px">Pano görseli</h4>
-      <p class="muted" style="font-size:12.5px;margin:0 0 12px">Ortada açılı duran reklam panosunun içinde görünecek görsel. Fikir vermesi için Adana haritası, örnek bir kampanya görseli vb. Yatay (16:9) hazırlamak en iyisi.</p>
-      ${imgField('h2bd', ui._h2.board, 'Pano görseli')}
-      ${imgField('h2bdm', ui._h2.boardMobil, 'Pano görseli — MOBİL sürüm (opsiyonel)')}
-    </div>
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Referanslar (sayaçların sağında)</label>
+      <div class="field"><label class="flabel">Bölüm başlığı</label><input class="inp" id="htb" value="${esc(ui._home.trusted.baslik)}" placeholder="BİZE GÜVENENLER"></div>
+      ${[0,1,2,3].map(kart).join('')}</div>
 
-    <div class="sec-card"><h4 style="font-size:14px;margin:0 0 6px">Çevredeki fotoğraflar</h4>
-      <p class="muted" style="font-size:12.5px;margin:0 0 12px">En fazla 4 adet. Masaüstünde panonun çevresinde serbest durur, fare gezdikçe hafifçe hareket eder. Tablette 2'si, telefonda hiçbiri görünmez (sayfa ağırlaşmasın diye).</p>
-      ${[0,1,2,3].map(kart).join('')}
-    </div>
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Katalog başlığı (kartların üstü)</label>
+      <div class="field"><label class="flabel">Başlık</label><input class="inp" id="hkb" value="${esc(ui._home.katalog.baslik)}" placeholder="Reklam Alanlarımız"></div>
+      <div class="field"><label class="flabel">Alt metin</label><input class="inp" id="hka" value="${esc(ui._home.katalog.alt)}"></div></div>
 
-    <div class="sec-card"><h4 style="font-size:14px;margin:0 0 6px">Alt rozetler</h4>
-      <p class="muted" style="font-size:12.5px;margin:0 0 12px">Örnek: "81+ Reklam Alanı", "12 Yıl Tecrübe". Boş bırakırsan bu satır görünmez.</p>
-      ${[0,1,2].map(rozet).join('')}
-    </div>
-
-    <button class="btn btn-primary btn-sm" onclick="h2Save()">Kaydet</button>`;
+    <button class="btn btn-primary btn-sm" onclick="hmSave()">Kaydet</button>`;
 }
-function h2CardClear(i){ ['h2c','h2cm','h2cl'].forEach(p=>{const e=document.getElementById(p+i); if(e)e.value='';});
-  const s=document.getElementById('h2cs'+i); if(s)s.value=''; }
-async function h2Save(){
-  const cards=[],stats=[];
-  for(let i=0;i<4;i++){ const img=gv('h2c'+i).trim();
-    if(img) cards.push({img,imgMobil:gv('h2cm'+i).trim(),label:gv('h2cl'+i).trim(),mecraId:gv('h2cs'+i)||null}); }
-  for(let i=0;i<3;i++){ const n=gv('h2sn'+i).trim(), l=gv('h2sl'+i).trim(); if(n||l) stats.push({n,l}); }
-  await api('settings_save',{hero2:{
-    enabled:document.getElementById('h2en').checked,
-    title:gv('h2t'),sub:gv('h2s'),btn:gv('h2b')||'Başla',
-    board:gv('h2bd'),boardMobil:gv('h2bdm'),cards,stats}});
-  alert('Kaydedildi. Siteyi Ctrl+F5 ile yenileyin.');
+function hmKartTemizle(i){ ['tq','tt','tn','tr'].forEach(p=>{const e=document.getElementById(p+i); if(e)e.value='';}); }
+async function hmSave(){
+  const items=[],tr=[];
+  for(let i=0;i<4;i++){ const n=gv('hn'+i).trim(), l=gv('hl'+i).trim(); if(n||l) items.push({n,label:l}); }
+  for(let i=0;i<4;i++){ const q=gv('tt'+i).trim(), nm=gv('tn'+i).trim(), im=gv('tq'+i).trim();
+    if(q||nm||im) tr.push({img:im,quote:q,name:nm,role:gv('tr'+i).trim()}); }
+  await api('settings_save',{home:{
+    map:{enabled:document.getElementById('hmap').checked,engine:gv('hmeng')||'auto'},
+    search:{baslik:gv('hsb'),alt:gv('hsa'),placeholder:gv('hsp')},
+    katalog:{baslik:gv('hkb'),alt:gv('hka')},
+    stats:{eyebrow:gv('hse'),baslik:gv('hsh'),alt:gv('hsd'),items},
+    trusted:{baslik:gv('htb'),items:tr}
+  }});
+  toast('Anasayfa kaydedildi. Siteyi Ctrl+F5 ile yenileyin.');
 }
 
 /* ---------- MECRALAR ---------- */
