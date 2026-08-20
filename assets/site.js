@@ -138,7 +138,7 @@ function altPerMonth(alt,p){ const f=alt&&alt.fiyat; if(f&&f.baz!=null&&f.baz!==
 /* Sitenin kök dizini script yolundan otomatik bulunur (alt klasörde de çalışır) */
 const BASE=(function(){
   const p=location.pathname;
-  const m=p.match(/^(.*?)\/(?:mecra|sayfa|harita)(?:\/|$)/);
+  const m=p.match(/^(.*?)\/(?:mecra|sayfa|harita|nerelerdeyiz)(?:\/|$)/);
   return m ? m[1]+'/' : p.replace(/[^\/]*$/,'');
 })();
 
@@ -154,7 +154,7 @@ function viewPath(v){
   if(v.type==='mec'){ const m=mec(v.id); return m?`mecra/${mSlug(m)}`:''; }
   if(v.type==='alt'){ const m=mec(v.mecId), a=(D.altById||{})[v.altId];
     return (m&&a)?`mecra/${mSlug(m)}/${aSlug(a)}`:''; }
-  if(v.type==='map') return 'harita';
+  if(v.type==='map') return 'nerelerdeyiz';
   if(v.type==='page') return `sayfa/${v.slug}`;
   return '';
 }
@@ -165,7 +165,7 @@ function pathToView(pathname){
   p=p.replace(/^\/+|\/+$/g,'').replace(/\.html$/,'');
   if(!p) return {type:'home'};
   const seg=p.split('/');
-  if(seg[0]==='harita') return {type:'map'};
+  if(seg[0]==='nerelerdeyiz'||seg[0]==='harita') return {type:'map'};
   if(seg[0]==='sayfa'&&seg[1]) return {type:'page',slug:seg[1]};
   if(seg[0]==='mecra'&&seg[1]){
     const m=D.mecralar.find(x=>mSlug(x)===seg[1]);
@@ -254,14 +254,24 @@ function homeKartlar(){
 function renderHome(q){
   if(typeof q==='string') homeQ=q;
   const H=(D.settings||{}).home||{};
-  const cards=homeKartlar();
+  const g=H.grid||{}; const sut=+g.cols||3, sat=+g.rows||2;
+  const limit=Math.max(1,sut*sat);
+  const list=homeListe();
+  const cards=list.slice(0,limit).map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
+    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m));}).join('')
+    || '<p class="muted">Aramanıza uygun sonuç bulunamadı.</p>';
+  const k=H.katalog||{};
+  const daha = list.length>limit || D.mecralar.length>limit;
 
   app().innerHTML=`${homeMapBlock(H)}${statsBlock(H)}
-    <div class="wrap"><section class="hero compact" id="katalog">
-      <h2>${esc((H.katalog&&H.katalog.baslik)||'Reklam Alanlarımız')}</h2>
-      ${(H.katalog&&H.katalog.alt)?`<p>${esc(H.katalog.alt)}</p>`:''}
-    </section>
-    <div class="grid3" id="cardGrid">${cards||'<p class="muted">Aramanıza uygun sonuç bulunamadı.</p>'}</div></div>`;
+    <div class="wrap">
+      <section class="hero compact katbas">
+        <h2>${esc(k.baslik||'Adana’nın En Stratejik Noktalarında Markanızı Konumlandırın')}</h2>
+        ${k.alt?`<p>${esc(k.alt)}</p>`:''}
+      </section>
+      <div class="grid3" id="cardGrid" style="--cols:${sut}">${cards}</div>
+      ${daha?`<div class="tumu"><a href="${BASE}nerelerdeyiz" onclick="openMapPage();return false;">TÜMÜNÜ GÖR <span>›</span></a></div>`:''}
+    </div>`;
   if(homeMapAktif(H)) initHomeMap(H);
   sayacBaslat();
 }
@@ -273,46 +283,44 @@ function homeMapAktif(H){
 function homeMapBlock(H){
   if(!homeMapAktif(H)) return '';
   const s=H.search||{};
-  const pins=allPins();
-  const kullanilan=new Set();
-  D.mecralar.forEach(m=>(m.alts||[]).forEach(a=>{ if(a.product_id)kullanilan.add(String(a.product_id)); }));
-  const urunler=D.products.filter(p=> pins.length
-    ? pins.some(x=>String(x.productId)===String(p.id))
-    : kullanilan.has(String(p.id)));
-  const cipler=urunler.map(p=>`<button class="hs-chip ${String(view.filter)===String(p.id)?'on':''}"
-      onclick="homeFiltre('${p.id}')">${uIkon(p.ikon,15)}<span>${esc(p.name)}</span></button>`).join('');
-  return `<section class="mapintro">
-      <h1>${esc(s.baslik||'Adana’nın her noktasında reklam alanı')}</h1>
-      ${s.alt?`<p>${esc(s.alt)}</p>`:''}
-    </section>
-    <section class="homemap">
+  const adim=(s.adimlar||'Alanı Seç - Sepete Ekle - Teklif Al').split('-').map(x=>x.trim()).filter(Boolean);
+  const yuk=parseInt((H.map||{}).height||800,10);
+  return `<section class="homemap" style="--mh:${yuk}px">
       <div id="homeMap" class="hm-canvas"></div>
-      <div class="hm-bar">
-        <div class="hm-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
-          <input id="homeSearch" value="${esc(homeQ)}" placeholder="${esc(s.placeholder||'Lokasyon, reklam alanı veya pozisyon ara')}" oninput="homeAra(this.value)">
-          <button class="hm-x" onclick="document.getElementById('homeSearch').value='';homeAra('')" title="Temizle" style="${homeQ?'':'display:none'}">×</button>
+    </section>
+    <div class="hm-dock">
+      <div class="hm-card">
+        ${adim.length?`<div class="hm-steps">${adim.map((a,i)=>`<span>${esc(a)}</span>`).join('<i>–</i>')}</div>`:''}
+        <div class="hm-row">
+          <div class="hm-search">
+            <input id="homeSearch" value="${esc(homeQ)}" placeholder="${esc(s.placeholder||'Lokasyon, reklam alanı veya pozisyon ara')}" oninput="homeAra(this.value)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+          </div>
+          <a class="hm-all" href="${BASE}nerelerdeyiz" onclick="openMapPage();return false;">
+            <span id="hmInfo"><b id="hmCount">0</b> alan</span> · Nerelerdeyiz →</a>
         </div>
-        ${cipler?`<div class="hm-chips">
-          <button class="hs-chip ${view.filter?'':'on'}" onclick="homeFiltre('')">Tümü</button>${cipler}</div>`:''}
-        <span class="hm-sep"></span>
-        <span id="hmInfo" class="hm-info"><b id="hmCount">0</b> alan</span>
-        <a class="hm-all" href="${BASE}harita" onclick="openMapPage();return false;">Tam ekran →</a>
+        ${cipSatiri('homeFiltre')}
       </div>
-    </section>`;
+    </div>`;
 }
 let homeQ='', homeMapObj=null, homeCluster=null;
 /* Arama/filtre değişince tüm sayfa yeniden çizilmez: yalnızca kartlar,
    pinler ve düğme durumları güncellenir. Harita yerinde kalır, sayaç sıfırlanmaz. */
 function homeTazele(){
-  const g=document.getElementById('cardGrid'); if(g) g.innerHTML=homeKartlar();
+  const H=(D.settings||{}).home||{}; const gg=H.grid||{};
+  const limit=Math.max(1,(+gg.cols||3)*(+gg.rows||2));
+  const g=document.getElementById('cardGrid');
+  if(g){ const list=homeListe();
+    g.innerHTML=list.slice(0,limit).map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
+      return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m));}).join('')
+      || '<p class="muted">Aramanıza uygun sonuç bulunamadı.</p>'; }
   homePinTazele();
-  document.querySelectorAll('.hm-chips .hs-chip').forEach(b=>{
+  document.querySelectorAll('.hm-card .hs-chip').forEach(b=>{
     const t=(b.getAttribute('onclick')||'').match(/homeFiltre\('([^']*)'\)/);
     if(!t)return; const v=t[1];
     b.classList.toggle('on', v ? String(view.filter)===String(v) : !view.filter);
   });
-  const x=document.querySelector('.hm-x'); if(x) x.style.display=homeQ?'':'none';
+  const x=document.querySelector('.hm-card .hm-x'); if(x) x.style.display=homeQ?'':'none';
 }
 function homeAra(v){ homeQ=v||'';
   if(document.getElementById('homeMap')) homeTazele(); else renderHome(); }
@@ -373,8 +381,8 @@ function homePinTazele(){
   const c=document.getElementById('hmCount'); if(c)c.textContent=list.length;
   const inf=document.getElementById('hmInfo');
   if(inf) inf.innerHTML = allPins().length
-    ? `<b id="hmCount">${list.length}</b> alan haritada`
-    : 'Reklam alanlarımız yakında haritada';
+    ? `<b id="hmCount">${list.length}</b> alan`
+    : 'Yakında haritada';
   if(homeEngine==='google'){
     if(!hgHome)return;
     if(hgHomeCl)hgHomeCl.clearMarkers();
@@ -402,28 +410,18 @@ function homePinTazele(){
 
 /* ---- sayaç + referanslar ---- */
 function statsBlock(H){
-  const st=H.stats||{}, tr=H.trusted||{};
+  const st=H.stats||{};
   const sayac=(st.items||[]).filter(x=>x&&(x.n||x.label));
-  const kart=(tr.items||[]).filter(x=>x&&(x.quote||x.name));
-  if(!sayac.length && !kart.length) return '';
+  if(!sayac.length) return '';
   return `<section class="statsrow">
-    <div class="sr-l">
-      ${st.eyebrow?`<span class="sr-eye">${esc(st.eyebrow)}</span>`:''}
-      ${st.baslik?`<h2 class="sr-h">${esc(st.baslik)}</h2>`:''}
-      ${sayac.length?`<div class="sr-nums">${sayac.map(x=>`<div class="sr-n">
-        <div class="sr-num"><b class="cnt2" data-to="${esc(String(x.n||'0').replace(/[^\d]/g,''))}">0</b><i>${esc(String(x.n||'').replace(/[\d.]/g,'').trim())}</i></div>
-        <span>${esc(x.label||'')}</span></div>`).join('')}</div>`:''}
-      ${st.alt?`<p class="sr-p">${esc(st.alt)}</p>`:''}
-    </div>
-    ${kart.length?`<div class="sr-r">
-      ${tr.baslik?`<div class="tb-h">${esc(tr.baslik)}</div>`:''}
-      <div class="tcards">${kart.slice(0,4).map(x=>`<article class="tcard">
-        <div class="tc-img">${x.img?`<img src="${esc(x.img)}" alt="${esc(x.name||'')}" loading="lazy">`:''}<span class="tc-sc"></span></div>
-        <div class="tc-b"><p class="tc-q">${esc(x.quote||'')}</p>
-          <p class="tc-n">— ${esc(x.name||'')}</p>
-          ${x.role?`<p class="tc-r">${esc(x.role)}</p>`:''}</div></article>`).join('')}</div></div>`:''}
+    ${st.eyebrow?`<span class="sr-eye">${esc(st.eyebrow)}</span>`:''}
+    <div class="sr-nums">${sayac.map(x=>`<div class="sr-n">
+      <div class="sr-num"><b class="cnt2" data-to="${esc(String(x.n||'0').replace(/[^\d]/g,''))}">0</b><i>${esc(String(x.n||'').replace(/[\d.]/g,'').trim())}</i></div>
+      <span>${esc(x.label||'')}</span></div>`).join('')}</div>
+    ${st.alt?`<p class="sr-p">${esc(st.alt)}</p>`:''}
   </section>`;
 }
+
 function sayacBaslat(){
   const els=[...document.querySelectorAll('.cnt2')];
   if(!els.length)return;
@@ -776,9 +774,30 @@ function renderPage(slug){
   if(slug==='iletisim'){ const s=D.settings; inner+=`<div class="pg-contact"><div><b>Telefon:</b> ${esc(s.phone||'')}</div><div><b>E-Posta:</b> ${esc(s.email||'')}</div><div><b>Adres:</b> ${esc(s.address||'')}</div></div>`; }
   app().innerHTML=`<div class="pg-top"><div class="pg-crumb">${nav}</div><h1 class="pg-title">${esc(pg.title||'')}</h1></div>${inner}`;
 }
-function renderMenu(){ const el=document.getElementById('menuPages'); if(!el)return; el.innerHTML=(D.pages||[]).filter(p=>p.in_menu!==false).map(p=>`<a href="${BASE}sayfa/${esc(p.slug)}" onclick="openPage('${p.slug}');closeMenu();return false;">${esc(p.title||p.slug)}</a>`).join(''); }
-
-/* ---- sepet çekmecesi ---- */
+/* ---- header menüsü (panelden yönetilir) ---- */
+function menuLink(it,kapat){
+  const t=it.type||'sayfa', v=it.value||'', lbl=esc(it.label||'');
+  const kp=kapat?'closeMenu();':'';
+  if(t==='sayfa'){ const p=(D.pages||[]).find(x=>x.slug===v);
+    return `<a href="${BASE}sayfa/${esc(v)}" onclick="openPage('${esc(v)}');${kp}return false;">${lbl||esc((p||{}).title||v)}</a>`; }
+  if(t==='nerede') return `<a href="${BASE}nerelerdeyiz" onclick="openMapPage();${kp}return false;">${lbl||'Nerelerdeyiz'}</a>`;
+  if(t==='anasayfa') return `<a href="${BASE}" onclick="goHome();${kp}return false;">${lbl||'Anasayfa'}</a>`;
+  if(t==='mecra'){ const m=mec(v); if(!m)return '';
+    return `<a href="${BASE}mecra/${mSlug(m)}" onclick="openMec('${m.id}');${kp}return false;">${lbl||esc(m.name)}</a>`; }
+  if(t==='pdf'){ const u=(D.settings||{}).catalogPdf; return u?`<a href="${esc(u)}" download>${lbl||'PDF Katalog'}</a>`:''; }
+  if(!v) return '';
+  return `<a href="${esc(v)}" target="_blank" rel="noopener">${lbl||esc(v)}</a>`;
+}
+function renderMenu(){
+  const cfg=(D.settings||{}).menu;
+  const items=(cfg&&Array.isArray(cfg.items)&&cfg.items.length)
+    ? cfg.items.filter(i=>i&&i.show!==false)
+    : (D.pages||[]).filter(p=>p.in_menu!==false).map(p=>({label:p.title||p.slug,type:'sayfa',value:p.slug}));
+  const ust=document.getElementById('navMenu');
+  if(ust) ust.innerHTML=items.map(i=>menuLink(i,false)).join('');
+  const el=document.getElementById('menuPages');
+  if(el) el.innerHTML=items.map(i=>menuLink(i,true)).join('');
+}
 function removeItem(i){ const it=cart[i]; cart.splice(i,1); badge(); renderCart(); if(view.type==='alt'){ if(it)updateCell(it.unitId,it.ym); renderSepetInline(); } }
 function badge(){ const b=document.getElementById('cbadge'); if(!b)return; if(cart.length){b.style.display='flex';b.textContent=cart.length;}else b.style.display='none'; }
 const cartTotal=()=>cart.reduce((s,c)=>s+(c.price||0),0);
@@ -868,9 +887,13 @@ function pinMatches(p){
 
 /* --- filtre çubuğu --- */
 function mapFilterBar(){
-  const urunler=[]; const mecralar=[];
-  D.products.forEach(p=>{ if(mapPinsCache.some(x=>String(x.productId)===String(p.id))) urunler.push(p); });
-  D.mecralar.forEach(m=>{ if(mapPinsCache.some(x=>String(x.mecId)===String(m.id))) mecralar.push(m); });
+  const varPin=mapPinsCache.length>0;
+  const kullanilanU=new Set(), kullanilanM=new Set();
+  D.mecralar.forEach(m=>(m.alts||[]).forEach(a=>{ if(a.product_id){kullanilanU.add(String(a.product_id));kullanilanM.add(String(m.id));} }));
+  const urunler=D.products.filter(p=>varPin
+    ? mapPinsCache.some(x=>String(x.productId)===String(p.id)) : kullanilanU.has(String(p.id)));
+  const mecralar=D.mecralar.filter(m=>varPin
+    ? mapPinsCache.some(x=>String(x.mecId)===String(m.id)) : kullanilanM.has(String(m.id)));
   const aylar=rollMonths().map(mo=>`<option value="${mo.ym}" ${mapF.ay===mo.ym?'selected':''}>${esc(mo.label)} ${mo.y}</option>`).join('');
   const chip=(dizi,val,lbl,grup)=>`<button class="mf-chip ${dizi.includes(val)?'on':''}" onclick="mfTog('${grup}','${val}')">${esc(lbl)}</button>`;
   const aktif=mapF.urun.length+mapF.mecra.length+mapF.yuzey.length+(mapF.isik?1:0)+((mapF.ay&&mapF.durum)?1:0);
@@ -879,7 +902,8 @@ function mapFilterBar(){
       Filtreler${aktif?` <b>${aktif}</b>`:''} <span class="mf-ar">▾</span></button>
     <div class="mf-body">
       <div class="mf-grp"><span class="mf-l">Reklam alanı</span><div class="mf-chips">
-        ${urunler.map(p=>chip(mapF.urun,String(p.id),p.name,'urun')).join('')||'<i class="mf-none">—</i>'}</div></div>
+        ${urunler.map(p=>`<button class="mf-chip ${mapF.urun.includes(String(p.id))?'on':''}"
+          onclick="mfTog('urun','${p.id}')">${uIkon(p.ikon,15)}<span>${esc(p.name)}</span></button>`).join('')||'<i class="mf-none">—</i>'}</div></div>
       <div class="mf-grp"><span class="mf-l">Lokasyon</span><div class="mf-chips">
         ${mecralar.map(m=>chip(mapF.mecra,String(m.id),m.name,'mecra')).join('')||'<i class="mf-none">—</i>'}</div></div>
       <div class="mf-grp"><span class="mf-l">Yüzey</span><div class="mf-chips">
@@ -913,9 +937,9 @@ function renderFilterBar(){
   try{ setMapMeta(mapPinsCache.filter(pinMatches).length); }catch(e){}
 }
 function mfTog(grup,val){ const a=mapF[grup]; const i=a.indexOf(val);
-  if(i>-1)a.splice(i,1); else a.push(val); refreshPins(); renderFilterBar(); }
-function mfSet(k,v){ mapF[k]=(mapF[k]===v)?'':v; refreshPins(); renderFilterBar(); }
-function mfClear(){ mapF={urun:[],mecra:[],yuzey:[],isik:'',ay:'',durum:''}; refreshPins(); renderFilterBar(); }
+  if(i>-1)a.splice(i,1); else a.push(val); refreshPins(); renderFilterBar(); ndKartTazele(); }
+function mfSet(k,v){ mapF[k]=(mapF[k]===v)?'':v; refreshPins(); renderFilterBar(); ndKartTazele(); }
+function mfClear(){ mapF={urun:[],mecra:[],yuzey:[],isik:'',ay:'',durum:''}; refreshPins(); renderFilterBar(); ndKartTazele(); }
 
 function pinIcon(color){ return L.divIcon({className:'pin-wrap',iconSize:[30,40],iconAnchor:[15,38],popupAnchor:[0,-34],
   html:`<span class="pin" style="--pc:${color}"></span>`}); }
@@ -1027,19 +1051,35 @@ function initLeafletMap(note){
 }
 
 function renderMap(){
-  const nav=`<a href="${BASE}" onclick="goHome();return false;">Medyapark Adana</a> <i>/</i> <span>Harita</span>`;
-  const s=D.settings||{};
-  app().innerHTML=`${banner({kapak:s.mapKapak||'',kapak_color:'#101014',kapak_opacity:0.45,kapak_height:220},'',nav)}
-    <div class="map-wrap">
-      <div class="map-head">
-        <div><h1 class="map-t">${esc(s.mapTitle||'Reklam Alanlarımız — Adana Haritası')}</h1>
-        <p class="map-d">${esc(s.mapDesc||'Üstteki arama ve Filtrele menüsü haritada da çalışır. Pinlere tıklayarak alan bilgisini görebilir, detay sayfasına geçebilirsiniz.')}</p></div>
+  const H=(D.settings||{}).home||{};
+  const nav=`<a href="${BASE}" onclick="goHome();return false;">Anasayfa</a> <i>/</i> <span>Nerelerdeyiz</span>`;
+  const st=D.settings||{};
+  const N=H.nerede||{};
+  app().innerHTML=`
+    <section class="mapintro nd-intro">
+      <div class="crumbs" style="justify-content:center">${nav}</div>
+      <h1>${esc(N.baslik||'Nerelerdeyiz')}</h1>
+      ${(N.alt||'')?`<p>${esc(N.alt)}</p>`:`<p>Adana genelindeki tüm reklam alanlarımızı harita üzerinde inceleyin, aşağıdaki listeden detaylara geçin.</p>`}
+    </section>
+    <section class="homemap nd-map">
+      <div id="mapCanvas" class="hm-canvas"></div>
+      <div class="hm-bar">
+        <div class="hm-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+          <input id="ndSearch" value="${esc(mapQuery)}" placeholder="Lokasyon, reklam alanı veya pozisyon ara" oninput="ndAra(this.value)">
+          <button class="hm-x" onclick="document.getElementById('ndSearch').value='';ndAra('')" title="Temizle" style="${mapQuery?'':'display:none'}">×</button>
+        </div>
+        <span class="hm-sep"></span>
+        <span class="hm-info"><b id="mapCount">0</b> alan</span>
       </div>
-      <div id="mfWrap"></div>
-      <div id="mapCanvas" class="map-canvas"></div>
-      <div id="mapEmpty" class="map-empty" style="display:none">Bu arama/filtre için konumu işaretlenmiş alan bulunamadı.</div>
       <div id="mapNote" class="map-note" style="display:none"></div>
-      <p class="muted" style="font-size:12.5px;margin:12px 2px 60px">Yakınlaştırdıkça gruplanmış pinler ayrışır. Sayılı daireler o bölgedeki alan sayısını gösterir.</p>
+    </section>
+    <div class="wrap">
+      <div id="mfWrap"></div>
+      <section class="hero compact"><h2>Tüm Lokasyonlar</h2>
+        <p id="ndSay">${D.mecralar.length} lokasyon</p></section>
+      <div class="grid3" id="ndGrid">${ndKartlar()}</div>
+      <div style="height:60px"></div>
     </div>`;
   mapPinsCache=allPins();
   renderFilterBar();
@@ -1053,6 +1093,54 @@ function renderMap(){
     } else { initLeafletMap(); }
   },60);
 }
+/* ortak çip satırı: hem anasayfa hem nerelerdeyiz kullanır */
+function cipSatiri(fn){
+  const pins=allPins();
+  const kullanilan=new Set();
+  D.mecralar.forEach(m=>(m.alts||[]).forEach(a=>{ if(a.product_id)kullanilan.add(String(a.product_id)); }));
+  const urunler=D.products.filter(p=> pins.length
+    ? pins.some(x=>String(x.productId)===String(p.id))
+    : kullanilan.has(String(p.id)));
+  if(!urunler.length) return '';
+  return `<div class="hm-chips">
+    <button class="hs-chip ${view.filter?'':'on'}" onclick="${fn}('')">Tümü</button>
+    ${urunler.map(p=>`<button class="hs-chip ${String(view.filter)===String(p.id)?'on':''}"
+      onclick="${fn}('${p.id}')">${uIkon(p.ikon,15)}<span>${esc(p.name)}</span></button>`).join('')}</div>`;
+}
+/* nerelerdeyiz: kart listesi haritayla birlikte süzülür */
+function ndListe(){
+  const q=(mapQuery||'').trim().toLowerCase();
+  let list=D.mecralar.slice();
+  if(view.filter) list=list.filter(m=>(m.alts||[]).some(a=>String(a.product_id)===String(view.filter)));
+  if(mapF.urun.length) list=list.filter(m=>(m.alts||[]).some(a=>mapF.urun.includes(String(a.product_id))));
+  if(mapF.mecra.length) list=list.filter(m=>mapF.mecra.includes(String(m.id)));
+  if(q) list=list.filter(m=>{
+    const havuz=[m.name,...(m.alts||[]).flatMap(a=>[a.name,(a.product||{}).name,(a.product||{}).etiketler])].filter(Boolean).join(' ');
+    return havuz.toLocaleLowerCase('tr').includes(q) || esAnlamEslesti(q,havuz); });
+  return list;
+}
+function ndKartlar(){
+  const list=ndListe();
+  return list.map(m=>{ const sub=[m.gunluk_gosterim,m.toplam_alan].filter(Boolean).join(' · ');
+    return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m));}).join('')
+    || '<p class="muted">Aramanıza uygun lokasyon bulunamadı.</p>';
+}
+function ndKartTazele(){
+  const g=document.getElementById('ndGrid'); if(g) g.innerHTML=ndKartlar();
+  const c=document.getElementById('ndSay'); if(c) c.textContent=ndListe().length+' lokasyon';
+}
+function ndTazele(){
+  ndKartTazele();
+  refreshPins();
+  document.querySelectorAll('.hm-bar .hs-chip').forEach(b=>{
+    const t=(b.getAttribute('onclick')||'').match(/ndFiltre\('([^']*)'\)/);
+    if(!t)return; const v=t[1];
+    b.classList.toggle('on', v ? String(view.filter)===String(v) : !view.filter); });
+  const x=document.querySelector('.nd-map .hm-x'); if(x) x.style.display=mapQuery?'':'none';
+}
+function ndAra(v){ mapQuery=v||''; ndTazele(); }
+function ndFiltre(id){ view.filter=id||null; ndTazele(); buildFilter&&buildFilter(); }
+
 
 /* ---- kısa bildirim ---- */
 let _tT=null;
