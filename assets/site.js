@@ -283,26 +283,40 @@ function homeMapAktif(H){
 function homeMapBlock(H){
   if(!homeMapAktif(H)) return '';
   const s=H.search||{};
-  const adim=(s.adimlar||'Alanı Seç - Sepete Ekle - Teklif Al').split('-').map(x=>x.trim()).filter(Boolean);
+  const adim=(s.adimlar||'Reklam Alanı Seç - Sepete At - Teklif Al').split('-').map(x=>x.trim()).filter(Boolean);
   const yuk=parseInt((H.map||{}).height||800,10);
+  const secili=view.filter?(D.products.find(p=>String(p.id)===String(view.filter))||{}).name:'';
   return `<section class="homemap" style="--mh:${yuk}px">
       <div id="homeMap" class="hm-canvas"></div>
     </section>
     <div class="hm-dock">
       <div class="hm-card">
-        ${adim.length?`<div class="hm-steps">${adim.map((a,i)=>`<span>${esc(a)}</span>`).join('<i>–</i>')}</div>`:''}
+        ${adim.length?`<div class="hm-steps">${adim.map(a=>`<span>${esc(a)}</span>`).join('<i>-</i>')}</div>`:''}
         <div class="hm-row">
           <div class="hm-search">
-            <input id="homeSearch" value="${esc(homeQ)}" placeholder="${esc(s.placeholder||'Lokasyon, reklam alanı veya pozisyon ara')}" oninput="homeAra(this.value)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+            <input id="homeSearch" value="${esc(homeQ)}" placeholder="${esc(s.placeholder||'Ürün, Mecra, Lokasyon')}" oninput="homeAra(this.value)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
           </div>
-          <a class="hm-all" href="${BASE}nerelerdeyiz" onclick="openMapPage();return false;">
-            <span id="hmInfo"><b id="hmCount">0</b> alan</span> · Nerelerdeyiz →</a>
+          <div class="hm-filt">
+            <button class="hm-fbtn" onclick="homeFiltMenu(event)">
+              <span>${esc(secili||'Filtrele')}</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5h18l-7 8v5l-4 2v-7z"/></svg>
+            </button>
+            <div class="hm-fmenu" id="homeFMenu">${homeFiltSecenek()}</div>
+          </div>
         </div>
-        ${cipSatiri('homeFiltre')}
       </div>
     </div>`;
 }
+function homeFiltSecenek(){
+  const kullanilan=new Set();
+  D.mecralar.forEach(m=>(m.alts||[]).forEach(a=>{ if(a.product_id)kullanilan.add(String(a.product_id)); }));
+  const urunler=D.products.filter(p=>kullanilan.has(String(p.id)));
+  return `<button class="${view.filter?'':'on'}" onclick="homeFiltre('')">Tümü</button>`
+    + urunler.map(p=>`<button class="${String(view.filter)===String(p.id)?'on':''}" onclick="homeFiltre('${p.id}')">${esc(p.name)}</button>`).join('');
+}
+function homeFiltMenu(e){ e.stopPropagation();
+  const m=document.getElementById('homeFMenu'); if(m)m.classList.toggle('open'); }
 let homeQ='', homeMapObj=null, homeCluster=null;
 /* Arama/filtre değişince tüm sayfa yeniden çizilmez: yalnızca kartlar,
    pinler ve düğme durumları güncellenir. Harita yerinde kalır, sayaç sıfırlanmaz. */
@@ -315,16 +329,15 @@ function homeTazele(){
       return gcard(`openMec('${m.id}')`, m.name, sub, m.image, m.theme_color, 'Keşfet', m.image_mobil, BASE+'mecra/'+mSlug(m));}).join('')
       || '<p class="muted">Aramanıza uygun sonuç bulunamadı.</p>'; }
   homePinTazele();
-  document.querySelectorAll('.hm-card .hs-chip').forEach(b=>{
-    const t=(b.getAttribute('onclick')||'').match(/homeFiltre\('([^']*)'\)/);
-    if(!t)return; const v=t[1];
-    b.classList.toggle('on', v ? String(view.filter)===String(v) : !view.filter);
-  });
+  const fm=document.getElementById('homeFMenu'); if(fm) fm.innerHTML=homeFiltSecenek();
+  const fb=document.querySelector('.hm-fbtn span');
+  if(fb){ const p=view.filter?(D.products.find(x=>String(x.id)===String(view.filter))||{}).name:''; fb.textContent=p||'Filtrele'; }
   const x=document.querySelector('.hm-card .hm-x'); if(x) x.style.display=homeQ?'':'none';
 }
 function homeAra(v){ homeQ=v||'';
   if(document.getElementById('homeMap')) homeTazele(); else renderHome(); }
 function homeFiltre(id){ view.filter=id||null;
+  const m=document.getElementById('homeFMenu'); if(m)m.classList.remove('open');
   if(document.getElementById('homeMap')) homeTazele(); else renderHome(); }
 function homePinler(){
   const q=(homeQ||'').trim().toLowerCase();
@@ -350,7 +363,7 @@ function initHomeMap(H){
 function initHomeGoogle(){
   homeEngine='google';
   hgHome=new google.maps.Map(document.getElementById('homeMap'),{
-    center:{lat:ADANA[0],lng:ADANA[1]}, zoom:12,
+    center:{lat:ADANA[0],lng:ADANA[1]}, zoom:13,
     mapTypeControl:false, streetViewControl:false, fullscreenControl:true,
     scrollwheel:false, gestureHandling:'cooperative',
     styles:[{featureType:'poi.business',stylers:[{visibility:'off'}]},
@@ -367,7 +380,7 @@ function initHomeLeaflet(){
   const el=document.getElementById('homeMap'); if(!el||typeof L==='undefined')return;
   homeEngine='leaflet';
   if(homeMapObj){ try{homeMapObj.remove();}catch(e){} homeMapObj=null; }
-  homeMapObj=L.map('homeMap',{scrollWheelZoom:false,zoomControl:true,attributionControl:false}).setView(ADANA,12);
+  homeMapObj=L.map('homeMap',{scrollWheelZoom:false,zoomControl:true,attributionControl:false}).setView(ADANA,13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(homeMapObj);
   homeCluster=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:52,
     iconCreateFunction:c=>{ const n=c.getChildCount(); const sz=n<10?36:(n<50?44:52);
@@ -397,15 +410,15 @@ function homePinTazele(){
       list.forEach(p=>b.extend({lat:p.lat,lng:p.lng}));
       hgHome.fitBounds(b,{top:60,bottom:60,left:60,right:60});
       google.maps.event.addListenerOnce(hgHome,'idle',()=>{ if(hgHome.getZoom()>15)hgHome.setZoom(15); }); }
-    else { hgHome.setCenter({lat:ADANA[0],lng:ADANA[1]}); hgHome.setZoom(12); }
+    else { hgHome.setCenter({lat:ADANA[0],lng:ADANA[1]}); hgHome.setZoom(13); }
     return;
   }
   if(!homeCluster)return;
   homeCluster.clearLayers();
-  if(!list.length){ homeMapObj.setView(ADANA,12); return; }
+  if(!list.length){ homeMapObj.setView(ADANA,13); return; }
   homeCluster.addLayers(list.map(p=>L.marker([p.lat,p.lng],{icon:pinIcon(p.theme),title:p.mec+' · '+p.unit})
     .bindPopup(popupHTML(p),{maxWidth:270,minWidth:230})));
-  try{ homeMapObj.fitBounds(L.latLngBounds(list.map(p=>[p.lat,p.lng])).pad(0.2),{maxZoom:14}); }catch(e){}
+  try{ homeMapObj.fitBounds(L.latLngBounds(list.map(p=>[p.lat,p.lng])).pad(0.2),{maxZoom:15}); }catch(e){}
 }
 
 /* ---- sayaç + referanslar ---- */
@@ -1022,7 +1035,7 @@ function refreshPins(){
 
 function initGoogleMap(){
   gMap=new google.maps.Map(document.getElementById('mapCanvas'),{
-    center:{lat:ADANA[0],lng:ADANA[1]}, zoom:12,
+    center:{lat:ADANA[0],lng:ADANA[1]}, zoom:13,
     mapTypeControl:true, streetViewControl:true, fullscreenControl:true,
     styles:[{featureType:'poi.business',stylers:[{visibility:'simplified'}]}]});
   gInfo=new google.maps.InfoWindow({maxWidth:280});
@@ -1038,7 +1051,7 @@ function initGoogleMap(){
 function initLeafletMap(note){
   const el=document.getElementById('mapCanvas'); if(!el)return;
   if(typeof L==='undefined'){ el.innerHTML='<div class="map-empty">Harita yuklenemedi. Baglantinizi kontrol edip sayfayi yenileyin.</div>'; return; }
-  mapObj=L.map('mapCanvas',{scrollWheelZoom:true}).setView(ADANA,12);
+  mapObj=L.map('mapCanvas',{scrollWheelZoom:true}).setView(ADANA,13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap katkida bulunanlar'}).addTo(mapObj);
   clusterGrp=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:55,spiderfyOnMaxZoom:true,
     iconCreateFunction:function(c){ const n=c.getChildCount(); const sz=n<10?36:(n<50?44:52);
@@ -1215,5 +1228,6 @@ function gaPage(){
 
 function toggleMenu(e){e.stopPropagation();document.getElementById('menu').classList.toggle('open');}
 function closeMenu(){const m=document.getElementById('menu'); if(m)m.classList.remove('open'); const f=document.getElementById('filterMenu'); if(f)f.classList.remove('open');}
+document.addEventListener('click',function(){const m=document.getElementById('homeFMenu');if(m)m.classList.remove('open');});
 document.addEventListener('click',closeMenu);
 load();

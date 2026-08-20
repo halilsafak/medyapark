@@ -701,35 +701,35 @@ body{overflow-x:hidden;}
 .nd-map{--mh:min(70vh,620px);}
 .hm-canvas{position:absolute;inset:0;z-index:1;}
 
-/* haritanın alt kenarına oturan arama kartı */
-.hm-dock{position:relative;z-index:600;max-width:1290px;margin:-58px auto 0;padding:0 20px;}
-.hm-card{background:#fff;border-radius:20px;box-shadow:0 18px 50px -20px rgba(0,0,0,.35);
-  border:1px solid var(--line);padding:16px 20px 18px;max-width:760px;margin:0 auto;}
-.hm-steps{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
-  font-size:14px;font-weight:600;color:var(--ink);margin-bottom:13px;}
-.hm-steps i{font-style:normal;color:var(--ink3);font-weight:400;}
-.hm-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-.hm-search{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);
-  border-radius:999px;padding:0 8px 0 16px;height:44px;flex:1 1 260px;min-width:0;transition:.15s;}
-.hm-search:focus-within{border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,113,227,.12);}
-.hm-search svg{width:17px;height:17px;color:var(--ink3);flex:0 0 auto;}
-.hm-search input{flex:1;border:0;outline:0;font-size:14.5px;font-family:inherit;background:none;color:var(--ink);min-width:0;height:100%;}
-.hm-x{background:none;border:0;font-size:20px;color:var(--ink3);cursor:pointer;line-height:1;padding:0 4px;}
-.hm-x:hover{color:var(--ink);}
-.hm-all{font-size:13.5px;font-weight:600;color:var(--teal);
-  display:inline-flex;align-items:center;gap:5px;min-height:38px;padding:0 12px;border-radius:999px;
-  min-width:0;max-width:100%;}
-.hm-all:hover{background:var(--bg2);}
-.hm-all b{color:var(--ink);}
-.hm-chips{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:12px;}
-.hs-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:999px;
-  border:1px solid var(--line);background:#fff;font-size:13px;font-weight:500;color:var(--ink2);
-  cursor:pointer;transition:.14s;white-space:nowrap;}
-.hs-chip:hover{border-color:var(--ink3);color:var(--ink);}
-.hs-chip.on{background:var(--ink);border-color:var(--ink);color:#fff;}
-.ui-ic{flex:0 0 auto;}
-.hm-sep{flex:1 1 0;min-width:0;}
-.hm-info{font-size:13px;color:var(--ink2);white-space:nowrap;}
+/* haritanın alt kenarına oturan arama kartı — wireframe'e göre */
+.hm-dock{position:relative;z-index:600;max-width:1290px;margin:-62px auto 0;padding:0 20px;}
+.hm-card{background:#fff;border-radius:22px;box-shadow:0 18px 50px -22px rgba(0,0,0,.28);
+  padding:20px 26px 24px;}
+.hm-steps{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;
+  font-size:15px;font-weight:500;color:var(--ink);margin-bottom:16px;letter-spacing:-.01em;}
+.hm-steps i{font-style:normal;color:var(--ink3);}
+.hm-row{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;}
+.hm-search{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);
+  border-radius:999px;padding:0 18px;height:46px;flex:0 1 420px;min-width:0;transition:.15s;}
+.hm-search:focus-within{border-color:var(--ink3);}
+.hm-search input{flex:1;border:0;outline:0;font-size:15px;font-family:inherit;background:none;
+  color:var(--ink);min-width:0;height:100%;align-self:stretch;}
+.hm-search input::placeholder{color:var(--ink3);}
+.hm-search svg{width:18px;height:18px;color:var(--ink2);flex:0 0 auto;}
+.hm-filt{position:relative;flex:0 1 220px;}
+.hm-fbtn{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+  background:#fff;border:1px solid var(--line);border-radius:999px;padding:0 18px;height:46px;
+  font-size:15px;font-family:inherit;color:var(--ink3);cursor:pointer;transition:.15s;}
+.hm-fbtn:hover{border-color:var(--ink3);}
+.hm-fbtn svg{width:17px;height:17px;color:var(--ink2);flex:0 0 auto;}
+.hm-fmenu{position:absolute;left:0;right:0;top:calc(100% + 8px);background:#fff;border:1px solid var(--line);
+  border-radius:14px;box-shadow:0 16px 40px -14px rgba(0,0,0,.3);padding:6px;display:none;z-index:20;
+  max-height:280px;overflow-y:auto;}
+.hm-fmenu.open{display:block;}
+.hm-fmenu button{display:block;width:100%;text-align:left;padding:10px 14px;border-radius:9px;
+  font-size:14.5px;font-family:inherit;color:var(--ink2);background:none;border:0;cursor:pointer;}
+.hm-fmenu button:hover{background:var(--bg2);color:var(--ink);}
+.hm-fmenu button.on{background:var(--ink);color:#fff;font-weight:600;}
 
 /* nerelerdeyiz sayfasındaki çubuk harita üstünde kalır */
 .nd-map .hm-bar{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:500;
@@ -754,7 +754,8 @@ body{overflow-x:hidden;}
 @media(max-width:900px){
   .homemap{--mh:min(52vh,420px);}
   .hm-dock{margin-top:-46px;padding:0 14px;}
-  .hm-card{padding:14px 14px 16px;border-radius:16px;}
+  .hm-card{padding:16px 16px 18px;border-radius:18px;}
+  .hm-search{flex:1 1 100%;} .hm-filt{flex:1 1 100%;}
   .nd-map .hm-bar{border-radius:18px;padding:10px;}
   .nd-map .hm-sep{display:none;}
   .nd-map .hm-search{flex:1 1 100%;}
@@ -763,7 +764,9 @@ body{overflow-x:hidden;}
 @media(max-width:640px){
   .homemap{--mh:300px;}
   .hm-row{flex-direction:column;align-items:stretch;}
-  .hm-all{justify-content:center;flex-wrap:wrap;text-align:center;}
+  /* dikey akışta flex-basis yüksekliğe uygulanır; kutular ezilmesin */
+  .hm-search,.hm-filt,.nd-map .hm-search{flex:0 0 auto;width:100%;}
+  .hm-steps{font-size:13.5px;gap:8px;}
   .hm-dock{margin-top:-34px;}
   .hm-steps{font-size:13px;gap:7px;}
   .hm-search input{font-size:16px;}
