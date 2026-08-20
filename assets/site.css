@@ -678,32 +678,55 @@ body{overflow-x:hidden;}
 
 
 /* ================= ANASAYFA HARİTASI ================= */
-.homemap{position:relative;height:min(72vh,620px);margin-bottom:0;background:var(--bg2);}
+.mapintro{max-width:1290px;margin:0 auto;padding:34px 20px 18px;text-align:center;}
+.mapintro h1{font-size:clamp(22px,3vw,36px);font-weight:700;letter-spacing:-.03em;line-height:1.18;margin:0;}
+.mapintro p{font-size:clamp(14px,1.4vw,16.5px);color:var(--ink2);line-height:1.6;margin:12px auto 0;max-width:62ch;}
+
+.homemap{position:relative;height:min(68vh,600px);background:var(--bg2);
+  /* kenardan kenara: kapsayıcının yan boşluğundan taşır */
+  width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);}
 .hm-canvas{position:absolute;inset:0;z-index:1;}
-.hm-overlay{position:absolute;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;
-  padding:20px;pointer-events:none;}
-.hm-box{pointer-events:auto;width:min(620px,100%);background:rgba(255,255,255,.96);backdrop-filter:blur(14px);
-  border-radius:20px;padding:22px 24px;box-shadow:0 24px 60px -22px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.7);}
-.hm-t{font-size:clamp(19px,2.3vw,26px);font-weight:700;letter-spacing:-.025em;line-height:1.2;text-align:center;}
-.hm-sub{font-size:13.5px;color:var(--ink2);text-align:center;margin-top:7px;line-height:1.5;}
-.hm-search{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);
-  border-radius:999px;padding:0 16px;height:52px;margin-top:16px;transition:.15s;}
-.hm-search:focus-within{border-color:var(--teal);box-shadow:0 0 0 4px rgba(0,113,227,.12);}
-.hm-search svg{width:19px;height:19px;color:var(--ink3);flex:0 0 auto;}
-.hm-search input{flex:1;border:0;outline:0;font-size:15px;font-family:inherit;background:none;color:var(--ink);min-width:0;height:100%;align-self:stretch;}
-.hm-x{background:none;border:0;font-size:22px;color:var(--ink3);cursor:pointer;line-height:1;padding:0 2px;}
+/* haritanın alt kenarında ince çalışma çubuğu — merkez hep açık kalır */
+.hm-bar{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:500;
+  width:min(1100px,calc(100% - 32px));display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:rgba(255,255,255,.95);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.7);
+  border-radius:999px;padding:8px 10px 8px 8px;box-shadow:0 14px 40px -14px rgba(0,0,0,.4);}
+.hm-search{display:flex;align-items:center;gap:9px;background:var(--bg2);border-radius:999px;
+  padding:0 14px;height:42px;flex:1 1 240px;min-width:0;transition:.15s;}
+.hm-search:focus-within{background:#fff;box-shadow:0 0 0 2px var(--teal) inset;}
+.hm-search svg{width:17px;height:17px;color:var(--ink3);flex:0 0 auto;}
+.hm-search input{flex:1;border:0;outline:0;font-size:14.5px;font-family:inherit;background:none;color:var(--ink);min-width:0;height:100%;}
+.hm-x{background:none;border:0;font-size:20px;color:var(--ink3);cursor:pointer;line-height:1;padding:0 2px;}
 .hm-x:hover{color:var(--ink);}
-.hm-chips{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:13px;}
-.hs-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;
-  border:1px solid var(--line);background:#fff;font-size:13px;font-weight:500;color:var(--ink2);cursor:pointer;transition:.14s;}
+.hm-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.hs-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:999px;
+  border:1px solid var(--line);background:#fff;font-size:13px;font-weight:500;color:var(--ink2);
+  cursor:pointer;transition:.14s;white-space:nowrap;}
 .hs-chip:hover{border-color:var(--ink3);color:var(--ink);}
 .hs-chip.on{background:var(--ink);border-color:var(--ink);color:#fff;}
 .ui-ic{flex:0 0 auto;}
-.hm-foot{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;
-  margin-top:14px;padding-top:13px;border-top:1px solid var(--line2);font-size:13px;color:var(--ink2);}
-.hm-foot b{font-size:16px;color:var(--ink);}
-.hm-all{font-size:13px;font-weight:600;color:var(--teal);display:inline-flex;align-items:center;min-height:32px;padding:4px 6px;border-radius:8px;}
-.hm-all:hover{text-decoration:underline;}
+.hm-sep{flex:1 1 0;min-width:0;}
+.hm-info{font-size:13px;color:var(--ink2);white-space:nowrap;}
+.hm-info b{font-size:15px;color:var(--ink);margin-right:3px;}
+.hm-all{font-size:13px;font-weight:600;color:var(--teal);white-space:nowrap;
+  display:inline-flex;align-items:center;min-height:34px;padding:0 14px 0 6px;border-radius:999px;}
+.hm-all:hover{background:var(--bg2);}
+
+@media(max-width:900px){
+  .hm-bar{border-radius:18px;padding:10px;gap:8px;}
+  .hm-sep{display:none;}
+  .hm-search{flex:1 1 100%;}
+  .hm-chips{width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+  .hm-info{margin-left:auto;}
+}
+@media(max-width:760px){
+  .mapintro{padding:24px 14px 14px;}
+  .homemap{height:auto;}
+  .hm-canvas{position:relative;height:300px;}
+  .hm-bar{position:static;transform:none;width:auto;margin:12px 14px 0;border-radius:16px;
+    box-shadow:none;border:1px solid var(--line);background:#fff;backdrop-filter:none;}
+  .hm-search input{font-size:16px;}
+}
 
 /* ================= SAYAÇ + REFERANSLAR ================= */
 .statsrow{max-width:1290px;margin:0 auto;padding:56px 20px 8px;display:grid;

@@ -273,7 +273,6 @@ function homeMapAktif(H){
 function homeMapBlock(H){
   if(!homeMapAktif(H)) return '';
   const s=H.search||{};
-  /* pin varsa haritada görünenlerden, yoksa alt mecralarda kullanılan tüm ürünlerden */
   const pins=allPins();
   const kullanilan=new Set();
   D.mecralar.forEach(m=>(m.alts||[]).forEach(a=>{ if(a.product_id)kullanilan.add(String(a.product_id)); }));
@@ -281,24 +280,26 @@ function homeMapBlock(H){
     ? pins.some(x=>String(x.productId)===String(p.id))
     : kullanilan.has(String(p.id)));
   const cipler=urunler.map(p=>`<button class="hs-chip ${String(view.filter)===String(p.id)?'on':''}"
-      onclick="homeFiltre('${p.id}')">${uIkon(p.ikon,16)}<span>${esc(p.name)}</span></button>`).join('');
-  return `<section class="homemap">
-    <div id="homeMap" class="hm-canvas"></div>
-    <div class="hm-overlay">
-      <div class="hm-box">
-        <div class="hm-t">${esc(s.baslik||'Adana’nın her noktasında reklam alanı')}</div>
-        <div class="hm-sub">${esc(s.alt||'Lokasyon, reklam alanı veya pozisyon arayın; haritada ve listede anında görün.')}</div>
+      onclick="homeFiltre('${p.id}')">${uIkon(p.ikon,15)}<span>${esc(p.name)}</span></button>`).join('');
+  return `<section class="mapintro">
+      <h1>${esc(s.baslik||'Adana’nın her noktasında reklam alanı')}</h1>
+      ${s.alt?`<p>${esc(s.alt)}</p>`:''}
+    </section>
+    <section class="homemap">
+      <div id="homeMap" class="hm-canvas"></div>
+      <div class="hm-bar">
         <div class="hm-search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
-          <input id="homeSearch" value="${esc(homeQ)}" placeholder="${esc(s.placeholder||'Örn. M1 AVM, billboard, durak…')}" oninput="homeAra(this.value)">
+          <input id="homeSearch" value="${esc(homeQ)}" placeholder="${esc(s.placeholder||'Lokasyon, reklam alanı veya pozisyon ara')}" oninput="homeAra(this.value)">
           <button class="hm-x" onclick="document.getElementById('homeSearch').value='';homeAra('')" title="Temizle" style="${homeQ?'':'display:none'}">×</button>
         </div>
         ${cipler?`<div class="hm-chips">
           <button class="hs-chip ${view.filter?'':'on'}" onclick="homeFiltre('')">Tümü</button>${cipler}</div>`:''}
-        <div class="hm-foot"><span id="hmInfo"><b id="hmCount">0</b> alan haritada</span>
-          <a class="hm-all" href="${BASE}harita" onclick="openMapPage();return false;">Tam ekran harita →</a></div>
+        <span class="hm-sep"></span>
+        <span id="hmInfo" class="hm-info"><b id="hmCount">0</b> alan</span>
+        <a class="hm-all" href="${BASE}harita" onclick="openMapPage();return false;">Tam ekran →</a>
       </div>
-    </div></section>`;
+    </section>`;
 }
 let homeQ='', homeMapObj=null, homeCluster=null;
 /* Arama/filtre değişince tüm sayfa yeniden çizilmez: yalnızca kartlar,
