@@ -114,7 +114,7 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .scount{position:absolute;bottom:12px;right:14px;font-size:11.5px;font-weight:700;color:#fff;background:rgba(19,35,59,.72);padding:4px 11px;border-radius:99px;z-index:3;font-variant-numeric:tabular-nums}
 .slide-empty{text-align:center;color:var(--muted);font-size:13px;font-weight:600;background:var(--soft);border:1px dashed var(--line);border-radius:12px;padding:44px 20px}
 /* Excel tarzı bütçe tablosu */
-table.xls{width:100%;border-collapse:collapse;min-width:940px;background:#fff;font-variant-numeric:tabular-nums}
+table.xls{width:100%;border-collapse:collapse;min-width:1180px;background:#fff;font-variant-numeric:tabular-nums}
 table.xls th{position:sticky;top:0;background:#f1f4f7;border:1px solid #d7dde4;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;padding:9px 10px;text-align:left;z-index:2}
 table.xls th.r{text-align:right}
 table.xls td{border:1px solid #e2e7ec;padding:0;font-size:13.5px;background:#fff}
@@ -361,7 +361,6 @@ td.net{color:var(--green);font-weight:800}
   <p class="sec-sub" id="budSub"></p>
   <div class="bud-controls" id="budControls">
     <label>Medyapark Özel İndirimi&nbsp; %<input type="number" id="disc" value="20" min="0" max="60" step="1"></label>
-    <label><input type="checkbox" id="vat" checked> KDV (%20) satırını göster</label>
     <span class="hint">Onay kutusu kalemi toplama dahil eder/çıkarır · × satırı siler</span>
   </div>
   <div class="tbl-scroll">
@@ -371,16 +370,15 @@ td.net{color:var(--green);font-weight:800}
     </table>
   </div>
   <div class="totals">
-    <div class="tot"><div class="k">Liste Toplamı</div><div class="v" id="tList">—</div></div>
-    <div class="tot save"><div class="k">Kazanç (İndirim)</div><div class="v" id="tSave">—</div></div>
-    <div class="tot"><div class="k">Net Toplam (KDV Hariç)</div><div class="v" id="tNet">—</div></div>
-    <div class="tot grand" id="vatBox"><div class="k">Genel Toplam (KDV Dahil)</div><div class="v" id="tGrand">—</div></div>
+    <div class="tot"><div class="k">Mecra Tutarı Toplamı</div><div class="v" id="tMec">—</div></div>
+    <div class="tot"><div class="k">Baskı & Montaj Toplamı</div><div class="v" id="tBM">—</div></div>
+    <div class="tot grand"><div class="k">Genel Toplam</div><div class="v" id="tGrand">—</div></div>
   </div>
   <div class="bud-save" id="budSaveBar">
     <button class="btn green" id="budSaveBtn">Bütçeyi Kaydet</button>
     <span class="st" id="budSaveState"></span>
   </div>
-  <p class="fine">* Birim bedeller mecra sahiplerinin liste tarifeleridir; tasarım, baskı ve montaj bedelleri ile %20 KDV hariçtir. Kampanya dönemi Ekim başı – 8 Kasım (~5,5 hafta).</p>
+  <p class="fine">* Birim bedeller ilgili mecra sahiplerinin liste tarifeleridir. Kampanya dönemi Ekim başı – 8 Kasım (~5,5 hafta).</p>
 </div>
 
 <!-- ================= YÖNETİM ================= -->
@@ -959,18 +957,18 @@ function renderBudget(){
   document.getElementById('budControls').style.display=admin?'':'none';
   document.getElementById('budSaveBar').style.display=admin?'':'none';
   document.getElementById('budSub').textContent=admin
-    ?'Excel gibi doğrudan hücrelere yazın; tutarlar anında hesaplanır. Değişiklikleri kalıcılaştırmak için alttaki Kaydet\u0027e basın. Ziyaretçiler bu tabloyu salt okunur görür.'
-    :'Önerilen mecraların liste bedelleri ve Medyapark özel indirimli yatırım tutarları. Tüm bedeller KDV hariçtir.';
+    ?'Excel gibi doğrudan hücrelere yazın; İndirimli Fiyat, Toplam ve Genel Toplam anında hesaplanır. Değişiklikleri kalıcılaştırmak için alttaki Kaydet\u0027e basın. Ziyaretçiler bu tabloyu salt okunur görür.'
+    :'Önerilen mecraların tarifeleri ve Medyapark özel indirimli yatırım tutarları.';
   document.getElementById('phead').innerHTML=admin
-    ?`<tr><th style="width:40px">Dahil</th><th style="width:26%">Mecra / Kalem</th><th style="width:22%">Tarife Notu</th><th class="r" style="width:70px">Adet</th><th class="r" style="width:120px">Birim Liste ₺</th><th class="r" style="width:130px">Liste Tutarı</th><th class="r" style="width:130px">İndirimli</th><th style="width:36px"></th></tr>`
-    :`<tr><th style="width:30%">Mecra / Kalem</th><th style="width:24%">Tarife Notu</th><th class="r" style="width:70px">Adet</th><th class="r" style="width:130px">Birim Liste ₺</th><th class="r" style="width:140px">Liste Tutarı</th><th class="r" style="width:140px">İndirimli</th></tr>`;
+    ?`<tr><th style="width:38px">Dahil</th><th style="width:19%">Mecra / Kalem</th><th style="width:14%">Tarife Notu</th><th class="r" style="width:58px">Adet</th><th class="r" style="width:100px">Haftalık ₺</th><th class="r" style="width:100px">Aylık ₺</th><th class="r" style="width:105px">Liste Fiyatı ₺</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:105px">Baskı & Montaj ₺</th><th style="width:32px"></th></tr>`
+    :`<tr><th style="width:22%">Mecra / Kalem</th><th style="width:16%">Tarife Notu</th><th class="r" style="width:58px">Adet</th><th class="r" style="width:100px">Haftalık ₺</th><th class="r" style="width:100px">Aylık ₺</th><th class="r" style="width:110px">Liste Fiyatı</th><th class="r" style="width:110px">İndirimli Fiyat</th><th class="r" style="width:120px">Toplam</th><th class="r" style="width:115px">Baskı & Montaj</th></tr>`;
   const body=document.getElementById('pbody');body.innerHTML='';
   GROUPS.slice().sort((a,b)=>a.sira-b.sira).forEach(g=>{
     g.budget=Array.isArray(g.budget)?g.budget:[];
     const lines=admin?g.budget:g.budget.filter(L=>L.inc!==false);
     if(!admin&&(!lines.length||g.visible===false))return;
     const gh=document.createElement('tr');gh.className='gh';
-    gh.innerHTML=`<td colspan="${admin?8:6}">${esc(g.name)}${admin?` <button class="addrow" data-g="${g.id}">+ Kalem Ekle</button>`:''}</td>`;
+    gh.innerHTML=`<td colspan="${admin?11:9}">${esc(g.name)}${admin?` <button class="addrow" data-g="${g.id}">+ Kalem Ekle</button>`:''}</td>`;
     body.appendChild(gh);
     lines.forEach((L)=>{
       const i=g.budget.indexOf(L);
@@ -984,16 +982,24 @@ function renderBudget(){
         <td><input type="text" class="e-label" value="${esc(L.label)}"></td>
         <td><input type="text" class="e-tarif" value="${esc(L.tarif||'')}"></td>
         <td><input type="number" class="e-qty" min="0" value="${L.qty||0}"></td>
+        <td><input type="number" class="e-hafta" min="0" step="500" value="${L.hafta||0}"></td>
+        <td><input type="number" class="e-ay" min="0" step="500" value="${L.ay||0}"></td>
         <td><input type="number" class="e-unit" min="0" step="500" value="${L.unit||0}"></td>
-        <td class="calc list">—</td><td class="calc net">—</td>
+        <td class="calc ind">—</td>
+        <td class="calc top">—</td>
+        <td><input type="number" class="e-bm" min="0" step="500" value="${L.bm||0}"></td>
         <td class="c"><button class="rowdel" title="Satırı sil">×</button></td>`;
       }else{
         tr.innerHTML=`
         <td style="padding:10px 12px;font-weight:600">${esc(L.label)}</td>
         <td style="padding:10px 12px;color:var(--muted);font-size:12.5px">${esc(L.tarif||'')}</td>
         <td class="calc">${L.qty||0}</td>
+        <td class="calc">${L.hafta?fmt(L.hafta):'—'}</td>
+        <td class="calc">${L.ay?fmt(L.ay):'—'}</td>
         <td class="calc">${L.unit?fmt(L.unit):'—'}</td>
-        <td class="calc list">—</td><td class="calc net">—</td>`;
+        <td class="calc ind">—</td>
+        <td class="calc top">—</td>
+        <td class="calc bmv">${L.bm?fmt(L.bm):'—'}</td>`;
       }
       body.appendChild(tr);
     });
@@ -1002,23 +1008,23 @@ function renderBudget(){
 }
 function calc(){
   const d=Math.max(0,Math.min(60,parseFloat(document.getElementById('disc').value)||0));
-  let tl=0,tn=0;
+  let mec=0,bmT=0;
   document.querySelectorAll('#pbody tr:not(.gh)').forEach(tr=>{
     const g=GROUPS.find(x=>x.id===tr.dataset.g);
     const L=g&&g.budget[+tr.dataset.i];if(!L)return;
-    const list=(parseFloat(L.qty)||0)*(parseFloat(L.unit)||0);
-    const net=list*(1-d/100);
-    tr.classList.toggle('off',!L.inc);
-    tr.querySelector('.list').textContent=list?fmt(list):'—';
-    tr.querySelector('.net').textContent=list?fmt(Math.round(net)):'—';
-    if(L.inc){tl+=list;tn+=net;}
+    const unitNet=(parseFloat(L.unit)||0)*(1-d/100);
+    const top=(parseFloat(L.qty)||0)*unitNet;
+    const bm=parseFloat(L.bm)||0;
+    tr.classList.toggle('off',L.inc===false);
+    const indC=tr.querySelector('.ind'),topC=tr.querySelector('.top');
+    if(indC)indC.textContent=L.unit?fmt(Math.round(unitNet)):'—';
+    if(topC)topC.textContent=top?fmt(Math.round(top)):'—';
+    if(L.inc!==false){mec+=top;bmT+=bm;}
   });
-  tn=Math.round(tn);
-  document.getElementById('tList').textContent=fmt(tl);
-  document.getElementById('tSave').textContent='− '+fmt(tl-tn);
-  document.getElementById('tNet').textContent=fmt(tn);
-  document.getElementById('vatBox').style.display=document.getElementById('vat').checked?'':'none';
-  document.getElementById('tGrand').textContent=fmt(Math.round(tn*1.20));
+  mec=Math.round(mec);bmT=Math.round(bmT);
+  document.getElementById('tMec').textContent=fmt(mec);
+  document.getElementById('tBM').textContent=fmt(bmT);
+  document.getElementById('tGrand').textContent=fmt(mec+bmT);
 }
 document.getElementById('pbody').addEventListener('input',e=>{
   if(!session)return;
@@ -1028,7 +1034,10 @@ document.getElementById('pbody').addEventListener('input',e=>{
   if(e.target.classList.contains('e-label'))L.label=e.target.value;
   if(e.target.classList.contains('e-tarif'))L.tarif=e.target.value;
   if(e.target.classList.contains('e-qty'))L.qty=parseFloat(e.target.value)||0;
+  if(e.target.classList.contains('e-hafta'))L.hafta=parseFloat(e.target.value)||0;
+  if(e.target.classList.contains('e-ay'))L.ay=parseFloat(e.target.value)||0;
   if(e.target.classList.contains('e-unit'))L.unit=parseFloat(e.target.value)||0;
+  if(e.target.classList.contains('e-bm'))L.bm=parseFloat(e.target.value)||0;
   if(e.target.classList.contains('e-inc'))L.inc=e.target.checked;
   calc();
 });
@@ -1038,7 +1047,7 @@ document.getElementById('pbody').addEventListener('click',e=>{
   if(add){
     const g=GROUPS.find(x=>x.id===add.dataset.g);
     g.budget=Array.isArray(g.budget)?g.budget:[];
-    g.budget.push({label:'Yeni kalem',tarif:'',qty:1,unit:0,inc:true});
+    g.budget.push({label:'Yeni kalem',tarif:'',qty:1,hafta:0,ay:0,unit:0,bm:0,inc:true});
     renderBudget();return;
   }
   const del=e.target.closest('.rowdel');
@@ -1059,7 +1068,6 @@ document.getElementById('budSaveBtn').addEventListener('click',async()=>{
   setTimeout(()=>st.textContent='',3500);
 });
 document.getElementById('disc').addEventListener('input',calc);
-document.getElementById('vat').addEventListener('change',calc);
 
 /* =========================================================
    SEKMELER
