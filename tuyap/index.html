@@ -143,6 +143,33 @@ table.xls td .rowdel:hover{color:#b42318}
 .cat-card .fn{font-size:12px;color:var(--ink-soft);word-break:break-all}
 .cat-card .pdfbtn{margin-left:0;justify-content:center}
 .cat-empty{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13.5px;background:var(--soft);border:1px dashed var(--line);border-radius:14px;padding:40px 20px}
+/* Teklif PDF */
+.offer-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.offer-bar .oh{font-size:12px;color:var(--muted)}
+#printDoc{display:none}
+@media print{
+  body>*:not(#printDoc){display:none!important}
+  #printDoc{display:block!important;font-family:'Inter',system-ui,sans-serif;color:#13233b}
+  @page{size:A4 landscape;margin:12mm}
+}
+#printDoc .p-head{display:flex;align-items:center;justify-content:space-between;border-bottom:2.5px solid #13233b;padding-bottom:10px;margin-bottom:6px}
+#printDoc .p-head img{height:44px;max-width:220px;object-fit:contain}
+#printDoc .p-logo-txt{font-size:22px;font-weight:800}
+#printDoc .p-logo-txt b{color:#2e7d4f}
+#printDoc .p-meta{text-align:right;font-size:11px;color:#6d7a8c;line-height:1.5}
+#printDoc h1{font-size:16px;font-weight:800;margin:10px 0 2px}
+#printDoc .p-note{font-size:10.5px;color:#6d7a8c;margin-bottom:10px}
+#printDoc table{width:100%;border-collapse:collapse;font-size:10.5px}
+#printDoc th{background:#f1f4f7;border:1px solid #cdd5dd;padding:5px 7px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.05em}
+#printDoc th.r,#printDoc td.r{text-align:right}
+#printDoc td{border:1px solid #dde3e9;padding:5px 7px}
+#printDoc tr.pgh td{background:#e9efec;font-weight:800;color:#256341;font-size:10px}
+#printDoc .p-tots{display:flex;justify-content:flex-end;gap:26px;margin-top:12px;font-size:12px}
+#printDoc .p-tots div{text-align:right}
+#printDoc .p-tots .k{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#6d7a8c;font-weight:700}
+#printDoc .p-tots .v{font-size:15px;font-weight:800}
+#printDoc .p-tots .g .v{color:#2e7d4f;font-size:17px}
+#printDoc .p-foot{margin-top:14px;border-top:1px solid #dde3e9;padding-top:8px;font-size:9.5px;color:#6d7a8c}
 .ab-desc{font-size:13.5px;color:var(--ink-soft);margin-bottom:14px}
 .ab-why{background:var(--green-soft);border-radius:10px;padding:14px 16px;margin-bottom:14px}
 .ab-why .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:5px}
@@ -363,6 +390,10 @@ td.net{color:var(--green);font-weight:800}
     <label>Medyapark Özel İndirimi&nbsp; %<input type="number" id="disc" value="20" min="0" max="60" step="1"></label>
     <span class="hint">Onay kutusu kalemi toplama dahil eder/çıkarır · × satırı siler</span>
   </div>
+  <div class="offer-bar" id="offerBar">
+    <button class="btn green" id="offerPdfBtn">Seçimlerimle Teklif PDF'i İndir</button>
+    <span class="oh" id="offerHint"></span>
+  </div>
   <div class="tbl-scroll">
     <table class="xls">
       <thead id="phead"></thead>
@@ -454,6 +485,7 @@ td.net{color:var(--green);font-weight:800}
 </div>
 </main>
 
+<div id="printDoc"></div>
 <div class="lb" id="lb"><button class="x" aria-label="Kapat">×</button><img id="lbImg" alt=""></div>
 <input type="file" accept="image/*" hidden id="ptFile">
 
@@ -958,17 +990,17 @@ function renderBudget(){
   document.getElementById('budSaveBar').style.display=admin?'':'none';
   document.getElementById('budSub').textContent=admin
     ?'Excel gibi doğrudan hücrelere yazın; İndirimli Fiyat, Toplam ve Genel Toplam anında hesaplanır. Değişiklikleri kalıcılaştırmak için alttaki Kaydet\u0027e basın. Ziyaretçiler bu tabloyu salt okunur görür.'
-    :'Önerilen mecraların tarifeleri ve Medyapark özel indirimli yatırım tutarları.';
+    :'Önerilen mecraların tarifeleri ve Medyapark özel indirimli yatırım tutarları. Adetleri değiştirebilir, istemediğiniz kalemin işaretini kaldırabilirsiniz — toplamlar anında güncellenir. Seçimleriniz yalnızca bu ekranda geçerlidir; "Teklif PDF\u0027i İndir" ile döküm alıp bize iletebilirsiniz.';
   document.getElementById('phead').innerHTML=admin
     ?`<tr><th style="width:38px">Dahil</th><th style="width:19%">Mecra / Kalem</th><th style="width:14%">Tarife Notu</th><th class="r" style="width:58px">Adet</th><th class="r" style="width:100px">Haftalık ₺</th><th class="r" style="width:100px">Aylık ₺</th><th class="r" style="width:105px">Liste Fiyatı ₺</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:105px">Baskı & Montaj ₺</th><th style="width:32px"></th></tr>`
-    :`<tr><th style="width:22%">Mecra / Kalem</th><th style="width:16%">Tarife Notu</th><th class="r" style="width:58px">Adet</th><th class="r" style="width:100px">Haftalık ₺</th><th class="r" style="width:100px">Aylık ₺</th><th class="r" style="width:110px">Liste Fiyatı</th><th class="r" style="width:110px">İndirimli Fiyat</th><th class="r" style="width:120px">Toplam</th><th class="r" style="width:115px">Baskı & Montaj</th></tr>`;
+    :`<tr><th style="width:38px">Dahil</th><th style="width:21%">Mecra / Kalem</th><th style="width:15%">Tarife Notu</th><th class="r" style="width:64px">Adet</th><th class="r" style="width:95px">Haftalık ₺</th><th class="r" style="width:95px">Aylık ₺</th><th class="r" style="width:105px">Liste Fiyatı</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:110px">Baskı & Montaj</th></tr>`;
   const body=document.getElementById('pbody');body.innerHTML='';
   GROUPS.slice().sort((a,b)=>a.sira-b.sira).forEach(g=>{
     g.budget=Array.isArray(g.budget)?g.budget:[];
     const lines=admin?g.budget:g.budget.filter(L=>L.inc!==false);
     if(!admin&&(!lines.length||g.visible===false))return;
     const gh=document.createElement('tr');gh.className='gh';
-    gh.innerHTML=`<td colspan="${admin?11:9}">${esc(g.name)}${admin?` <button class="addrow" data-g="${g.id}">+ Kalem Ekle</button>`:''}</td>`;
+    gh.innerHTML=`<td colspan="${admin?11:10}">${esc(g.name)}${admin?` <button class="addrow" data-g="${g.id}">+ Kalem Ekle</button>`:''}</td>`;
     body.appendChild(gh);
     lines.forEach((L)=>{
       const i=g.budget.indexOf(L);
@@ -990,10 +1022,13 @@ function renderBudget(){
         <td><input type="number" class="e-bm" min="0" step="500" value="${L.bm||0}"></td>
         <td class="c"><button class="rowdel" title="Satırı sil">×</button></td>`;
       }else{
+        if(L._vinc===undefined)L._vinc=true;
+        if(L._vqty===undefined)L._vqty=L.qty||0;
         tr.innerHTML=`
+        <td class="c"><input type="checkbox" class="v-inc"${L._vinc?' checked':''} title="Bu kalemi teklife dahil et/çıkar"></td>
         <td style="padding:10px 12px;font-weight:600">${esc(L.label)}</td>
         <td style="padding:10px 12px;color:var(--muted);font-size:12.5px">${esc(L.tarif||'')}</td>
-        <td class="calc">${L.qty||0}</td>
+        <td><input type="number" class="v-qty" min="0" max="${L.qty||0}" value="${L._vqty}" title="Adedi azaltabilirsiniz (en fazla ${L.qty||0})"></td>
         <td class="calc">${L.hafta?fmt(L.hafta):'—'}</td>
         <td class="calc">${L.ay?fmt(L.ay):'—'}</td>
         <td class="calc">${L.unit?fmt(L.unit):'—'}</td>
@@ -1012,14 +1047,17 @@ function calc(){
   document.querySelectorAll('#pbody tr:not(.gh)').forEach(tr=>{
     const g=GROUPS.find(x=>x.id===tr.dataset.g);
     const L=g&&g.budget[+tr.dataset.i];if(!L)return;
+    const admin=!!session;
+    const eff_inc=admin?(L.inc!==false):(L.inc!==false&&L._vinc!==false);
+    const eff_qty=admin?(parseFloat(L.qty)||0):(L._vqty!==undefined?(parseFloat(L._vqty)||0):(parseFloat(L.qty)||0));
     const unitNet=(parseFloat(L.unit)||0)*(1-d/100);
-    const top=(parseFloat(L.qty)||0)*unitNet;
+    const top=eff_qty*unitNet;
     const bm=parseFloat(L.bm)||0;
-    tr.classList.toggle('off',L.inc===false);
+    tr.classList.toggle('off',!eff_inc);
     const indC=tr.querySelector('.ind'),topC=tr.querySelector('.top');
     if(indC)indC.textContent=L.unit?fmt(Math.round(unitNet)):'—';
     if(topC)topC.textContent=top?fmt(Math.round(top)):'—';
-    if(L.inc!==false){mec+=top;bmT+=bm;}
+    if(eff_inc){mec+=top;bmT+=bm;}
   });
   mec=Math.round(mec);bmT=Math.round(bmT);
   document.getElementById('tMec').textContent=fmt(mec);
@@ -1027,8 +1065,19 @@ function calc(){
   document.getElementById('tGrand').textContent=fmt(mec+bmT);
 }
 document.getElementById('pbody').addEventListener('input',e=>{
-  if(!session)return;
   const tr=e.target.closest('tr:not(.gh)');if(!tr)return;
+  if(!session){
+    const g=GROUPS.find(x=>x.id===tr.dataset.g);
+    const L=g&&g.budget[+tr.dataset.i];if(!L)return;
+    if(e.target.classList.contains('v-qty')){
+      let v=parseFloat(e.target.value)||0;
+      const mx=parseFloat(L.qty)||0;
+      if(v>mx){v=mx;e.target.value=mx;}
+      L._vqty=v;
+    }
+    if(e.target.classList.contains('v-inc'))L._vinc=e.target.checked;
+    calc();return;
+  }
   const g=GROUPS.find(x=>x.id===tr.dataset.g);
   const L=g&&g.budget[+tr.dataset.i];if(!L)return;
   if(e.target.classList.contains('e-label'))L.label=e.target.value;
@@ -1068,6 +1117,64 @@ document.getElementById('budSaveBtn').addEventListener('click',async()=>{
   setTimeout(()=>st.textContent='',3500);
 });
 document.getElementById('disc').addEventListener('input',calc);
+/* =========================================================
+   TEKLİF PDF — seçili kalemlerle markalı döküm (yazdır → PDF)
+   ========================================================= */
+document.getElementById('offerPdfBtn').addEventListener('click',()=>{
+  const admin=!!session;
+  const d=Math.max(0,Math.min(60,parseFloat(document.getElementById('disc').value)||0));
+  let mec=0,bmT=0,rows='';
+  GROUPS.slice().sort((a,b)=>a.sira-b.sira).forEach(g=>{
+    if(g.visible===false)return;
+    const lines=(Array.isArray(g.budget)?g.budget:[]).filter(L=>{
+      const inc=admin?(L.inc!==false):(L.inc!==false&&L._vinc!==false);
+      const q=admin?(parseFloat(L.qty)||0):(L._vqty!==undefined?parseFloat(L._vqty)||0:parseFloat(L.qty)||0);
+      return inc&&(q>0||parseFloat(L.bm)>0);
+    });
+    if(!lines.length)return;
+    rows+=`<tr class="pgh"><td colspan="8">${esc(g.name)}</td></tr>`;
+    lines.forEach(L=>{
+      const q=admin?(parseFloat(L.qty)||0):(L._vqty!==undefined?parseFloat(L._vqty)||0:parseFloat(L.qty)||0);
+      const unitNet=(parseFloat(L.unit)||0)*(1-d/100);
+      const top=Math.round(q*unitNet);
+      const bm=parseFloat(L.bm)||0;
+      mec+=top;bmT+=bm;
+      rows+=`<tr>
+        <td>${esc(L.label)}</td>
+        <td style="color:#6d7a8c">${esc(L.tarif||'')}</td>
+        <td class="r">${q}</td>
+        <td class="r">${L.hafta?fmt(L.hafta):'—'}</td>
+        <td class="r">${L.ay?fmt(L.ay):'—'}</td>
+        <td class="r">${L.unit?fmt(L.unit):'—'}</td>
+        <td class="r"><b>${top?fmt(top):'—'}</b></td>
+        <td class="r">${bm?fmt(bm):'—'}</td>
+      </tr>`;
+    });
+  });
+  const tarih=new Date().toLocaleDateString('tr-TR',{day:'2-digit',month:'long',year:'numeric'});
+  const logo=SETTINGS.logo_url
+    ?`<img src="${esc(SETTINGS.logo_url)}" alt="Medyapark">`
+    :`<div class="p-logo-txt">medya<b>park</b></div>`;
+  document.getElementById('printDoc').innerHTML=`
+    <div class="p-head">
+      ${logo}
+      <div class="p-meta">Tüyap Adana Tarım Fuarı 2026 · Açıkhava Kampanya Teklifi<br>Tarih: ${tarih} · İndirim oranı: %${d}</div>
+    </div>
+    <h1>Seçili Mecra Dökümü</h1>
+    <div class="p-note">${admin?'Medyapark tarafından hazırlanmıştır.':'Bu döküm, sunum sayfasındaki seçimlerinizle oluşturulmuştur; nihai teklif Medyapark onayına tabidir.'}</div>
+    <table>
+      <tr><th style="width:24%">Mecra / Kalem</th><th style="width:17%">Tarife Notu</th><th class="r">Adet</th><th class="r">Haftalık ₺</th><th class="r">Aylık ₺</th><th class="r">Liste Fiyatı</th><th class="r">Toplam (İnd.)</th><th class="r">Baskı & Montaj</th></tr>
+      ${rows||'<tr><td colspan="8" style="text-align:center;color:#6d7a8c">Seçili kalem yok</td></tr>'}
+    </table>
+    <div class="p-tots">
+      <div><div class="k">Mecra Tutarı Toplamı</div><div class="v">${fmt(Math.round(mec))}</div></div>
+      <div><div class="k">Baskı & Montaj Toplamı</div><div class="v">${fmt(Math.round(bmT))}</div></div>
+      <div class="g"><div class="k">Genel Toplam</div><div class="v">${fmt(Math.round(mec+bmT))}</div></div>
+    </div>
+    <div class="p-foot">Medyapark Adana · 35. Yıl · Bu dökümü bize ileterek teklif sürecini başlatabilirsiniz. Birim bedeller ilgili mecra sahiplerinin liste tarifeleridir. Kampanya dönemi: Ekim başı – 8 Kasım.</div>`;
+  window.print();
+});
+
 
 /* =========================================================
    SEKMELER
