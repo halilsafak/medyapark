@@ -61,7 +61,7 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 /* Harita pinleri: sabit haleli nokta */
 .pmkhost{position:absolute;transform:translate(-50%,-50%);cursor:pointer}
 .pmk{position:relative;display:grid;place-items:center;width:calc(var(--sz)*2.2);height:calc(var(--sz)*2.2);cursor:pointer}
-.pmk .core{width:var(--sz);height:var(--sz);border-radius:50%;background:var(--c);border:2px solid #fff;box-shadow:0 1px 5px rgba(19,35,59,.45);z-index:2}
+.pmk .core{width:var(--sz);height:var(--sz);border-radius:50%;background:var(--c);box-shadow:0 1px 4px rgba(19,35,59,.35);z-index:2}
 .pmk .ring{position:absolute;width:var(--sz);height:var(--sz);border-radius:50%;background:var(--c);opacity:.28;transform:scale(1.9)}
 .pmk .ring.r2{display:none}
 
@@ -678,7 +678,7 @@ function newPoint(lat,lng){
 }
 function pinHTML(p){
   const isF=p.t==='fuar';
-  const sz=isF?24:(p.hl?18:15);
+  const sz=isF?21:(p.hl?16:13);
   return `<div class="pmk${isF?' pf':''}${p.hl?' ph':''}" style="--c:${COLORS[p.t]||'#13233b'};--sz:${sz}px">
     <span class="ring"></span>${(isF||p.hl)?'<span class="ring r2"></span>':''}<span class="core"></span></div>`;
 }
