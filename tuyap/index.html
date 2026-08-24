@@ -648,6 +648,7 @@ function loadGoogleMaps(){
   document.head.appendChild(sc);
 }
 window.initMap=function(){
+  definePulsePin();
   map=new google.maps.Map(document.getElementById('map'),{
     center:{lat:37.005,lng:35.32},zoom:12,
     mapTypeControl:false,streetViewControl:true,fullscreenControl:true,
@@ -679,25 +680,29 @@ function pinHTML(p){
   return `<div class="pmk${isF?' pf':''}${p.hl?' ph':''}" style="--c:${COLORS[p.t]||'#13233b'};--sz:${sz}px">
     <span class="ring"></span>${(isF||p.hl)?'<span class="ring r2"></span>':''}<span class="core"></span></div>`;
 }
-/* Animasyonlu pin: kendi katmanımız (harita stillerini bozmaz) */
-class PulsePin extends google.maps.OverlayView{
-  constructor(p){super();this.p=p;this.div=null;}
-  onAdd(){
-    const d=document.createElement('div');
-    d.className='pmkhost';d.title=this.p.name;
-    d.style.zIndex=this.p.t==='fuar'?900:(this.p.hl?800:100);
-    d.innerHTML=pinHTML(this.p);
-    d.addEventListener('click',ev=>{ev.stopPropagation();openInfo(this.p);});
-    this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);
-  }
-  draw(){
-    if(!this.div)return;
-    const proj=this.getProjection();if(!proj)return;
-    const pos=proj.fromLatLngToDivPixel(new google.maps.LatLng(this.p.lat,this.p.lng));
-    if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}
-  }
-  onRemove(){if(this.div){this.div.remove();this.div=null;}}
-  refresh(){if(this.div){this.div.title=this.p.name;this.div.innerHTML=pinHTML(this.p);this.draw();}}
+/* Animasyonlu pin: kendi katmanımız — sınıf, Maps yüklendikten SONRA tanımlanır */
+let PulsePin=null;
+function definePulsePin(){
+  if(PulsePin)return;
+  PulsePin=class extends google.maps.OverlayView{
+    constructor(p){super();this.p=p;this.div=null;}
+    onAdd(){
+      const d=document.createElement('div');
+      d.className='pmkhost';d.title=this.p.name;
+      d.style.zIndex=this.p.t==='fuar'?900:(this.p.hl?800:100);
+      d.innerHTML=pinHTML(this.p);
+      d.addEventListener('click',ev=>{ev.stopPropagation();openInfo(this.p);});
+      this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);
+    }
+    draw(){
+      if(!this.div)return;
+      const proj=this.getProjection();if(!proj)return;
+      const pos=proj.fromLatLngToDivPixel(new google.maps.LatLng(this.p.lat,this.p.lng));
+      if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}
+    }
+    onRemove(){if(this.div){this.div.remove();this.div=null;}}
+    refresh(){if(this.div){this.div.title=this.p.name;this.div.innerHTML=pinHTML(this.p);this.draw();}}
+  };
 }
 function addMarker(p){
   let m;
