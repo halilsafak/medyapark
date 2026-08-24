@@ -94,11 +94,25 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .pdfbtn svg{width:15px;height:15px}
 .ab-cols{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,1fr);gap:26px}
 .ab-cols.single{display:block}
-.ab-price{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
-.ab-price .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-.ab-price .v{font-size:20px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums}
-.ab-price .note{font-size:11.5px;color:var(--muted);font-weight:500}
-.ab-price .pend{font-size:11.5px;font-weight:700;color:var(--green);background:var(--green-soft);border:1px solid var(--green-line);padding:3px 10px;border-radius:99px}
+/* Excel tarzı bütçe tablosu */
+table.xls{width:100%;border-collapse:collapse;min-width:940px;background:#fff;font-variant-numeric:tabular-nums}
+table.xls th{position:sticky;top:0;background:#f1f4f7;border:1px solid #d7dde4;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;padding:9px 10px;text-align:left;z-index:2}
+table.xls th.r{text-align:right}
+table.xls td{border:1px solid #e2e7ec;padding:0;font-size:13.5px;background:#fff}
+table.xls tr.gh td{background:#e9efec;border-color:#d7dde4;font-weight:800;font-size:12px;color:var(--green-d);padding:8px 10px}
+table.xls tr.gh td .addrow{float:right;font-size:11px;font-weight:700;color:var(--green);background:#fff;border:1px solid var(--green-line);border-radius:6px;padding:3px 10px;cursor:pointer}
+table.xls tr.gh td .addrow:hover{background:var(--green);color:#fff}
+table.xls td input[type=text],table.xls td input[type=number]{width:100%;border:none;background:transparent;font-family:inherit;font-size:13.5px;padding:9px 10px;color:var(--ink)}
+table.xls td input[type=number]{text-align:right;font-weight:600}
+table.xls td input:focus{outline:2px solid var(--green);outline-offset:-2px;background:#f6fbf8}
+table.xls td.c{text-align:center;padding:0 6px}
+table.xls td.calc{padding:9px 10px;text-align:right;font-weight:700;background:#fafbfc;white-space:nowrap}
+table.xls td.calc.net{color:var(--green);font-weight:800}
+table.xls tr.off td, table.xls tr.off td input{opacity:.4}
+table.xls td .rowdel{border:none;background:none;color:#c8cfd8;font-size:15px;font-weight:800;cursor:pointer;padding:6px 8px}
+table.xls td .rowdel:hover{color:#b42318}
+.bud-save{display:flex;align-items:center;gap:12px;margin-top:14px}
+.bud-save .st{font-size:12px;color:var(--muted)}
 .ab-desc{font-size:13.5px;color:var(--ink-soft);margin-bottom:14px}
 .ab-why{background:var(--green-soft);border-radius:10px;padding:14px 16px;margin-bottom:14px}
 .ab-why .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:5px}
@@ -241,7 +255,7 @@ td.net{color:var(--green);font-weight:800}
   </div>
   <div class="tabs" role="tablist">
     <button class="tab active" data-view="vmap" role="tab">Harita & Lokasyonlar</button>
-    <button class="tab" data-view="vbud" role="tab">Bütçe</button>
+    <button class="tab" data-view="vbud" role="tab" id="budTab" style="display:none">Bütçe</button>
     <button class="tab" data-view="vadm" role="tab">Yönetim</button>
   </div>
 </header>
@@ -288,30 +302,34 @@ td.net{color:var(--green);font-weight:800}
   <div class="acc-list" id="accList"></div>
 </div>
 
-<!-- ================= BÜTÇE ================= -->
+<!-- ================= BÜTÇE (yalnızca yönetici görür) ================= -->
 <div class="view" id="vbud">
-  <div class="sec-title" style="margin-top:0">Bütçe & Yatırım Tablosu</div>
-  <p class="sec-sub">Kalemleri işaretleyip çıkararak toplamı canlı görün. Adet ve birim bedellerde kalıcı değişiklik Yönetim sekmesinden yapılır.</p>
+  <div class="sec-title" style="margin-top:0">Bütçe Çalışma Tablosu</div>
+  <p class="sec-sub">Excel gibi doğrudan hücrelere yazın: kalem adı, tarife notu, adet ve birim bedel. Tutarlar anında hesaplanır. Bu sekme yalnızca giriş yapmış yöneticilere görünür — sunum tarafında fiyat yer almaz. Değişiklikleri kalıcılaştırmak için alttaki Kaydet'e basın.</p>
   <div class="bud-controls">
     <label>Medyapark Özel İndirimi&nbsp; %<input type="number" id="disc" value="20" min="0" max="60" step="1"></label>
     <label><input type="checkbox" id="vat" checked> KDV (%20) satırını göster</label>
-    <span class="hint">Kalem seçimleri bu oturumda geçerlidir</span>
+    <span class="hint">Onay kutusu kalemi toplama dahil eder/çıkarır · × satırı siler</span>
   </div>
   <div class="tbl-scroll">
-    <table class="price">
+    <table class="xls">
       <thead><tr>
-        <th style="width:44px">Dahil</th><th>Mecra / Kalem</th><th class="r">Adet</th><th class="r">Birim Liste</th><th class="r">Liste Tutarı</th><th class="r">İndirimli</th>
+        <th style="width:40px">Dahil</th><th style="width:26%">Mecra / Kalem</th><th style="width:22%">Tarife Notu</th><th class="r" style="width:70px">Adet</th><th class="r" style="width:120px">Birim Liste ₺</th><th class="r" style="width:130px">Liste Tutarı</th><th class="r" style="width:130px">İndirimli</th><th style="width:36px"></th>
       </tr></thead>
       <tbody id="pbody"></tbody>
     </table>
   </div>
   <div class="totals">
     <div class="tot"><div class="k">Liste Toplamı</div><div class="v" id="tList">—</div></div>
-    <div class="tot save"><div class="k">Kazancınız (İndirim)</div><div class="v" id="tSave">—</div></div>
+    <div class="tot save"><div class="k">Kazanç (İndirim)</div><div class="v" id="tSave">—</div></div>
     <div class="tot"><div class="k">Net Toplam (KDV Hariç)</div><div class="v" id="tNet">—</div></div>
     <div class="tot grand" id="vatBox"><div class="k">Genel Toplam (KDV Dahil)</div><div class="v" id="tGrand">—</div></div>
   </div>
-  <p class="fine">* Birim bedeller ilgili mecra sahiplerinin liste tarifeleridir; tasarım, baskı ve montaj bedelleri ile %20 KDV liste fiyatlarına dahil değildir. Kampanya dönemi Ekim başı – 8 Kasım (~5,5 hafta) olup 1 aylık tarifeli mecralarda dönem bedeli görüşmeyle netleştirilir.</p>
+  <div class="bud-save">
+    <button class="btn green" id="budSaveBtn">Bütçeyi Kaydet</button>
+    <span class="st" id="budSaveState"></span>
+  </div>
+  <p class="fine">* Birim bedeller mecra sahiplerinin liste tarifeleridir; tasarım, baskı ve montaj bedelleri ile %20 KDV hariçtir. Kampanya dönemi Ekim başı – 8 Kasım (~5,5 hafta).</p>
 </div>
 
 <!-- ================= YÖNETİM ================= -->
@@ -700,9 +718,6 @@ function renderAccordions(){
     const el=document.createElement('div');
     el.className='acc'+(openIds.has(g.id)?' open':'');
     el.dataset.g=g.id;
-    const lines=Array.isArray(g.budget)?g.budget:[];
-    const listTotal=lines.reduce((a,L)=>a+(parseFloat(L.qty)||0)*(parseFloat(L.unit)||0),0);
-    const hasPending=lines.some(L=>!(parseFloat(L.unit)>0));
     el.innerHTML=`
     <div class="acc-head" tabindex="0" role="button" aria-expanded="${openIds.has(g.id)}">
       <div class="acc-ico">${ICON_SVG[t](COLORS[t])}</div>
@@ -735,12 +750,6 @@ function renderAccordions(){
         </div>
       </div>`:''}
       </div>
-      ${lines.length?`<div class="ab-price">
-        <span class="k">Liste Fiyatı</span>
-        <span class="v">${listTotal?fmt(listTotal):'—'}</span>
-        ${hasPending?'<span class="pend">bazı kalemler teyit edilecek</span>':''}
-        <span class="note">KDV hariç · Medyapark özel indirimi ve kalem detayı için Bütçe sekmesine bakın</span>
-      </div>`:''}
     </div>`;
     wrap.appendChild(el);
     const head=el.querySelector('.acc-head');
@@ -758,24 +767,28 @@ document.getElementById('accList').addEventListener('click',e=>{
 document.getElementById('lb').addEventListener('click',()=>document.getElementById('lb').classList.remove('show'));
 
 /* =========================================================
-   BÜTÇE
+   BÜTÇE — Excel tarzı düzenlenebilir tablo (grup verisine bağlı)
    ========================================================= */
 function renderBudget(){
   const body=document.getElementById('pbody');body.innerHTML='';
-  GROUPS.filter(g=>g.visible!==false).sort((a,b)=>a.sira-b.sira).forEach(g=>{
-    const lines=Array.isArray(g.budget)?g.budget:[];
-    if(!lines.length)return;
+  GROUPS.slice().sort((a,b)=>a.sira-b.sira).forEach(g=>{
+    g.budget=Array.isArray(g.budget)?g.budget:[];
     const gh=document.createElement('tr');gh.className='gh';
-    gh.innerHTML=`<td colspan="6">${esc(g.name)}</td>`;
+    gh.innerHTML=`<td colspan="8">${esc(g.name)} <button class="addrow" data-g="${g.id}">+ Kalem Ekle</button></td>`;
     body.appendChild(gh);
-    lines.forEach(L=>{
+    g.budget.forEach((L,i)=>{
+      if(L.inc===undefined)L.inc=true;
       const tr=document.createElement('tr');
-      tr.dataset.qty=L.qty||0;tr.dataset.unit=L.unit||0;
-      tr.innerHTML=`<td><input type="checkbox" checked class="inc"></td>
-      <td><div class="nm">${esc(L.label)}</div><div class="sub">${esc(L.tarif||'')}</div></td>
-      <td class="r">${L.qty||0}</td>
-      <td class="r">${L.unit?fmt(L.unit):'<span style="color:var(--green);font-weight:700">teyit edilecek</span>'}</td>
-      <td class="r list">—</td><td class="r net">—</td>`;
+      tr.dataset.g=g.id;tr.dataset.i=i;
+      if(!L.inc)tr.classList.add('off');
+      tr.innerHTML=`
+      <td class="c"><input type="checkbox" class="e-inc"${L.inc?' checked':''}></td>
+      <td><input type="text" class="e-label" value="${esc(L.label)}"></td>
+      <td><input type="text" class="e-tarif" value="${esc(L.tarif||'')}"></td>
+      <td><input type="number" class="e-qty" min="0" value="${L.qty||0}"></td>
+      <td><input type="number" class="e-unit" min="0" step="500" value="${L.unit||0}"></td>
+      <td class="calc list">—</td><td class="calc net">—</td>
+      <td class="c"><button class="rowdel" title="Satırı sil">×</button></td>`;
       body.appendChild(tr);
     });
   });
@@ -785,13 +798,14 @@ function calc(){
   const d=Math.max(0,Math.min(60,parseFloat(document.getElementById('disc').value)||0));
   let tl=0,tn=0;
   document.querySelectorAll('#pbody tr:not(.gh)').forEach(tr=>{
-    const inc=tr.querySelector('.inc').checked;
-    const list=(parseFloat(tr.dataset.qty)||0)*(parseFloat(tr.dataset.unit)||0);
+    const g=GROUPS.find(x=>x.id===tr.dataset.g);
+    const L=g&&g.budget[+tr.dataset.i];if(!L)return;
+    const list=(parseFloat(L.qty)||0)*(parseFloat(L.unit)||0);
     const net=list*(1-d/100);
-    tr.classList.toggle('off',!inc);
+    tr.classList.toggle('off',!L.inc);
     tr.querySelector('.list').textContent=list?fmt(list):'—';
     tr.querySelector('.net').textContent=list?fmt(Math.round(net)):'—';
-    if(inc){tl+=list;tn+=net;}
+    if(L.inc){tl+=list;tn+=net;}
   });
   tn=Math.round(tn);
   document.getElementById('tList').textContent=fmt(tl);
@@ -800,7 +814,42 @@ function calc(){
   document.getElementById('vatBox').style.display=document.getElementById('vat').checked?'':'none';
   document.getElementById('tGrand').textContent=fmt(Math.round(tn*1.20));
 }
-document.getElementById('pbody').addEventListener('change',calc);
+document.getElementById('pbody').addEventListener('input',e=>{
+  const tr=e.target.closest('tr:not(.gh)');if(!tr)return;
+  const g=GROUPS.find(x=>x.id===tr.dataset.g);
+  const L=g&&g.budget[+tr.dataset.i];if(!L)return;
+  if(e.target.classList.contains('e-label'))L.label=e.target.value;
+  if(e.target.classList.contains('e-tarif'))L.tarif=e.target.value;
+  if(e.target.classList.contains('e-qty'))L.qty=parseFloat(e.target.value)||0;
+  if(e.target.classList.contains('e-unit'))L.unit=parseFloat(e.target.value)||0;
+  if(e.target.classList.contains('e-inc'))L.inc=e.target.checked;
+  calc();
+});
+document.getElementById('pbody').addEventListener('click',e=>{
+  const add=e.target.closest('.addrow');
+  if(add){
+    const g=GROUPS.find(x=>x.id===add.dataset.g);
+    g.budget=Array.isArray(g.budget)?g.budget:[];
+    g.budget.push({label:'Yeni kalem',tarif:'',qty:1,unit:0,inc:true});
+    renderBudget();return;
+  }
+  const del=e.target.closest('.rowdel');
+  if(del){
+    const tr=del.closest('tr');
+    const g=GROUPS.find(x=>x.id===tr.dataset.g);
+    g.budget.splice(+tr.dataset.i,1);
+    renderBudget();return;
+  }
+});
+document.getElementById('budSaveBtn').addEventListener('click',async()=>{
+  if(!session){alert('Kaydetmek için Yönetim sekmesinden giriş yapın.');return;}
+  const st=document.getElementById('budSaveState');st.textContent='Kaydediliyor…';
+  const rows=GROUPS.map(g=>({id:g.id,budget:g.budget||[]}));
+  const results=await Promise.all(rows.map(r=>supa.from('tuyap_gruplar').update({budget:r.budget,updated_at:new Date().toISOString()}).eq('id',r.id)));
+  const err=results.find(r=>r.error);
+  st.textContent=err?'Hata: '+err.error.message:'Kaydedildi ✓';
+  setTimeout(()=>st.textContent='',3500);
+});
 document.getElementById('disc').addEventListener('input',calc);
 document.getElementById('vat').addEventListener('change',calc);
 
@@ -823,6 +872,11 @@ async function refreshSession(){
   document.getElementById('adminWrap').style.display=session?'':'none';
   if(session)document.getElementById('whoAmI').textContent=session.user.email;
   document.getElementById('savePosBtn').style.display=(editMode&&session)?'':'none';
+  const budTab=document.getElementById('budTab');
+  budTab.style.display=session?'':'none';
+  if(!session&&budTab.classList.contains('active')){
+    document.querySelector('.tab[data-view="vmap"]').click();
+  }
 }
 document.getElementById('lgBtn').addEventListener('click',async()=>{
   const m=document.getElementById('loginMsg');m.className='msg';
@@ -852,7 +906,6 @@ function renderAdmin(){
   lp.innerHTML=SETTINGS.logo_url?`<img src="${esc(SETTINGS.logo_url)}">`:'<span>Logo yüklenmedi</span>';
   const list=document.getElementById('admList');list.innerHTML='';
   GROUPS.sort((a,b)=>a.sira-b.sira).forEach((g,idx)=>{
-    const lines=Array.isArray(g.budget)?g.budget:[];
     const imgs=Array.isArray(g.images)?g.images:[];
     const el=document.createElement('div');el.className='adm-acc';el.dataset.g=g.id;
     el.innerHTML=`
@@ -874,21 +927,7 @@ function renderAdmin(){
         <div class="fld full"><label>Açıklama</label><textarea class="f-descr">${esc(g.descr)}</textarea></div>
         <div class="fld full"><label>Neden bu mecra?</label><textarea class="f-why">${esc(g.why)}</textarea></div>
       </div>
-      <div class="fld" style="margin-top:4px"><label>Bütçe Kalemleri</label>
-        <div class="bud-lines">
-          <div class="bl-head"><span>Kalem</span><span>Tarife Notu</span><span>Adet</span><span>Birim ₺</span><span></span></div>
-          <div class="bl-wrap">
-          ${lines.map((L,i)=>`<div class="bud-line" data-i="${i}">
-            <input type="text" class="bl-label" value="${esc(L.label)}">
-            <input type="text" class="bl-tarif" value="${esc(L.tarif||'')}">
-            <input type="number" class="num bl-qty" min="0" value="${L.qty||0}">
-            <input type="number" class="num bl-unit" min="0" step="500" value="${L.unit||0}">
-            <button class="rmline" title="Kalemi sil">×</button>
-          </div>`).join('')}
-          </div>
-          <button class="btn ghost sm addLine">+ Kalem Ekle</button>
-        </div>
-      </div>
+      <div class="fld" style="margin-top:4px;font-size:11.5px;color:var(--muted)">Bütçe kalemleri artık <b>Bütçe</b> sekmesindeki tablodan doldurulur.</div>
       <div class="fld" style="margin-top:10px"><label>PDF Katalog <span style="text-transform:none;letter-spacing:0">— ziyaretçi açılır listeden indirebilir</span></label>
         <div class="logo-row" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
           <span class="pdfState" style="font-size:12.5px;font-weight:600;color:${g.pdf_url?'var(--green)':'var(--muted)'}">${g.pdf_url?('📄 '+esc(g.pdf_name||'katalog.pdf')):'PDF yüklenmedi'}</span>
@@ -922,17 +961,6 @@ function bindAdmin(){
       if(j<0||j>=sorted.length)return;
       const tmp=sorted[i].sira;sorted[i].sira=sorted[j].sira;sorted[j].sira=tmp;
       renderAdmin();renderAccordions();renderBudget();return;
-    }
-    if(e.target.closest('.rmline')){
-      const i=+e.target.closest('.bud-line').dataset.i;
-      g.budget.splice(i,1);renderAdmin();
-      document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');return;
-    }
-    if(e.target.closest('.addLine')){
-      g.budget=Array.isArray(g.budget)?g.budget:[];
-      g.budget.push({label:'Yeni kalem',tarif:'',qty:1,unit:0});
-      renderAdmin();
-      document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');return;
     }
     if(e.target.closest('.im .mkcov')){
       const i=+e.target.closest('.im').dataset.i;
@@ -991,14 +1019,6 @@ function bindAdmin(){
     if(e.target.classList.contains('f-count'))g.count_text=e.target.value;
     if(e.target.classList.contains('f-descr'))g.descr=e.target.value;
     if(e.target.classList.contains('f-why'))g.why=e.target.value;
-    const bl=e.target.closest('.bud-line');
-    if(bl){
-      const i=+bl.dataset.i,L=g.budget[i];
-      if(e.target.classList.contains('bl-label'))L.label=e.target.value;
-      if(e.target.classList.contains('bl-tarif'))L.tarif=e.target.value;
-      if(e.target.classList.contains('bl-qty'))L.qty=parseFloat(e.target.value)||0;
-      if(e.target.classList.contains('bl-unit'))L.unit=parseFloat(e.target.value)||0;
-    }
   };
 }
 document.getElementById('saveAllBtn').addEventListener('click',async()=>{
