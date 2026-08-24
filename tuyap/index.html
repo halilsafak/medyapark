@@ -10,8 +10,9 @@
 <style>
 :root{
   --ink:#13233b; --ink-soft:#3d4c63; --muted:#6d7a8c; --line:#e6e9ee;
-  --bg:#ffffff; --soft:#f6f8fa; --orange:#e8971e; --orange-d:#c97a0a;
-  --green:#2e7d4f; --red:#c0392b;
+  --bg:#ffffff; --soft:#f6f8fa;
+  --green:#2e7d4f; --green-d:#256341; --green-soft:#eef6f1; --green-line:#cfe5d7;
+  --orange:#e8971e; --red:#c0392b;
   --led:#c0392b; --board:#e8971e; --wall:#2e7d4f; --avm:#6f5bb5; --durak:#2f7fa3; --fuar:#13233b;
 }
 *{margin:0;padding:0;box-sizing:border-box}
@@ -20,19 +21,20 @@ button{font-family:inherit}
 
 /* ================= HEADER / TABS ================= */
 header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1500}
-.hd{max-width:1240px;margin:0 auto;padding:16px 24px 10px;display:flex;flex-wrap:wrap;align-items:center;gap:18px}
-.logo{font-weight:800;font-size:19px;letter-spacing:-.02em}
-.logo b{color:var(--orange)}
+.hd{max-width:1240px;margin:0 auto;padding:14px 24px 10px;display:flex;flex-wrap:wrap;align-items:center;gap:18px}
+.logo{font-weight:800;font-size:19px;letter-spacing:-.02em;display:flex;align-items:center}
+.logo b{color:var(--green)}
 .logo small{display:block;font-size:10.5px;font-weight:600;color:var(--muted);letter-spacing:.14em;margin-top:-2px}
+.logo img{height:42px;display:block;max-width:220px;object-fit:contain}
 .hd-title{font-size:13.5px;color:var(--muted);border-left:1px solid var(--line);padding-left:18px}
 .hd-title b{display:block;font-size:15px;color:var(--ink);font-weight:700}
 .hd-pill{margin-left:auto;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--ink);background:var(--soft);border:1px solid var(--line);padding:8px 16px;border-radius:99px;white-space:nowrap}
-.hd-pill b{color:var(--orange-d)}
+.hd-pill b{color:var(--green)}
 .tabs{max-width:1240px;margin:0 auto;padding:0 24px;display:flex;gap:2px}
 .tab{appearance:none;background:none;border:none;font-size:14px;font-weight:600;color:var(--muted);padding:12px 20px;cursor:pointer;border-bottom:2.5px solid transparent;transition:.15s}
 .tab:hover{color:var(--ink)}
-.tab.active{color:var(--ink);border-bottom-color:var(--orange)}
-.tab:focus-visible{outline:2px solid var(--orange);outline-offset:-2px;border-radius:6px}
+.tab.active{color:var(--ink);border-bottom-color:var(--green)}
+.tab:focus-visible{outline:2px solid var(--green);outline-offset:-2px;border-radius:6px}
 main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .view{display:none}.view.active{display:block}
 
@@ -43,24 +45,24 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .chip .dot{width:8px;height:8px;border-radius:50%}
 .chip:hover{border-color:#c4ccd6}
 .chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
-.chip:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.chip:focus-visible{outline:2px solid var(--green);outline-offset:2px}
 .fb-right{margin-left:auto;display:flex;flex-wrap:wrap;gap:8px}
 .tool{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;transition:.15s}
 .tool:hover{border-color:#c4ccd6}
-.tool.on{background:var(--orange);border-color:var(--orange);color:#fff}
+.tool.on{background:var(--green);border-color:var(--green);color:#fff}
 #map{height:540px;border:1px solid var(--line);border-radius:14px;background:var(--soft);position:relative;overflow:hidden}
 .key-notice{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:var(--soft);z-index:5}
 .key-notice .box{max-width:540px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px}
 .key-notice h3{font-size:16px;font-weight:800;margin-bottom:10px}
 .key-notice p{font-size:13px;color:var(--ink-soft);margin-bottom:8px}
-.editing-hint{display:none;margin-top:10px;background:#fff8ec;border:1px solid #f0ddb8;color:#8a5a06;font-size:13px;font-weight:600;padding:10px 16px;border-radius:10px}
+.editing-hint{display:none;margin-top:10px;background:var(--green-soft);border:1px solid var(--green-line);color:var(--green-d);font-size:13px;font-weight:600;padding:10px 16px;border-radius:10px}
 .editing-hint.show{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .editing-hint .savepos{margin-left:auto;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;border:none;background:var(--ink);color:#fff;cursor:pointer}
 
 /* ================= BAŞLIK ================= */
 .page-heading{margin:30px 0 22px;text-align:center;padding:26px 20px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#fff, var(--soft))}
 .page-heading h1{font-size:clamp(19px,2.6vw,26px);font-weight:800;letter-spacing:-.015em}
-.page-heading h1 b{color:var(--orange-d)}
+.page-heading h1 b{color:var(--green)}
 .page-heading .sub{font-size:13px;color:var(--muted);margin-top:6px;font-weight:500}
 
 /* ================= AKORDEON ================= */
@@ -69,23 +71,37 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .acc-list{display:flex;flex-direction:column;gap:10px}
 .acc{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:border-color .15s}
 .acc.open{border-color:#c4ccd6;box-shadow:0 4px 18px rgba(19,35,59,.06)}
-.acc-head{display:flex;align-items:center;gap:16px;padding:16px 20px;cursor:pointer;user-select:none;background:#fff}
+.acc-head{display:flex;align-items:center;gap:16px;padding:14px 20px;cursor:pointer;user-select:none;background:#fff}
 .acc-head:hover{background:var(--soft)}
-.acc-head:focus-visible{outline:2px solid var(--orange);outline-offset:-2px}
-.acc-ico{width:44px;height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:11px;background:var(--soft);border:1px solid var(--line)}
-.acc-ico svg{width:30px;height:30px}
+.acc-head:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
+.acc-ico{width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--soft);border:1px solid var(--line)}
+.acc-ico svg{width:38px;height:38px}
 .acc-tt h3{font-size:15.5px;font-weight:700}
 .acc-tt .cat{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:1px}
 .acc-badges{margin-left:auto;display:flex;align-items:center;gap:10px}
 .count-badge{font-size:12px;font-weight:700;color:var(--ink);background:var(--soft);border:1px solid var(--line);padding:6px 13px;border-radius:99px;white-space:nowrap}
-.count-badge b{color:var(--orange-d)}
+.count-badge b{color:var(--green)}
 .chev{width:22px;height:22px;color:var(--muted);transition:transform .2s;flex-shrink:0}
 .acc.open .chev{transform:rotate(180deg)}
 .acc-body{display:none;border-top:1px solid var(--line);padding:22px;background:#fff}
-.acc.open .acc-body{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,1fr);gap:26px}
+.acc.open .acc-body{display:block}
+.acc-cover{width:100%;max-height:300px;object-fit:cover;border-radius:12px;display:block;margin-bottom:18px;cursor:pointer;border:1px solid var(--line)}
+.ab-title{margin-bottom:12px;display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.ab-title h4{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.ab-title .cat2{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--green);margin-top:2px}
+.pdfbtn{margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--green);background:var(--green-soft);border:1px solid var(--green-line);padding:8px 15px;border-radius:9px;text-decoration:none;transition:.15s;white-space:nowrap}
+.pdfbtn:hover{background:var(--green);color:#fff}
+.pdfbtn svg{width:15px;height:15px}
+.ab-cols{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,1fr);gap:26px}
+.ab-cols.single{display:block}
+.ab-price{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.ab-price .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.ab-price .v{font-size:20px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums}
+.ab-price .note{font-size:11.5px;color:var(--muted);font-weight:500}
+.ab-price .pend{font-size:11.5px;font-weight:700;color:var(--green);background:var(--green-soft);border:1px solid var(--green-line);padding:3px 10px;border-radius:99px}
 .ab-desc{font-size:13.5px;color:var(--ink-soft);margin-bottom:14px}
-.ab-why{background:var(--soft);border-radius:10px;padding:14px 16px;margin-bottom:14px}
-.ab-why .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--orange-d);margin-bottom:5px}
+.ab-why{background:var(--green-soft);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.ab-why .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:5px}
 .ab-why p{font-size:13.5px;color:var(--ink-soft)}
 .ab-specs{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
 .spec{font-size:12px;font-weight:600;color:var(--ink-soft);background:#fff;border:1px solid var(--line);padding:6px 12px;border-radius:8px}
@@ -96,14 +112,13 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .sl:hover{background:var(--soft)}
 .sl .sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .sl .go{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--muted);white-space:nowrap}
-.sl:hover .go{color:var(--orange-d)}
+.sl:hover .go{color:var(--green)}
 .sl.slhl{font-weight:700}
 .gal .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:10px}
 .thumbs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .thumb{position:relative;aspect-ratio:4/3;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--soft);cursor:pointer}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .thumb.ph{display:flex;align-items:center;justify-content:center;color:#aab4c0;font-size:11.5px;font-weight:600;text-align:center;padding:8px;border-style:dashed;cursor:default}
-/* lightbox */
 .lb{position:fixed;inset:0;background:rgba(15,22,35,.85);display:none;align-items:center;justify-content:center;z-index:3000;padding:30px}
 .lb.show{display:flex}
 .lb img{max-width:92vw;max-height:88vh;border-radius:10px}
@@ -113,7 +128,7 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .bud-controls{display:flex;flex-wrap:wrap;gap:18px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px 14px 0 0;border-bottom:none;padding:16px 20px}
 .bud-controls label{font-size:13px;font-weight:600;display:flex;align-items:center;gap:9px;color:var(--ink-soft)}
 .bud-controls input[type=number]{width:72px;font-family:inherit;font-size:15px;font-weight:700;padding:7px 10px;border-radius:8px;border:1px solid var(--line);text-align:right;color:var(--ink)}
-.bud-controls input[type=checkbox]{width:16px;height:16px;accent-color:var(--orange-d)}
+.bud-controls input[type=checkbox]{width:16px;height:16px;accent-color:var(--green)}
 .bud-controls .hint{font-size:12px;color:var(--muted);margin-left:auto}
 .tbl-scroll{overflow-x:auto;border:1px solid var(--line)}
 table.price{width:100%;border-collapse:collapse;min-width:860px;background:#fff}
@@ -125,7 +140,7 @@ table.price tr.off td{opacity:.35}
 table.price tr.gh td{background:var(--soft);font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 16px}
 table.price td .nm{font-weight:700}
 table.price td .sub{font-size:11.5px;color:var(--muted);margin-top:1px}
-table.price input[type=checkbox]{width:16px;height:16px;accent-color:var(--orange-d);cursor:pointer}
+table.price input[type=checkbox]{width:16px;height:16px;accent-color:var(--green);cursor:pointer}
 td.list,td.net{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
 td.net{color:var(--green);font-weight:800}
 .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));border:1px solid var(--line);border-top:none;border-radius:0 0 14px 14px;overflow:hidden;background:#fff}
@@ -136,7 +151,7 @@ td.net{color:var(--green);font-weight:800}
 .tot.save .v{color:var(--red)}
 .tot.grand{background:var(--ink);color:#fff}
 .tot.grand .k{color:#94a0b4}
-.tot.grand .v{color:var(--orange)}
+.tot.grand .v{color:#5fce8f}
 .fine{margin-top:14px;font-size:11.5px;color:var(--muted);line-height:1.65}
 
 /* ================= YÖNETİM ================= */
@@ -147,22 +162,27 @@ td.net{color:var(--green);font-weight:800}
 .fld label{display:block;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
 .fld input,.fld textarea,.fld select{width:100%;font-family:inherit;font-size:13.5px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;color:var(--ink)}
 .fld textarea{resize:vertical;min-height:64px}
-.fld input:focus,.fld textarea:focus{outline:2px solid var(--orange);border-color:var(--orange)}
+.fld input:focus,.fld textarea:focus{outline:2px solid var(--green);border-color:var(--green)}
 .btn{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;padding:10px 18px;border-radius:9px;border:none;cursor:pointer;transition:.15s}
 .btn.primary{background:var(--ink);color:#fff}
 .btn.primary:hover{background:#1e3453}
-.btn.orange{background:var(--orange);color:#fff}
+.btn.green{background:var(--green);color:#fff}
+.btn.green:hover{background:var(--green-d)}
 .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink-soft)}
 .btn.danger{background:#fff;border:1px solid #f1c1bb;color:#b42318}
 .btn.sm{font-size:11.5px;padding:6px 11px;border-radius:7px}
 .admin-top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:18px}
 .admin-top .who{font-size:12.5px;color:var(--muted)}
 .msg{display:none;font-size:12.5px;font-weight:600;padding:9px 14px;border-radius:8px;margin-bottom:14px}
-.msg.ok{display:block;background:#eef7f1;border:1px solid #cfe5d7;color:var(--green)}
+.msg.ok{display:block;background:var(--green-soft);border:1px solid var(--green-line);color:var(--green)}
 .msg.err{display:block;background:#fdf1ef;border:1px solid #f1c1bb;color:#b42318}
 .set-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:18px}
 .set-card h4{font-size:14px;font-weight:800;margin-bottom:12px}
 .set-grid{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:end}
+.logo-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo-prev{height:46px;min-width:120px;border:1px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;padding:4px 12px;background:var(--soft)}
+.logo-prev img{max-height:38px;max-width:200px;object-fit:contain}
+.logo-prev span{font-size:11.5px;color:var(--muted);font-weight:600}
 .adm-acc{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
 .adm-head{display:flex;align-items:center;gap:12px;padding:13px 16px;background:#fff}
 .adm-head .order{display:flex;flex-direction:column;gap:2px}
@@ -187,23 +207,27 @@ td.net{color:var(--green);font-weight:800}
 .adm-imgs .im{position:relative;width:96px;height:72px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
 .adm-imgs .im img{width:100%;height:100%;object-fit:cover}
 .adm-imgs .im .rm{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(19,35,59,.8);color:#fff;font-size:11px;cursor:pointer}
+.adm-imgs .im .mkcov{position:absolute;bottom:3px;right:3px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(46,125,79,.9);color:#fff;font-size:11px;cursor:pointer;line-height:1}
+.adm-imgs .im .cov{position:absolute;top:3px;left:3px;font-size:8.5px;font-weight:800;letter-spacing:.05em;background:var(--green);color:#fff;padding:2px 6px;border-radius:99px}
 .upl{width:96px;height:72px;border:1.5px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer}
-.upl:hover{border-color:var(--orange);color:var(--orange-d)}
+.upl:hover{border-color:var(--green);color:var(--green)}
 .savebar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:14px 0;display:flex;gap:12px;align-items:center;margin-top:6px}
 .savebar .st{font-size:12px;color:var(--muted)}
 
 /* infowindow */
-.iw{font-family:'Inter',sans-serif;max-width:270px}
+.iw{font-family:'Inter',sans-serif;max-width:280px}
 .iw .t{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fff;padding:3px 9px;border-radius:99px;margin-bottom:7px}
 .iw h4{font-size:14.5px;font-weight:800;color:var(--ink);line-height:1.25;margin-bottom:3px}
 .iw .m{font-size:11.5px;color:var(--muted);margin-bottom:7px}
-.iw .w{font-size:12px;color:var(--ink-soft);background:var(--soft);border-left:3px solid var(--orange);padding:7px 10px;border-radius:0 6px 6px 0;margin-bottom:6px}
+.iw .foto{width:100%;border-radius:8px;margin-bottom:8px;display:block;max-height:160px;object-fit:cover}
+.iw .w{font-size:12px;color:var(--ink-soft);background:var(--green-soft);border-left:3px solid var(--green);padding:7px 10px;border-radius:0 6px 6px 0;margin-bottom:6px}
 .iw input{width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;margin:4px 0 8px}
-.iw .btns{display:flex;gap:6px}
-.iw .btns button{flex:1;font-size:11.5px;font-weight:700;padding:6px;border-radius:7px;border:1px solid var(--line);background:#fff;cursor:pointer}
+.iw .btns{display:flex;gap:6px;flex-wrap:wrap}
+.iw .btns button{flex:1;font-size:11.5px;font-weight:700;padding:6px;border-radius:7px;border:1px solid var(--line);background:#fff;cursor:pointer;white-space:nowrap}
 .iw .btns .del{color:#b42318;border-color:#f1c1bb}
+.iw .btns .up{color:var(--green);border-color:var(--green-line)}
 
-@media(max-width:860px){.acc.open .acc-body{grid-template-columns:1fr}.adm-grid{grid-template-columns:1fr}.hd-title{display:none}.bud-line,.bl-head{grid-template-columns:1fr 1fr 60px 90px 30px}}
+@media(max-width:860px){.ab-cols{grid-template-columns:1fr}.adm-grid{grid-template-columns:1fr}.hd-title{display:none}.bud-line,.bl-head{grid-template-columns:1fr 1fr 60px 90px 30px}}
 @media(max-width:640px){#map{height:420px}.hd-pill{display:none}}
 </style>
 </head>
@@ -211,7 +235,7 @@ td.net{color:var(--green);font-weight:800}
 
 <header>
   <div class="hd">
-    <div class="logo">medya<b>park</b><small>ADANA · 35. YIL</small></div>
+    <div class="logo" id="brandLogo">medya<b>park</b>&nbsp;<small>ADANA · 35. YIL</small></div>
     <div class="hd-title">Açıkhava Kampanya Teklifi<b>Tüyap Adana Tarım Fuarı 2026</b></div>
     <div class="hd-pill">FUAR: <b>4–8 KASIM</b> &nbsp;·&nbsp; KAMPANYA: <b>EKİM BAŞI</b></div>
   </div>
@@ -250,7 +274,7 @@ td.net{color:var(--green);font-weight:800}
     </div>
   </div>
   <div class="editing-hint" id="editHint">
-    <span>İşaretleme modu açık — haritada boş yere tıklayın: yeni nokta eklenir. Pinleri sürükleyin; adlandırmak/silmek için pine tıklayın.</span>
+    <span>İşaretleme modu açık — haritada boş yere tıklayın: yeni nokta eklenir. Pinleri sürükleyin; ad, fotoğraf ve silme için pine tıklayın.</span>
     <button class="savepos" id="savePosBtn" style="display:none">Konum Değişikliklerini Kaydet</button>
   </div>
 
@@ -312,6 +336,17 @@ td.net{color:var(--green);font-weight:800}
     <div class="msg" id="admMsg"></div>
 
     <div class="set-card">
+      <h4>Firma Logosu</h4>
+      <div class="logo-row">
+        <div class="logo-prev" id="logoPrev"><span>Logo yüklenmedi</span></div>
+        <button class="btn primary sm" id="logoUpBtn">Logo Yükle</button>
+        <button class="btn danger sm" id="logoRmBtn">Logoyu Kaldır</button>
+        <input type="file" accept="image/*" hidden id="logoFile">
+        <span style="font-size:11.5px;color:var(--muted)">PNG (şeffaf zemin) önerilir · üst bardaki metin logonun yerini alır</span>
+      </div>
+    </div>
+
+    <div class="set-card">
       <h4>Google Maps API Anahtarı <span style="font-weight:500;color:var(--muted);font-size:12px">— geçici olarak yapıştırın, iş bitince silin</span></h4>
       <div class="set-grid">
         <div class="fld" style="margin:0"><label>Anahtar</label><input type="text" id="setGmKey" placeholder="AIza..."></div>
@@ -333,7 +368,7 @@ td.net{color:var(--green);font-weight:800}
     <div class="sec-title" style="font-size:16px">Mecra Grupları <span style="font-weight:500;font-size:12px;color:var(--muted)">— ▲▼ ile sıralayın, alanları düzenleyin, en altta Kaydet'e basın</span></div>
     <div id="admList"></div>
     <div class="savebar">
-      <button class="btn orange" id="saveAllBtn">Tüm Değişiklikleri Kaydet</button>
+      <button class="btn green" id="saveAllBtn">Tüm Değişiklikleri Kaydet</button>
       <span class="st" id="saveState"></span>
     </div>
   </div>
@@ -341,6 +376,7 @@ td.net{color:var(--green);font-weight:800}
 </main>
 
 <div class="lb" id="lb"><button class="x" aria-label="Kapat">×</button><img id="lbImg" alt=""></div>
+<input type="file" accept="image/*" hidden id="ptFile">
 
 <script>
 /* =========================================================
@@ -352,15 +388,66 @@ const supa=window.supabase.createClient(SB_URL,SB_KEY);
 const BUCKET="media", FOLDER="tuyap";
 
 /* =========================================================
-   İKONLAR
+   PIN İKONLARI — ürün silüetleri (zemin gölgeli, koyu çerçeveli)
    ========================================================= */
 const ICON_SVG={
-led:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48"><rect x="18" y="24" width="4" height="18" rx="1.5" fill="#5b6675"/><rect x="3" y="4" width="34" height="22" rx="3" fill="${c}" stroke="#fff" stroke-width="2.4"/><g fill="#fff" opacity=".9"><circle cx="10" cy="11" r="1.7"/><circle cx="16" cy="11" r="1.7"/><circle cx="22" cy="11" r="1.7"/><circle cx="28" cy="11" r="1.7"/><circle cx="10" cy="17" r="1.7"/><circle cx="16" cy="17" r="1.7"/><circle cx="22" cy="17" r="1.7"/><circle cx="28" cy="17" r="1.7"/></g></svg>`,
-board:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48"><rect x="10" y="26" width="3.6" height="16" rx="1.4" fill="#5b6675"/><rect x="26.4" y="26" width="3.6" height="16" rx="1.4" fill="#5b6675"/><rect x="2" y="6" width="36" height="20" rx="2.5" fill="${c}" stroke="#fff" stroke-width="2.4"/><rect x="7" y="11" width="17" height="3.4" rx="1.7" fill="#fff" opacity=".95"/><rect x="7" y="17" width="11" height="3.4" rx="1.7" fill="#fff" opacity=".7"/></svg>`,
-wall:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48"><rect x="2" y="8" width="36" height="34" rx="2.5" fill="${c}" stroke="#fff" stroke-width="2.4"/><g stroke="#fff" stroke-width="1.6" opacity=".55"><line x1="2" y1="19" x2="38" y2="19"/><line x1="2" y1="30" x2="38" y2="30"/><line x1="14" y1="8" x2="14" y2="19"/><line x1="26" y1="8" x2="26" y2="19"/><line x1="8" y1="19" x2="8" y2="30"/><line x1="20" y1="19" x2="20" y2="30"/><line x1="32" y1="19" x2="32" y2="30"/><line x1="14" y1="30" x2="14" y2="42"/><line x1="26" y1="30" x2="26" y2="42"/></g><rect x="8" y="13" width="24" height="12" rx="1.5" fill="#fff" opacity=".92"/><rect x="11" y="16.5" width="14" height="2.6" rx="1.3" fill="${c}"/><rect x="11" y="20.5" width="9" height="2.6" rx="1.3" fill="${c}" opacity=".6"/></svg>`,
-avm:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48"><path d="M8 16 h24 l3 26 H5 Z" fill="${c}" stroke="#fff" stroke-width="2.4"/><path d="M13.5 20 v-6 a6.5 6.5 0 0 1 13 0 v6" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><rect x="12" y="25" width="16" height="3" rx="1.5" fill="#fff" opacity=".9"/><rect x="14.5" y="31" width="11" height="3" rx="1.5" fill="#fff" opacity=".6"/></svg>`,
-durak:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 48"><rect x="4" y="40" width="32" height="3" rx="1.5" fill="#5b6675"/><rect x="6" y="10" width="4" height="31" rx="1.6" fill="#5b6675"/><rect x="30" y="10" width="4" height="31" rx="1.6" fill="#5b6675"/><path d="M2 10 q18 -8 36 0 v4 H2 Z" fill="${c}" stroke="#fff" stroke-width="2.2"/><rect x="11" y="17" width="18" height="14" rx="1.8" fill="${c}" stroke="#fff" stroke-width="2.2"/><rect x="14" y="20" width="12" height="4" rx="1.2" fill="#fff" opacity=".9"/><rect x="12" y="33" width="16" height="3.2" rx="1.6" fill="${c}" stroke="#fff" stroke-width="1.6"/></svg>`,
-fuar:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 52"><path d="M22 44 L22 51" stroke="${c}" stroke-width="4" stroke-linecap="round"/><circle cx="22" cy="22" r="19" fill="${c}" stroke="#fff" stroke-width="3"/><path d="M22 10 l3.4 7 7.7 1.1 -5.6 5.4 1.3 7.6 -6.8 -3.6 -6.8 3.6 1.3 -7.6 -5.6 -5.4 7.7 -1.1 Z" fill="#e8971e"/></svg>`
+led:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56">
+<ellipse cx="24" cy="52.5" rx="11" ry="2.8" fill="rgba(19,35,59,.20)"/>
+<rect x="21.2" y="30" width="5.6" height="21" rx="2.2" fill="#46536a"/>
+<rect x="17" y="49" width="14" height="3.6" rx="1.8" fill="#46536a"/>
+<rect x="3.5" y="3.5" width="41" height="28" rx="4.5" fill="#1c2940" stroke="#fff" stroke-width="2.6"/>
+<rect x="7" y="7" width="34" height="21" rx="2.2" fill="${c}"/>
+<g fill="#fff" opacity=".95">
+<circle cx="12.4" cy="12.2" r="1.55"/><circle cx="19.2" cy="12.2" r="1.55"/><circle cx="26" cy="12.2" r="1.55"/><circle cx="32.8" cy="12.2" r="1.55"/>
+<circle cx="12.4" cy="17.5" r="1.55"/><circle cx="19.2" cy="17.5" r="1.55"/><circle cx="26" cy="17.5" r="1.55"/><circle cx="32.8" cy="17.5" r="1.55"/>
+<circle cx="12.4" cy="22.8" r="1.55"/><circle cx="19.2" cy="22.8" r="1.55"/><circle cx="26" cy="22.8" r="1.55"/><circle cx="32.8" cy="22.8" r="1.55"/>
+</g></svg>`,
+board:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56">
+<ellipse cx="24" cy="52.5" rx="12" ry="2.8" fill="rgba(19,35,59,.20)"/>
+<rect x="12.5" y="30" width="4.4" height="21" rx="2" fill="#46536a"/>
+<rect x="31.1" y="30" width="4.4" height="21" rx="2" fill="#46536a"/>
+<rect x="2.5" y="4.5" width="43" height="27" rx="3.8" fill="#1c2940" stroke="#fff" stroke-width="2.6"/>
+<rect x="6" y="8" width="36" height="20" rx="2" fill="${c}"/>
+<rect x="10" y="13" width="19" height="3.6" rx="1.8" fill="#fff" opacity=".95"/>
+<rect x="10" y="19.5" width="12" height="3.6" rx="1.8" fill="#fff" opacity=".65"/>
+</svg>`,
+wall:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56">
+<ellipse cx="24" cy="52.5" rx="13" ry="2.8" fill="rgba(19,35,59,.20)"/>
+<rect x="4" y="4" width="40" height="46" rx="3.2" fill="${c}" stroke="#fff" stroke-width="2.6"/>
+<g stroke="#fff" stroke-width="1.4" opacity=".4">
+<line x1="4" y1="14" x2="44" y2="14"/><line x1="4" y1="41" x2="44" y2="41"/>
+<line x1="16" y1="4" x2="16" y2="14"/><line x1="30" y1="4" x2="30" y2="14"/>
+<line x1="16" y1="41" x2="16" y2="50"/><line x1="30" y1="41" x2="30" y2="50"/>
+</g>
+<rect x="9" y="17.5" width="30" height="20" rx="2" fill="#fff"/>
+<rect x="12.5" y="22" width="17" height="3.4" rx="1.7" fill="${c}"/>
+<rect x="12.5" y="27.5" width="11" height="3.4" rx="1.7" fill="${c}" opacity=".55"/>
+<circle cx="34" cy="31" r="3.4" fill="${c}" opacity=".35"/>
+</svg>`,
+avm:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56">
+<ellipse cx="24" cy="52.5" rx="12" ry="2.8" fill="rgba(19,35,59,.20)"/>
+<path d="M10.5 19 h27 a3.4 3.4 0 0 1 3.38 3.75 l-2.3 22.5 A4.4 4.4 0 0 1 34.2 49.2 H13.8 a4.4 4.4 0 0 1-4.38-3.95 l-2.3-22.5 A3.4 3.4 0 0 1 10.5 19 Z" fill="${c}" stroke="#fff" stroke-width="2.6"/>
+<path d="M16.5 23.5 v-7 a7.5 7.5 0 0 1 15 0 v7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+<rect x="14" y="29" width="20" height="3.4" rx="1.7" fill="#fff" opacity=".95"/>
+<rect x="16.5" y="35.5" width="15" height="3.4" rx="1.7" fill="#fff" opacity=".6"/>
+</svg>`,
+durak:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56">
+<ellipse cx="24" cy="52.5" rx="14" ry="2.8" fill="rgba(19,35,59,.20)"/>
+<rect x="6.4" y="12" width="4.4" height="38" rx="2" fill="#46536a"/>
+<rect x="37.2" y="12" width="4.4" height="38" rx="2" fill="#46536a"/>
+<path d="M2.5 12 Q24 3 45.5 12 v4.6 H2.5 Z" fill="${c}" stroke="#fff" stroke-width="2.6"/>
+<rect x="12" y="20" width="24" height="17" rx="2.4" fill="${c}" stroke="#fff" stroke-width="2.6"/>
+<rect x="15.5" y="23.5" width="17" height="4.4" rx="1.6" fill="#fff" opacity=".95"/>
+<rect x="15.5" y="30" width="10" height="3" rx="1.5" fill="#fff" opacity=".55"/>
+<rect x="13" y="41" width="22" height="4" rx="2" fill="${c}" stroke="#fff" stroke-width="2"/>
+</svg>`,
+fuar:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 56">
+<ellipse cx="23" cy="53" rx="9" ry="2.6" fill="rgba(19,35,59,.25)"/>
+<path d="M23 42 L23 52" stroke="${c}" stroke-width="4.4" stroke-linecap="round"/>
+<circle cx="23" cy="22" r="19.5" fill="${c}" stroke="#fff" stroke-width="3"/>
+<circle cx="23" cy="22" r="14.5" fill="none" stroke="#fff" stroke-width="1.4" opacity=".45"/>
+<path d="M23 10.5 l3.5 7.1 7.8 1.15 -5.65 5.5 1.35 7.8 -7 -3.7 -7 3.7 1.35 -7.8 -5.65 -5.5 7.8 -1.15 Z" fill="#4fbf7f"/>
+</svg>`
 };
 const COLORS={led:"#c0392b",board:"#e8971e",wall:"#2e7d4f",avm:"#6f5bb5",durak:"#2f7fa3",fuar:"#13233b"};
 const TYPENAME={led:"LED Ekran",board:"Board",wall:"Duvar Reklamı",avm:"AVM Mecrası",durak:"Akıllı Durak",fuar:"Fuar Merkezi"};
@@ -368,11 +455,33 @@ const iconUrl=t=>'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(ICON_SVG
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const fmt=v=>v.toLocaleString("tr-TR")+" ₺";
 
+/* Görsel sıkıştırma: uzun kenarı küçült + WebP'ye çevir.
+   Dönen: {blob, name, type}. WebP desteklenmez veya sonuç büyürse orijinal kullanılır. */
+async function compressImage(file, maxDim=1600, quality=0.82){
+  try{
+    const url=URL.createObjectURL(file);
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url;});
+    let w=img.naturalWidth,h=img.naturalHeight;
+    const scale=Math.min(1,maxDim/Math.max(w,h));
+    w=Math.max(1,Math.round(w*scale));h=Math.max(1,Math.round(h*scale));
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    URL.revokeObjectURL(url);
+    const blob=await new Promise(res=>c.toBlob(res,'image/webp',quality));
+    if(blob&&blob.size<file.size){
+      const name=file.name.replace(/\.[^.]+$/,'')+'.webp';
+      return {blob,name,type:'image/webp'};
+    }
+  }catch(e){console.warn('Sıkıştırma atlandı:',e);}
+  return {blob:file,name:file.name,type:file.type||'image/jpeg'};
+}
+const safeName=n=>n.replace(/[^a-zA-Z0-9._-]/g,'_');
+
 /* =========================================================
    DURUM
    ========================================================= */
 let GROUPS=[],PTS=[],SETTINGS={},deletedPts=new Set();
-let map,infoWin,markers={},editMode=false,satMode=false,curF="all",gmLoaded=false,session=null;
+let map,infoWin,markers={},editMode=false,satMode=false,curF="all",gmLoaded=false,session=null,ptUploadId=null;
 
 /* =========================================================
    VERİ YÜKLE
@@ -407,6 +516,12 @@ function applySettings(){
   }
   const d=parseFloat(SETTINGS.indirim);
   if(!isNaN(d))document.getElementById('disc').value=d;
+  const brand=document.getElementById('brandLogo');
+  if(SETTINGS.logo_url){
+    brand.innerHTML=`<img src="${esc(SETTINGS.logo_url)}" alt="Medyapark">`;
+  }else{
+    brand.innerHTML='medya<b>park</b>&nbsp;<small>ADANA · 35. YIL</small>';
+  }
 }
 
 /* =========================================================
@@ -436,7 +551,7 @@ window.initMap=function(){
   map.addListener('click',e=>{
     if(!editMode)return;
     const t=(curF==='all')?'led':curF;
-    const p={id:'p'+Date.now(),t:t,grp:null,lat:e.latLng.lat(),lng:e.latLng.lng(),name:'Yeni Nokta',meta:'Elle eklendi',why:'',hl:false,sira:PTS.length+1};
+    const p={id:'p'+Date.now(),t:t,grp:null,lat:e.latLng.lat(),lng:e.latLng.lng(),name:'Yeni Nokta',meta:'Elle eklendi',why:'',img:'',hl:false,sira:PTS.length+1};
     PTS.push(p);addMarker(p);markers[p.id].setDraggable(true);openInfo(p);
   });
 };
@@ -444,10 +559,13 @@ function addMarker(p){
   const isF=p.t==='fuar';
   const m=new google.maps.Marker({
     position:{lat:p.lat,lng:p.lng},map:map,title:p.name,draggable:editMode,
-    icon:{url:iconUrl(p.t),scaledSize:new google.maps.Size(isF?40:34,isF?47:41),anchor:new google.maps.Point(isF?20:17,isF?47:41)},
+    icon:{url:iconUrl(p.t),scaledSize:new google.maps.Size(isF?38:38,isF?46:44),anchor:new google.maps.Point(19,isF?45:43)},
     zIndex:isF?900:(p.hl?800:100)
   });
-  m.addListener('click',()=>openInfo(p));
+  m.addListener('click',()=>{
+    openInfo(p);
+    if(!editMode&&p.grp)openGroupDetail(p.grp);
+  });
   m.addListener('dragend',()=>{const pos=m.getPosition();p.lat=pos.lat();p.lng=pos.lng();p._dirty=true;});
   markers[p.id]=m;
 }
@@ -456,23 +574,63 @@ function openInfo(p){
   let html;
   if(editMode){
     html=`<div class="iw"><span class="t" style="background:${col}">${TYPENAME[p.t]||'Nokta'}</span>
+      ${p.img?`<img class="foto" src="${esc(p.img)}">`:''}
       <input type="text" value="${esc(p.name)}" onchange="renamePt('${p.id}',this.value)">
       <div class="m">Sürükleyerek taşıyın · ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</div>
-      <div class="btns"><button class="del" onclick="delPt('${p.id}')">Sil</button><button onclick="infoWin.close()">Tamam</button></div></div>`;
+      <div class="btns">
+        <button class="up" onclick="pickPtImg('${p.id}')">${p.img?'Fotoğrafı Değiştir':'Fotoğraf Yükle'}</button>
+        ${p.img?`<button onclick="rmPtImg('${p.id}')">Fotoğrafı Sil</button>`:''}
+        <button class="del" onclick="delPt('${p.id}')">Noktayı Sil</button>
+        <button onclick="infoWin.close()">Tamam</button>
+      </div></div>`;
   }else{
     html=`<div class="iw"><span class="t" style="background:${col}">${TYPENAME[p.t]||'Nokta'}</span>
       <h4>${esc(p.name)}</h4><div class="m">${esc(p.meta)}</div>
+      ${p.img?`<img class="foto" src="${esc(p.img)}">`:''}
       ${p.why?`<div class="w">${esc(p.why)}</div>`:''}</div>`;
   }
   infoWin.setContent(html);infoWin.open({map:map,anchor:markers[p.id]});
 }
 window.renamePt=(id,v)=>{const p=PTS.find(x=>x.id===id);if(p){p.name=v;p._dirty=true;markers[id].setTitle(v);renderAccordions();}};
 window.delPt=(id)=>{const i=PTS.findIndex(x=>x.id===id);if(i>-1){markers[id].setMap(null);delete markers[id];deletedPts.add(id);PTS.splice(i,1);infoWin.close();renderAccordions();}};
+window.pickPtImg=(id)=>{
+  if(!session){alert('Fotoğraf yüklemek için Yönetim sekmesinden giriş yapın.');return;}
+  ptUploadId=id;document.getElementById('ptFile').click();
+};
+window.rmPtImg=async(id)=>{
+  const p=PTS.find(x=>x.id===id);if(!p)return;
+  p.img='';
+  await supa.from('tuyap_noktalar').upsert({id:p.id,grp:p.grp,t:p.t,lat:p.lat,lng:p.lng,name:p.name,meta:p.meta||'',why:p.why||'',img:'',hl:!!p.hl,sira:p.sira||0});
+  openInfo(p);
+};
+document.getElementById('ptFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';
+  const p=PTS.find(x=>x.id===ptUploadId);
+  if(!f||!p)return;
+  const cz=await compressImage(f,1400,0.82);
+  const path=`${FOLDER}/nokta_${p.id}_${Date.now()}_${safeName(cz.name)}`;
+  const up=await supa.storage.from(BUCKET).upload(path,cz.blob,{contentType:cz.type});
+  if(up.error){alert('Yüklenemedi: '+up.error.message);return;}
+  const {data}=supa.storage.from(BUCKET).getPublicUrl(path);
+  p.img=data.publicUrl;
+  const sv=await supa.from('tuyap_noktalar').upsert({id:p.id,grp:p.grp,t:p.t,lat:p.lat,lng:p.lng,name:p.name,meta:p.meta||'',why:p.why||'',img:p.img,hl:!!p.hl,sira:p.sira||0});
+  if(sv.error){alert('Fotoğraf kaydedilemedi: '+sv.error.message);return;}
+  openInfo(p);
+});
 function fitAll(){
   if(!map)return;
   const b=new google.maps.LatLngBounds();let n=0;
   PTS.forEach(p=>{if(markers[p.id]&&markers[p.id].getMap()){b.extend({lat:p.lat,lng:p.lng});n++;}});
   if(n)map.fitBounds(b,60);
+}
+function openGroupDetail(grpId){
+  const acc=document.querySelector(`.acc[data-g="${grpId}"]`);
+  if(!acc)return;
+  if(!acc.classList.contains('open')){
+    acc.classList.add('open');
+    acc.querySelector('.acc-head')?.setAttribute('aria-expanded','true');
+  }
+  setTimeout(()=>acc.scrollIntoView({behavior:'smooth',block:'start'}),150);
 }
 function flyTo(id){
   const p=PTS.find(x=>x.id===id);if(!p||!map)return;
@@ -515,7 +673,7 @@ document.getElementById('editBtn').addEventListener('click',e=>{
 });
 document.getElementById('savePosBtn').addEventListener('click',async()=>{
   if(!session){alert('Kaydetmek için Yönetim sekmesinden giriş yapın.');return;}
-  const rows=PTS.map(p=>({id:p.id,grp:p.grp,t:p.t,lat:p.lat,lng:p.lng,name:p.name,meta:p.meta||'',why:p.why||'',hl:!!p.hl,sira:p.sira||0}));
+  const rows=PTS.map(p=>({id:p.id,grp:p.grp,t:p.t,lat:p.lat,lng:p.lng,name:p.name,meta:p.meta||'',why:p.why||'',img:p.img||'',hl:!!p.hl,sira:p.sira||0}));
   const up=await supa.from('tuyap_noktalar').upsert(rows);
   let delErr=null;
   if(deletedPts.size){const d=await supa.from('tuyap_noktalar').delete().in('id',[...deletedPts]);delErr=d.error;}
@@ -524,7 +682,7 @@ document.getElementById('savePosBtn').addEventListener('click',async()=>{
 });
 
 /* =========================================================
-   AKORDEONLAR (herkese açık görünüm)
+   AKORDEONLAR
    ========================================================= */
 function renderAccordions(){
   const wrap=document.getElementById('accList');
@@ -538,6 +696,9 @@ function renderAccordions(){
     const el=document.createElement('div');
     el.className='acc'+(openIds.has(g.id)?' open':'');
     el.dataset.g=g.id;
+    const lines=Array.isArray(g.budget)?g.budget:[];
+    const listTotal=lines.reduce((a,L)=>a+(parseFloat(L.qty)||0)*(parseFloat(L.unit)||0),0);
+    const hasPending=lines.some(L=>!(parseFloat(L.unit)>0));
     el.innerHTML=`
     <div class="acc-head" tabindex="0" role="button" aria-expanded="${openIds.has(g.id)}">
       <div class="acc-ico">${ICON_SVG[t](COLORS[t])}</div>
@@ -548,6 +709,13 @@ function renderAccordions(){
       </div>
     </div>
     <div class="acc-body">
+      ${imgs.length?`<img class="acc-cover" src="${esc(imgs[0])}" data-img="${esc(imgs[0])}" alt="${esc(g.name)}" loading="lazy">`:''}
+      <div class="ab-title"><div><h4>${esc(g.name)}</h4><div class="cat2">${esc(g.cat)} · Öneri: ${esc(g.count_text)}</div></div>
+        ${g.pdf_url?`<a class="pdfbtn" href="${esc(g.pdf_url)}" target="_blank" rel="noopener" download>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Katalog PDF İndir</a>`:''}
+      </div>
+      <div class="ab-cols${imgs.length>1?'':' single'}">
       <div>
         <p class="ab-desc">${esc(g.descr)}</p>
         <div class="ab-why"><div class="k">Neden bu mecra?</div><p>${esc(g.why)}</p></div>
@@ -556,13 +724,19 @@ function renderAccordions(){
           ${subPts.map(p=>`<div class="sl${p.hl?' slhl':''}" data-p="${p.id}"><span class="sdot" style="background:${COLORS[p.t]}"></span>${esc(p.name)}<span class="go">Haritada gör →</span></div>`).join('')}
         </div>`:''}
       </div>
-      <div class="gal">
-        <span class="k">Görseller</span>
+      ${imgs.length>1?`<div class="gal">
+        <span class="k">Diğer Görseller</span>
         <div class="thumbs">
-          ${imgs.length?imgs.map(u=>`<div class="thumb" data-img="${esc(u)}"><img src="${esc(u)}" alt="" loading="lazy"></div>`).join('')
-            :'<div class="thumb ph">Görsel henüz eklenmedi<br>(Yönetim sekmesinden yükleyin)</div>'}
+          ${imgs.slice(1).map(u=>`<div class="thumb" data-img="${esc(u)}"><img src="${esc(u)}" alt="" loading="lazy"></div>`).join('')}
         </div>
+      </div>`:''}
       </div>
+      ${lines.length?`<div class="ab-price">
+        <span class="k">Liste Fiyatı</span>
+        <span class="v">${listTotal?fmt(listTotal):'—'}</span>
+        ${hasPending?'<span class="pend">bazı kalemler teyit edilecek</span>':''}
+        <span class="note">KDV hariç · Medyapark özel indirimi ve kalem detayı için Bütçe sekmesine bakın</span>
+      </div>`:''}
     </div>`;
     wrap.appendChild(el);
     const head=el.querySelector('.acc-head');
@@ -574,13 +748,13 @@ function renderAccordions(){
 }
 document.getElementById('accList').addEventListener('click',e=>{
   const sl=e.target.closest('.sl');if(sl&&sl.dataset.p){flyTo(sl.dataset.p);return;}
-  const th=e.target.closest('.thumb[data-img]');
+  const th=e.target.closest('[data-img]');
   if(th){document.getElementById('lbImg').src=th.dataset.img;document.getElementById('lb').classList.add('show');}
 });
 document.getElementById('lb').addEventListener('click',()=>document.getElementById('lb').classList.remove('show'));
 
 /* =========================================================
-   BÜTÇE (gruplardaki kalemlerden)
+   BÜTÇE
    ========================================================= */
 function renderBudget(){
   const body=document.getElementById('pbody');body.innerHTML='';
@@ -596,7 +770,7 @@ function renderBudget(){
       tr.innerHTML=`<td><input type="checkbox" checked class="inc"></td>
       <td><div class="nm">${esc(L.label)}</div><div class="sub">${esc(L.tarif||'')}</div></td>
       <td class="r">${L.qty||0}</td>
-      <td class="r">${L.unit?fmt(L.unit):'<span style="color:var(--orange-d);font-weight:700">teyit edilecek</span>'}</td>
+      <td class="r">${L.unit?fmt(L.unit):'<span style="color:var(--green);font-weight:700">teyit edilecek</span>'}</td>
       <td class="r list">—</td><td class="r net">—</td>`;
       body.appendChild(tr);
     });
@@ -670,6 +844,8 @@ function renderAdmin(){
   document.getElementById('setGmKey').value=SETTINGS.gmaps_key||'';
   document.getElementById('setTitle').value=SETTINGS.baslik||'';
   document.getElementById('setDisc').value=SETTINGS.indirim||'20';
+  const lp=document.getElementById('logoPrev');
+  lp.innerHTML=SETTINGS.logo_url?`<img src="${esc(SETTINGS.logo_url)}">`:'<span>Logo yüklenmedi</span>';
   const list=document.getElementById('admList');list.innerHTML='';
   GROUPS.sort((a,b)=>a.sira-b.sira).forEach((g,idx)=>{
     const lines=Array.isArray(g.budget)?g.budget:[];
@@ -709,9 +885,17 @@ function renderAdmin(){
           <button class="btn ghost sm addLine">+ Kalem Ekle</button>
         </div>
       </div>
-      <div class="fld" style="margin-top:10px"><label>Görseller</label>
+      <div class="fld" style="margin-top:10px"><label>PDF Katalog <span style="text-transform:none;letter-spacing:0">— ziyaretçi açılır listeden indirebilir</span></label>
+        <div class="logo-row" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+          <span class="pdfState" style="font-size:12.5px;font-weight:600;color:${g.pdf_url?'var(--green)':'var(--muted)'}">${g.pdf_url?('📄 '+esc(g.pdf_name||'katalog.pdf')):'PDF yüklenmedi'}</span>
+          <button class="btn primary sm pdfUp" style="margin-left:auto">${g.pdf_url?'PDF Değiştir':'PDF Yükle'}</button>
+          ${g.pdf_url?'<button class="btn danger sm pdfRm">Kaldır</button>':''}
+          <input type="file" accept="application/pdf" hidden class="pdfInp">
+        </div>
+      </div>
+      <div class="fld" style="margin-top:10px"><label>Görseller <span style="text-transform:none;letter-spacing:0">— ilk görsel kapak olur; ★ ile kapak seçin</span></label>
         <div class="adm-imgs">
-          ${imgs.map((u,i)=>`<div class="im" data-i="${i}"><img src="${esc(u)}"><button class="rm" title="Kaldır">×</button></div>`).join('')}
+          ${imgs.map((u,i)=>`<div class="im" data-i="${i}">${i===0?'<span class="cov">KAPAK</span>':''}<img src="${esc(u)}"><button class="rm" title="Kaldır">×</button>${i>0?'<button class="mkcov" title="Kapak yap">★</button>':''}</div>`).join('')}
           <div class="upl">+ Yükle</div>
           <input type="file" accept="image/*" multiple hidden class="fileInp">
         </div>
@@ -746,10 +930,22 @@ function bindAdmin(){
       renderAdmin();
       document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');return;
     }
+    if(e.target.closest('.im .mkcov')){
+      const i=+e.target.closest('.im').dataset.i;
+      const [im]=g.images.splice(i,1);g.images.unshift(im);
+      renderAdmin();
+      document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');return;
+    }
     if(e.target.closest('.im .rm')){
       const i=+e.target.closest('.im').dataset.i;
       g.images.splice(i,1);renderAdmin();
       document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');return;
+    }
+    if(e.target.closest('.pdfUp')){acc.querySelector('.pdfInp').click();return;}
+    if(e.target.closest('.pdfRm')){
+      g.pdf_url='';g.pdf_name='';renderAdmin();
+      document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');
+      admMsg('PDF kaldırıldı — "Tüm Değişiklikleri Kaydet" ile kalıcılaştırın.');return;
     }
     if(e.target.closest('.upl')){acc.querySelector('.fileInp').click();return;}
   };
@@ -757,11 +953,26 @@ function bindAdmin(){
     const acc=e.target.closest('.adm-acc');if(!acc)return;
     const g=GROUPS.find(x=>x.id===acc.dataset.g);
     if(e.target.classList.contains('visChk')){g.visible=e.target.checked;return;}
+    if(e.target.classList.contains('pdfInp')){
+      const f=e.target.files[0];e.target.value='';
+      if(!f)return;
+      if(f.size>25*1024*1024){admMsg('PDF 25 MB üzerinde — lütfen küçültüp tekrar deneyin.',false);return;}
+      const path=`${FOLDER}/katalog_${g.id}_${Date.now()}_${safeName(f.name)}`;
+      const up=await supa.storage.from(BUCKET).upload(path,f,{contentType:'application/pdf'});
+      if(up.error){admMsg('PDF yüklenemedi: '+up.error.message,false);return;}
+      const {data}=supa.storage.from(BUCKET).getPublicUrl(path);
+      g.pdf_url=data.publicUrl;g.pdf_name=f.name;
+      renderAdmin();
+      document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');
+      admMsg('PDF yüklendi — "Tüm Değişiklikleri Kaydet" ile kalıcılaştırın.');
+      return;
+    }
     if(e.target.classList.contains('fileInp')){
       const files=[...e.target.files];e.target.value='';
       for(const f of files){
-        const path=`${FOLDER}/${g.id}_${Date.now()}_${f.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-        const up=await supa.storage.from(BUCKET).upload(path,f,{upsert:false});
+        const cz=await compressImage(f,1600,0.82);
+        const path=`${FOLDER}/${g.id}_${Date.now()}_${safeName(cz.name)}`;
+        const up=await supa.storage.from(BUCKET).upload(path,cz.blob,{upsert:false,contentType:cz.type});
         if(up.error){admMsg('Görsel yüklenemedi: '+up.error.message,false);continue;}
         const {data}=supa.storage.from(BUCKET).getPublicUrl(path);
         g.images=Array.isArray(g.images)?g.images:[];
@@ -772,7 +983,6 @@ function bindAdmin(){
       admMsg('Görsel(ler) yüklendi — "Tüm Değişiklikleri Kaydet" ile kalıcılaştırın.');
       return;
     }
-    // metin/rakam alanları
     if(e.target.classList.contains('f-name'))g.name=e.target.value;
     if(e.target.classList.contains('f-count'))g.count_text=e.target.value;
     if(e.target.classList.contains('f-descr'))g.descr=e.target.value;
@@ -790,12 +1000,34 @@ function bindAdmin(){
 document.getElementById('saveAllBtn').addEventListener('click',async()=>{
   const st=document.getElementById('saveState');st.textContent='Kaydediliyor…';
   const rows=GROUPS.map(g=>({id:g.id,sira:g.sira,name:g.name,cat:g.cat,count_text:g.count_text,descr:g.descr,why:g.why,
-    specs:g.specs||[],images:g.images||[],budget:g.budget||[],visible:g.visible!==false,updated_at:new Date().toISOString()}));
+    specs:g.specs||[],images:g.images||[],budget:g.budget||[],pdf_url:g.pdf_url||'',pdf_name:g.pdf_name||'',visible:g.visible!==false,updated_at:new Date().toISOString()}));
   const {error}=await supa.from('tuyap_gruplar').upsert(rows);
   if(error){st.textContent='';admMsg('Kaydedilemedi: '+error.message,false);return;}
   st.textContent='';admMsg('Tüm değişiklikler kaydedildi ✓');
   renderAccordions();renderBudget();
 });
+/* logo */
+document.getElementById('logoUpBtn').addEventListener('click',()=>document.getElementById('logoFile').click());
+document.getElementById('logoFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';
+  if(!f)return;
+  const cz=await compressImage(f,800,0.92);
+  const path=`${FOLDER}/logo_${Date.now()}_${safeName(cz.name)}`;
+  const up=await supa.storage.from(BUCKET).upload(path,cz.blob,{contentType:cz.type});
+  if(up.error){admMsg('Logo yüklenemedi: '+up.error.message,false);return;}
+  const {data}=supa.storage.from(BUCKET).getPublicUrl(path);
+  const sv=await supa.from('tuyap_ayarlar').upsert({key:'logo_url',value:data.publicUrl});
+  if(sv.error){admMsg('Logo kaydedilemedi: '+sv.error.message,false);return;}
+  SETTINGS.logo_url=data.publicUrl;applySettings();renderAdmin();
+  admMsg('Logo yüklendi ✓');
+});
+document.getElementById('logoRmBtn').addEventListener('click',async()=>{
+  const {error}=await supa.from('tuyap_ayarlar').upsert({key:'logo_url',value:''});
+  if(error){admMsg('Kaldırılamadı: '+error.message,false);return;}
+  SETTINGS.logo_url='';applySettings();renderAdmin();
+  admMsg('Logo kaldırıldı — metin logo görünecek.');
+});
+/* maps key + ayarlar */
 document.getElementById('saveKeyBtn').addEventListener('click',async()=>{
   const v=document.getElementById('setGmKey').value.trim();
   const {error}=await supa.from('tuyap_ayarlar').upsert({key:'gmaps_key',value:v});
