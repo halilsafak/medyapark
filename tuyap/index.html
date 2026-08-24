@@ -294,7 +294,7 @@ td.net{color:var(--green);font-weight:800}
   <div class="tabs" role="tablist">
     <button class="tab active" data-view="vmap" role="tab">Harita & Lokasyonlar</button>
     <button class="tab" data-view="vpdf" role="tab">PDF Kataloglar</button>
-    <button class="tab" data-view="vbud" role="tab" id="budTab" style="display:none">Bütçe</button>
+    <button class="tab" data-view="vbud" role="tab" id="budTab">Bütçe</button>
     <button class="tab" data-view="vadm" role="tab" id="admTab" style="display:none">Yönetim</button>
   </div>
 </header>
@@ -348,18 +348,16 @@ td.net{color:var(--green);font-weight:800}
 
 <!-- ================= BÜTÇE (yalnızca yönetici görür) ================= -->
 <div class="view" id="vbud">
-  <div class="sec-title" style="margin-top:0">Bütçe Çalışma Tablosu</div>
-  <p class="sec-sub">Excel gibi doğrudan hücrelere yazın: kalem adı, tarife notu, adet ve birim bedel. Tutarlar anında hesaplanır. Bu sekme yalnızca giriş yapmış yöneticilere görünür — sunum tarafında fiyat yer almaz. Değişiklikleri kalıcılaştırmak için alttaki Kaydet'e basın.</p>
-  <div class="bud-controls">
+  <div class="sec-title" style="margin-top:0" id="budTitle">Bütçe & Yatırım Tablosu</div>
+  <p class="sec-sub" id="budSub"></p>
+  <div class="bud-controls" id="budControls">
     <label>Medyapark Özel İndirimi&nbsp; %<input type="number" id="disc" value="20" min="0" max="60" step="1"></label>
     <label><input type="checkbox" id="vat" checked> KDV (%20) satırını göster</label>
     <span class="hint">Onay kutusu kalemi toplama dahil eder/çıkarır · × satırı siler</span>
   </div>
   <div class="tbl-scroll">
     <table class="xls">
-      <thead><tr>
-        <th style="width:40px">Dahil</th><th style="width:26%">Mecra / Kalem</th><th style="width:22%">Tarife Notu</th><th class="r" style="width:70px">Adet</th><th class="r" style="width:120px">Birim Liste ₺</th><th class="r" style="width:130px">Liste Tutarı</th><th class="r" style="width:130px">İndirimli</th><th style="width:36px"></th>
-      </tr></thead>
+      <thead id="phead"></thead>
       <tbody id="pbody"></tbody>
     </table>
   </div>
@@ -369,7 +367,7 @@ td.net{color:var(--green);font-weight:800}
     <div class="tot"><div class="k">Net Toplam (KDV Hariç)</div><div class="v" id="tNet">—</div></div>
     <div class="tot grand" id="vatBox"><div class="k">Genel Toplam (KDV Dahil)</div><div class="v" id="tGrand">—</div></div>
   </div>
-  <div class="bud-save">
+  <div class="bud-save" id="budSaveBar">
     <button class="btn green" id="budSaveBtn">Bütçeyi Kaydet</button>
     <span class="st" id="budSaveState"></span>
   </div>
@@ -938,25 +936,46 @@ document.getElementById('lb').addEventListener('click',()=>document.getElementBy
    BÜTÇE — Excel tarzı düzenlenebilir tablo (grup verisine bağlı)
    ========================================================= */
 function renderBudget(){
+  const admin=!!session;
+  document.getElementById('budControls').style.display=admin?'':'none';
+  document.getElementById('budSaveBar').style.display=admin?'':'none';
+  document.getElementById('budSub').textContent=admin
+    ?'Excel gibi doğrudan hücrelere yazın; tutarlar anında hesaplanır. Değişiklikleri kalıcılaştırmak için alttaki Kaydet\u0027e basın. Ziyaretçiler bu tabloyu salt okunur görür.'
+    :'Önerilen mecraların liste bedelleri ve Medyapark özel indirimli yatırım tutarları. Tüm bedeller KDV hariçtir.';
+  document.getElementById('phead').innerHTML=admin
+    ?`<tr><th style="width:40px">Dahil</th><th style="width:26%">Mecra / Kalem</th><th style="width:22%">Tarife Notu</th><th class="r" style="width:70px">Adet</th><th class="r" style="width:120px">Birim Liste ₺</th><th class="r" style="width:130px">Liste Tutarı</th><th class="r" style="width:130px">İndirimli</th><th style="width:36px"></th></tr>`
+    :`<tr><th style="width:30%">Mecra / Kalem</th><th style="width:24%">Tarife Notu</th><th class="r" style="width:70px">Adet</th><th class="r" style="width:130px">Birim Liste ₺</th><th class="r" style="width:140px">Liste Tutarı</th><th class="r" style="width:140px">İndirimli</th></tr>`;
   const body=document.getElementById('pbody');body.innerHTML='';
   GROUPS.slice().sort((a,b)=>a.sira-b.sira).forEach(g=>{
     g.budget=Array.isArray(g.budget)?g.budget:[];
+    const lines=admin?g.budget:g.budget.filter(L=>L.inc!==false);
+    if(!admin&&(!lines.length||g.visible===false))return;
     const gh=document.createElement('tr');gh.className='gh';
-    gh.innerHTML=`<td colspan="8">${esc(g.name)} <button class="addrow" data-g="${g.id}">+ Kalem Ekle</button></td>`;
+    gh.innerHTML=`<td colspan="${admin?8:6}">${esc(g.name)}${admin?` <button class="addrow" data-g="${g.id}">+ Kalem Ekle</button>`:''}</td>`;
     body.appendChild(gh);
-    g.budget.forEach((L,i)=>{
+    lines.forEach((L)=>{
+      const i=g.budget.indexOf(L);
       if(L.inc===undefined)L.inc=true;
       const tr=document.createElement('tr');
       tr.dataset.g=g.id;tr.dataset.i=i;
-      if(!L.inc)tr.classList.add('off');
-      tr.innerHTML=`
-      <td class="c"><input type="checkbox" class="e-inc"${L.inc?' checked':''}></td>
-      <td><input type="text" class="e-label" value="${esc(L.label)}"></td>
-      <td><input type="text" class="e-tarif" value="${esc(L.tarif||'')}"></td>
-      <td><input type="number" class="e-qty" min="0" value="${L.qty||0}"></td>
-      <td><input type="number" class="e-unit" min="0" step="500" value="${L.unit||0}"></td>
-      <td class="calc list">—</td><td class="calc net">—</td>
-      <td class="c"><button class="rowdel" title="Satırı sil">×</button></td>`;
+      if(admin){
+        if(!L.inc)tr.classList.add('off');
+        tr.innerHTML=`
+        <td class="c"><input type="checkbox" class="e-inc"${L.inc?' checked':''}></td>
+        <td><input type="text" class="e-label" value="${esc(L.label)}"></td>
+        <td><input type="text" class="e-tarif" value="${esc(L.tarif||'')}"></td>
+        <td><input type="number" class="e-qty" min="0" value="${L.qty||0}"></td>
+        <td><input type="number" class="e-unit" min="0" step="500" value="${L.unit||0}"></td>
+        <td class="calc list">—</td><td class="calc net">—</td>
+        <td class="c"><button class="rowdel" title="Satırı sil">×</button></td>`;
+      }else{
+        tr.innerHTML=`
+        <td style="padding:10px 12px;font-weight:600">${esc(L.label)}</td>
+        <td style="padding:10px 12px;color:var(--muted);font-size:12.5px">${esc(L.tarif||'')}</td>
+        <td class="calc">${L.qty||0}</td>
+        <td class="calc">${L.unit?fmt(L.unit):'—'}</td>
+        <td class="calc list">—</td><td class="calc net">—</td>`;
+      }
       body.appendChild(tr);
     });
   });
@@ -983,6 +1002,7 @@ function calc(){
   document.getElementById('tGrand').textContent=fmt(Math.round(tn*1.20));
 }
 document.getElementById('pbody').addEventListener('input',e=>{
+  if(!session)return;
   const tr=e.target.closest('tr:not(.gh)');if(!tr)return;
   const g=GROUPS.find(x=>x.id===tr.dataset.g);
   const L=g&&g.budget[+tr.dataset.i];if(!L)return;
@@ -994,6 +1014,7 @@ document.getElementById('pbody').addEventListener('input',e=>{
   calc();
 });
 document.getElementById('pbody').addEventListener('click',e=>{
+  if(!session)return;
   const add=e.target.closest('.addrow');
   if(add){
     const g=GROUPS.find(x=>x.id===add.dataset.g);
@@ -1040,16 +1061,13 @@ async function refreshSession(){
   document.getElementById('loginWrap').style.display=session?'none':'';
   document.getElementById('adminWrap').style.display=session?'':'none';
   if(session)document.getElementById('whoAmI').textContent=session.user.email;
-  const budTab=document.getElementById('budTab');
-  budTab.style.display=session?'':'none';
+  document.getElementById('budTab').style.display='';
   const admTab=document.getElementById('admTab');
   admTab.style.display=(session||ADMIN_PARAM)?'':'none';
-  if(!session&&budTab.classList.contains('active')){
-    document.querySelector('.tab[data-view="vmap"]').click();
-  }
   if(!session&&!ADMIN_PARAM&&admTab.classList.contains('active')){
     document.querySelector('.tab[data-view="vmap"]').click();
   }
+  if(GROUPS.length)renderBudget();
 }
 document.getElementById('bakBtn').addEventListener('click',()=>{
   const yedek={
