@@ -244,7 +244,10 @@ td.net{color:var(--green);font-weight:800}
 .iw .t{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fff;padding:3px 9px;border-radius:99px;margin-bottom:7px}
 .iw h4{font-size:14.5px;font-weight:800;color:var(--ink);line-height:1.25;margin-bottom:3px}
 .iw .m{font-size:11.5px;color:var(--muted);margin-bottom:7px}
-.iw .foto{width:100%;border-radius:8px;margin-bottom:8px;display:block;max-height:160px;object-fit:cover}
+.iw .foto{width:100%;border-radius:8px;margin-bottom:8px;display:block;max-height:150px;object-fit:cover}
+.iw .d{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:9px}
+.iw .golink{display:block;width:100%;text-align:center;font-family:inherit;font-size:12.5px;font-weight:700;color:#fff;background:var(--green);border:none;border-radius:8px;padding:9px;cursor:pointer;transition:.15s}
+.iw .golink:hover{background:var(--green-d)}
 .iw .w{font-size:12px;color:var(--ink-soft);background:var(--green-soft);border-left:3px solid var(--green);padding:7px 10px;border-radius:0 6px 6px 0;margin-bottom:6px}
 .iw input{width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;margin:4px 0 8px}
 .iw .btns{display:flex;gap:6px;flex-wrap:wrap}
@@ -644,16 +647,13 @@ window.initMap=function(){
 };
 function addMarker(p){
   const isF=p.t==='fuar';
-  const sz=isF?42:(p.hl?34:28);
+  const sz=isF?32:(p.hl?25:20);
   const m=new google.maps.Marker({
     position:{lat:p.lat,lng:p.lng},map:map,title:p.name,draggable:editMode,
     icon:{url:dotUrl(p.t),scaledSize:new google.maps.Size(sz,sz),anchor:new google.maps.Point(sz/2,sz/2)},
     zIndex:isF?900:(p.hl?800:100)
   });
-  m.addListener('click',()=>{
-    openInfo(p);
-    if(!editMode&&p.grp)openGroupDetail(p.grp);
-  });
+  m.addListener('click',()=>openInfo(p));
   m.addListener('dragend',()=>{const pos=m.getPosition();p.lat=pos.lat();p.lng=pos.lng();p._dirty=true;});
   markers[p.id]=m;
 }
@@ -672,10 +672,18 @@ function openInfo(p){
         <button onclick="infoWin.close()">Tamam</button>
       </div></div>`;
   }else{
-    html=`<div class="iw"><span class="t" style="background:${col}">${TYPENAME[p.t]||'Nokta'}</span>
-      <h4>${esc(p.name)}</h4><div class="m">${esc(p.meta)}</div>
-      ${p.img?`<img class="foto" src="${esc(p.img)}">`:''}
-      ${p.why?`<div class="w">${esc(p.why)}</div>`:''}</div>`;
+    const g=GROUPS.find(x=>x.id===p.grp);
+    const img=p.img||(g&&Array.isArray(g.images)&&g.images[0])||'';
+    let d=p.why||'';
+    if(!d&&g&&g.descr)d=g.descr.length>150?g.descr.slice(0,150).trimEnd()+'…':g.descr;
+    html=`<div class="iw">
+      ${img?`<img class="foto" src="${esc(img)}">`:''}
+      <span class="t" style="background:${col}">${TYPENAME[p.t]||'Nokta'}</span>
+      <h4>${esc(p.name)}</h4>
+      <div class="m">${esc(p.meta)}</div>
+      ${d?`<div class="d">${esc(d)}</div>`:''}
+      ${p.grp&&g?`<button class="golink" onclick="goDetail('${p.grp}')">Detaya Git →</button>`:''}
+    </div>`;
   }
   infoWin.setContent(html);infoWin.open({map:map,anchor:markers[p.id]});
 }
@@ -711,6 +719,7 @@ function fitAll(){
   PTS.forEach(p=>{if(markers[p.id]&&markers[p.id].getMap()){b.extend({lat:p.lat,lng:p.lng});n++;}});
   if(n)map.fitBounds(b,60);
 }
+window.goDetail=(grpId)=>{infoWin&&infoWin.close();openGroupDetail(grpId);};
 function openGroupDetail(grpId){
   const acc=document.querySelector(`.acc[data-g="${grpId}"]`);
   if(!acc)return;
