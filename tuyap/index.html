@@ -250,6 +250,9 @@ td.net{color:var(--green);font-weight:800}
 .iw .golink:hover{background:var(--green-d)}
 .iw .w{font-size:12px;color:var(--ink-soft);background:var(--green-soft);border-left:3px solid var(--green);padding:7px 10px;border-radius:0 6px 6px 0;margin-bottom:6px}
 .iw input{width:100%;font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;margin:4px 0 8px}
+.iw .iw-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.iw .iw-row label{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);width:64px;flex-shrink:0}
+.iw .iw-row select{flex:1;font-family:inherit;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}
 .iw .btns{display:flex;gap:6px;flex-wrap:wrap}
 .iw .btns button{flex:1;font-size:11.5px;font-weight:700;padding:6px;border-radius:7px;border:1px solid var(--line);background:#fff;cursor:pointer;white-space:nowrap}
 .iw .btns .del{color:#b42318;border-color:#f1c1bb}
@@ -306,7 +309,8 @@ td.net{color:var(--green);font-weight:800}
     </div>
   </div>
   <div class="editing-hint" id="editHint">
-    <span>İşaretleme modu açık — haritada boş yere tıklayın: yeni nokta eklenir. Pinleri sürükleyin; ad, fotoğraf ve silme için pine tıklayın.</span>
+    <span>İşaretleme modu açık — "＋ Yeni Nokta" ile veya haritada boş yere tıklayarak nokta ekleyin. Pinleri sürükleyin; ad, ürün tipi, grup, fotoğraf ve silme için pine tıklayın.</span>
+    <button class="savepos" id="addPtBtn" style="background:var(--green)">＋ Yeni Nokta</button>
     <button class="savepos" id="savePosBtn" style="display:none">Konum Değişikliklerini Kaydet</button>
   </div>
 
@@ -640,11 +644,17 @@ window.initMap=function(){
   fitAll();applyFilter();
   map.addListener('click',e=>{
     if(!editMode)return;
-    const t=(curF==='all'||curF==='fuar')?'led':curF;
-    const p={id:'p'+Date.now(),t:t,grp:null,lat:e.latLng.lat(),lng:e.latLng.lng(),name:'Yeni Nokta',meta:'Elle eklendi',why:'',img:'',hl:false,sira:PTS.length+1};
-    PTS.push(p);addMarker(p);markers[p.id].setDraggable(true);openInfo(p);
+    newPoint(e.latLng.lat(),e.latLng.lng());
   });
 };
+function newPoint(lat,lng){
+  const t=(curF==='all'||curF==='fuar')?'led':curF;
+  const p={id:'p'+Date.now(),t:t,grp:null,lat:lat,lng:lng,name:'Yeni Nokta',meta:'Elle eklendi',why:'',img:'',hl:false,sira:PTS.length+1};
+  PTS.push(p);addMarker(p);
+  markers[p.id].setDraggable(true);
+  openInfo(p);
+  return p;
+}
 function addMarker(p){
   const isF=p.t==='fuar';
   const sz=isF?32:(p.hl?25:20);
@@ -661,9 +671,15 @@ function openInfo(p){
   const col=COLORS[p.t]||'#13233b';
   let html;
   if(editMode){
+    const typeOpts=['led','megaboard','ultraboard','megalight','raket','wall','durak','arac','fuar']
+      .map(tt=>`<option value="${tt}"${p.t===tt?' selected':''}>${TYPENAME[tt]}</option>`).join('');
+    const grpOpts='<option value="">— Bağımsız —</option>'+GROUPS.slice().sort((a,b)=>a.sira-b.sira)
+      .map(g=>`<option value="${g.id}"${p.grp===g.id?' selected':''}>${esc(g.name)}</option>`).join('');
     html=`<div class="iw"><span class="t" style="background:${col}">${TYPENAME[p.t]||'Nokta'}</span>
       ${p.img?`<img class="foto" src="${esc(p.img)}">`:''}
       <input type="text" value="${esc(p.name)}" onchange="renamePt('${p.id}',this.value)">
+      <div class="iw-row"><label>Ürün Tipi</label><select onchange="setPtType('${p.id}',this.value)">${typeOpts}</select></div>
+      <div class="iw-row"><label>Bağlı Grup</label><select onchange="setPtGrp('${p.id}',this.value)">${grpOpts}</select></div>
       <div class="m">Sürükleyerek taşıyın · ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</div>
       <div class="btns">
         <button class="up" onclick="pickPtImg('${p.id}')">${p.img?'Fotoğrafı Değiştir':'Fotoğraf Yükle'}</button>
@@ -688,6 +704,23 @@ function openInfo(p){
   infoWin.setContent(html);infoWin.open({map:map,anchor:markers[p.id]});
 }
 window.renamePt=(id,v)=>{const p=PTS.find(x=>x.id===id);if(p){p.name=v;p._dirty=true;markers[id].setTitle(v);renderAccordions();}};
+function refreshMarkerIcon(p){
+  const isF=p.t==='fuar';
+  const sz=isF?32:(p.hl?25:20);
+  markers[p.id].setIcon({url:dotUrl(p.t),scaledSize:new google.maps.Size(sz,sz),anchor:new google.maps.Point(sz/2,sz/2)});
+  markers[p.id].setZIndex(isF?900:(p.hl?800:100));
+}
+window.setPtType=(id,v)=>{
+  const p=PTS.find(x=>x.id===id);if(!p)return;
+  p.t=v;p._dirty=true;
+  refreshMarkerIcon(p);
+  renderAccordions();
+};
+window.setPtGrp=(id,v)=>{
+  const p=PTS.find(x=>x.id===id);if(!p)return;
+  p.grp=v||null;p._dirty=true;
+  renderAccordions();
+};
 window.delPt=(id)=>{const i=PTS.findIndex(x=>x.id===id);if(i>-1){markers[id].setMap(null);delete markers[id];deletedPts.add(id);PTS.splice(i,1);infoWin.close();renderAccordions();}};
 window.pickPtImg=(id)=>{
   if(!session){alert('Fotoğraf yüklemek için Yönetim sekmesinden giriş yapın.');return;}
@@ -772,6 +805,11 @@ document.getElementById('editBtn').addEventListener('click',e=>{
   document.getElementById('editHint').classList.toggle('show',editMode);
   document.getElementById('savePosBtn').style.display=(editMode&&session)?'':'none';
   if(map){Object.values(markers).forEach(m=>m.setDraggable(editMode));infoWin&&infoWin.close();}
+});
+document.getElementById('addPtBtn').addEventListener('click',()=>{
+  if(!map){alert('Önce harita yüklenmeli (Maps anahtarı).');return;}
+  const c=map.getCenter();
+  newPoint(c.lat(),c.lng());
 });
 document.getElementById('savePosBtn').addEventListener('click',async()=>{
   if(!session){alert('Kaydetmek için Yönetim sekmesinden giriş yapın.');return;}
