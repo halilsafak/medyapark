@@ -113,6 +113,17 @@ table.xls td .rowdel{border:none;background:none;color:#c8cfd8;font-size:15px;fo
 table.xls td .rowdel:hover{color:#b42318}
 .bud-save{display:flex;align-items:center;gap:12px;margin-top:14px}
 .bud-save .st{font-size:12px;color:var(--muted)}
+/* PDF katalog kartları */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.cat-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:10px;transition:.15s}
+.cat-card:hover{border-color:#c4ccd6;box-shadow:0 4px 18px rgba(19,35,59,.06)}
+.cat-card .ci{width:46px;height:46px;border-radius:11px;background:var(--green-soft);border:1px solid var(--green-line);display:flex;align-items:center;justify-content:center;color:var(--green)}
+.cat-card .ci svg{width:24px;height:24px}
+.cat-card .nm{font-size:14.5px;font-weight:800}
+.cat-card .tp{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.cat-card .fn{font-size:12px;color:var(--ink-soft);word-break:break-all}
+.cat-card .pdfbtn{margin-left:0;justify-content:center}
+.cat-empty{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13.5px;background:var(--soft);border:1px dashed var(--line);border-radius:14px;padding:40px 20px}
 .ab-desc{font-size:13.5px;color:var(--ink-soft);margin-bottom:14px}
 .ab-why{background:var(--green-soft);border-radius:10px;padding:14px 16px;margin-bottom:14px}
 .ab-why .k{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:5px}
@@ -255,8 +266,9 @@ td.net{color:var(--green);font-weight:800}
   </div>
   <div class="tabs" role="tablist">
     <button class="tab active" data-view="vmap" role="tab">Harita & Lokasyonlar</button>
+    <button class="tab" data-view="vpdf" role="tab">PDF Kataloglar</button>
     <button class="tab" data-view="vbud" role="tab" id="budTab" style="display:none">Bütçe</button>
-    <button class="tab" data-view="vadm" role="tab">Yönetim</button>
+    <button class="tab" data-view="vadm" role="tab" id="admTab" style="display:none">Yönetim</button>
   </div>
 </header>
 
@@ -303,6 +315,13 @@ td.net{color:var(--green);font-weight:800}
   <div class="sec-title">Önerilen Mecralar</div>
   <p class="sec-sub">Her başlığa tıklayarak açın: önerilen mecra adedi, lokasyonun önemi ve görseller. "Haritada gör" bağlantısı haritayı ilgili noktaya taşır. Sıralama, adetler, bütçeler ve görseller Yönetim sekmesinden güncellenir.</p>
   <div class="acc-list" id="accList"></div>
+</div>
+
+<!-- ================= PDF KATALOGLAR ================= -->
+<div class="view" id="vpdf">
+  <div class="sec-title" style="margin-top:0">PDF Kataloglar</div>
+  <p class="sec-sub">Mecra gruplarının detaylı katalogları. İndirmek için karta tıklamanız yeterli.</p>
+  <div class="cat-grid" id="pdfList"></div>
 </div>
 
 <!-- ================= BÜTÇE (yalnızca yönetici görür) ================= -->
@@ -352,7 +371,8 @@ td.net{color:var(--green);font-weight:800}
     <div class="admin-top">
       <div class="sec-title" style="margin:0">Yönetim Paneli</div>
       <span class="who" id="whoAmI"></span>
-      <button class="btn ghost sm" id="lgOut" style="margin-left:auto">Çıkış</button>
+      <button class="btn ghost sm" id="bakBtn" style="margin-left:auto">Yedek İndir</button>
+      <button class="btn ghost sm" id="lgOut">Çıkış</button>
     </div>
     <div class="msg" id="admMsg"></div>
 
@@ -550,8 +570,27 @@ async function loadData(){
   applySettings();
   renderAccordions();
   renderBudget();
+  renderCatalogs();
   loadGoogleMaps();
   renderAdmin();
+}
+function renderCatalogs(){
+  const wrap=document.getElementById('pdfList');
+  const withPdf=GROUPS.filter(g=>g.visible!==false&&g.pdf_url).sort((a,b)=>a.sira-b.sira);
+  if(!withPdf.length){
+    wrap.innerHTML='<div class="cat-empty">Henüz katalog yüklenmedi.</div>';
+    return;
+  }
+  wrap.innerHTML=withPdf.map(g=>`
+  <div class="cat-card">
+    <div class="ci"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+    <div><div class="nm">${esc(g.name)}</div>
+    <div class="tp">${(Array.isArray(g.types)?g.types:[]).map(x=>TYPENAME[x]||x).join(' · ')}</div></div>
+    <div class="fn">${esc(g.pdf_name||'katalog.pdf')}</div>
+    <a class="pdfbtn" href="${esc(g.pdf_url)}" target="_blank" rel="noopener" download>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Katalogu İndir</a>
+  </div>`).join('');
 }
 function applySettings(){
   if(SETTINGS.baslik){
@@ -897,6 +936,7 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
 /* =========================================================
    YÖNETİM — GİRİŞ
    ========================================================= */
+const ADMIN_PARAM=new URLSearchParams(location.search).has('admin');
 async function refreshSession(){
   const {data}=await supa.auth.getSession();
   session=data.session;
@@ -906,10 +946,29 @@ async function refreshSession(){
   document.getElementById('savePosBtn').style.display=(editMode&&session)?'':'none';
   const budTab=document.getElementById('budTab');
   budTab.style.display=session?'':'none';
+  const admTab=document.getElementById('admTab');
+  admTab.style.display=(session||ADMIN_PARAM)?'':'none';
   if(!session&&budTab.classList.contains('active')){
     document.querySelector('.tab[data-view="vmap"]').click();
   }
+  if(!session&&!ADMIN_PARAM&&admTab.classList.contains('active')){
+    document.querySelector('.tab[data-view="vmap"]').click();
+  }
 }
+document.getElementById('bakBtn').addEventListener('click',()=>{
+  const yedek={
+    tarih:new Date().toISOString(),
+    kaynak:'tuyap-sunum',
+    ayarlar:SETTINGS,
+    gruplar:GROUPS,
+    noktalar:PTS
+  };
+  const blob=new Blob([JSON.stringify(yedek,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='tuyap_yedek_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(a.href);
+});
 document.getElementById('lgBtn').addEventListener('click',async()=>{
   const m=document.getElementById('loginMsg');m.className='msg';
   const {error}=await supa.auth.signInWithPassword({
@@ -1074,7 +1133,7 @@ document.getElementById('saveAllBtn').addEventListener('click',async()=>{
   const {error}=await supa.from('tuyap_gruplar').upsert(rows);
   if(error){st.textContent='';admMsg('Kaydedilemedi: '+error.message,false);return;}
   st.textContent='';admMsg('Tüm değişiklikler kaydedildi ✓');
-  renderAccordions();renderBudget();
+  renderAccordions();renderBudget();renderCatalogs();
 });
 /* logo */
 document.getElementById('logoUpBtn').addEventListener('click',()=>document.getElementById('logoFile').click());
