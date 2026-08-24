@@ -670,7 +670,7 @@ function newPoint(lat,lng){
 }
 function buildPin(p){
   const isF=p.t==='fuar';
-  const sz=isF?16:(p.hl?12:9);
+  const sz=isF?20:(p.hl?15:12);
   const wrap=document.createElement('div');
   wrap.className='pmkwrap';
   wrap.innerHTML=`<div class="pmk${isF?' pf':''}${p.hl?' ph':''}" style="--c:${COLORS[p.t]||'#13233b'};--sz:${sz}px">
