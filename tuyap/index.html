@@ -101,6 +101,18 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .pdfbtn svg{width:15px;height:15px}
 .ab-cols{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,1fr);gap:26px}
 .ab-cols.single{display:block}
+/* Katalog sayfası slider */
+.slider{position:relative}
+.strack{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;border-radius:12px;background:var(--soft);border:1px solid var(--line);-ms-overflow-style:none;scrollbar-width:none}
+.strack::-webkit-scrollbar{display:none}
+.slide{flex:0 0 100%;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;min-height:220px}
+.slide img{width:100%;max-height:600px;object-fit:contain;display:block;cursor:zoom-in}
+.snav{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,.94);color:var(--ink);font-size:24px;font-weight:700;line-height:1;cursor:pointer;z-index:3;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(19,35,59,.14);transition:.15s}
+.snav:hover{background:var(--green);border-color:var(--green);color:#fff}
+.snav.prev{left:12px}
+.snav.next{right:12px}
+.scount{position:absolute;bottom:12px;right:14px;font-size:11.5px;font-weight:700;color:#fff;background:rgba(19,35,59,.72);padding:4px 11px;border-radius:99px;z-index:3;font-variant-numeric:tabular-nums}
+.slide-empty{text-align:center;color:var(--muted);font-size:13px;font-weight:600;background:var(--soft);border:1px dashed var(--line);border-radius:12px;padding:44px 20px}
 /* Excel tarzı bütçe tablosu */
 table.xls{width:100%;border-collapse:collapse;min-width:940px;background:#fff;font-variant-numeric:tabular-nums}
 table.xls th{position:sticky;top:0;background:#f1f4f7;border:1px solid #d7dde4;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;padding:9px 10px;text-align:left;z-index:2}
@@ -239,8 +251,10 @@ td.net{color:var(--green);font-weight:800}
 .adm-imgs .im{position:relative;width:96px;height:72px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
 .adm-imgs .im img{width:100%;height:100%;object-fit:cover}
 .adm-imgs .im .rm{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(19,35,59,.8);color:#fff;font-size:11px;cursor:pointer}
-.adm-imgs .im .mkcov{position:absolute;bottom:3px;right:3px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(46,125,79,.9);color:#fff;font-size:11px;cursor:pointer;line-height:1}
-.adm-imgs .im .cov{position:absolute;top:3px;left:3px;font-size:8.5px;font-weight:800;letter-spacing:.05em;background:var(--green);color:#fff;padding:2px 6px;border-radius:99px}
+.adm-imgs .im .imL,.adm-imgs .im .imR{position:absolute;bottom:3px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(46,125,79,.9);color:#fff;font-size:9px;cursor:pointer;line-height:1}
+.adm-imgs .im .imL{left:3px}
+.adm-imgs .im .imR{right:3px}
+.adm-imgs .im .cov{position:absolute;top:3px;left:3px;min-width:16px;text-align:center;font-size:9px;font-weight:800;background:var(--green);color:#fff;padding:2px 5px;border-radius:99px}
 .upl{width:96px;height:72px;border:1.5px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer}
 .upl:hover{border-color:var(--green);color:var(--green)}
 .savebar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:14px 0;display:flex;gap:12px;align-items:center;margin-top:6px}
@@ -878,28 +892,15 @@ function renderAccordions(){
       </div>
     </div>
     <div class="acc-body">
-      ${imgs.length?`<img class="acc-cover" src="${esc(imgs[0])}" data-img="${esc(imgs[0])}" alt="${esc(g.name)}" loading="lazy">`:''}
-      <div class="ab-title"><div><h4>${esc(g.name)}</h4><div class="cat2">${esc(g.cat)} · Öneri: ${esc(g.count_text)}</div></div>
-        ${g.pdf_url?`<a class="pdfbtn" href="${esc(g.pdf_url)}" target="_blank" rel="noopener" download>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Katalog PDF İndir</a>`:''}
-      </div>
-      <div class="ab-cols${imgs.length>1?'':' single'}">
-      <div>
-        <p class="ab-desc">${esc(g.descr)}</p>
-        <div class="ab-why"><div class="k">Neden bu mecra?</div><p>${esc(g.why)}</p></div>
-        <div class="ab-specs">${specs.map(s=>`<span class="spec">${esc(s)}</span>`).join('')}</div>
-        ${subPts.length?`<div class="sub-locs"><div class="sl-head">Lokasyonlar (${subPts.length})</div>
-          ${subPts.map(p=>`<div class="sl${p.hl?' slhl':''}" data-p="${p.id}"><span class="sdot" style="background:${COLORS[p.t]}"></span>${esc(p.name)}<span class="go">Haritada gör →</span></div>`).join('')}
-        </div>`:''}
-      </div>
-      ${imgs.length>1?`<div class="gal">
-        <span class="k">Diğer Görseller</span>
-        <div class="thumbs">
-          ${imgs.slice(1).map(u=>`<div class="thumb" data-img="${esc(u)}"><img src="${esc(u)}" alt="" loading="lazy"></div>`).join('')}
+      ${imgs.length?`
+      <div class="slider" data-g="${g.id}">
+        <button class="snav prev" aria-label="Önceki">‹</button>
+        <div class="strack">
+          ${imgs.map((u,i)=>`<div class="slide"><img src="${esc(u)}" data-img="${esc(u)}" alt="${esc(g.name)} katalog sayfa ${i+1}" loading="lazy"></div>`).join('')}
         </div>
-      </div>`:''}
-      </div>
+        <button class="snav next" aria-label="Sonraki">›</button>
+        <div class="scount">1 / ${imgs.length}</div>
+      </div>`:`<div class="slide-empty">Katalog sayfaları henüz yüklenmedi.</div>`}
     </div>`;
     wrap.appendChild(el);
     const head=el.querySelector('.acc-head');
@@ -907,13 +908,30 @@ function renderAccordions(){
     head.addEventListener('click',tg);
     head.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tg();}});
   });
+  bindSliders();
   applyFilter();
 }
 document.getElementById('accList').addEventListener('click',e=>{
+  const nav=e.target.closest('.snav');
+  if(nav){
+    const track=nav.closest('.slider').querySelector('.strack');
+    track.scrollBy({left:nav.classList.contains('next')?track.clientWidth:-track.clientWidth,behavior:'smooth'});
+    return;
+  }
   const sl=e.target.closest('.sl');if(sl&&sl.dataset.p){flyTo(sl.dataset.p);return;}
   const th=e.target.closest('[data-img]');
   if(th){document.getElementById('lbImg').src=th.dataset.img;document.getElementById('lb').classList.add('show');}
 });
+function bindSliders(){
+  document.querySelectorAll('#accList .slider').forEach(sd=>{
+    const track=sd.querySelector('.strack'),count=sd.querySelector('.scount');
+    const n=track.children.length;
+    track.addEventListener('scroll',()=>{
+      const i=Math.min(n,Math.max(1,Math.round(track.scrollLeft/track.clientWidth)+1));
+      count.textContent=i+' / '+n;
+    },{passive:true});
+  });
+}
 document.getElementById('lb').addEventListener('click',()=>document.getElementById('lb').classList.remove('show'));
 
 /* =========================================================
@@ -1123,9 +1141,9 @@ function renderAdmin(){
           <input type="file" accept="application/pdf" hidden class="pdfInp">
         </div>
       </div>
-      <div class="fld" style="margin-top:10px"><label>Görseller <span style="text-transform:none;letter-spacing:0">— ilk görsel kapak olur; ★ ile kapak seçin</span></label>
+      <div class="fld" style="margin-top:10px"><label>Katalog Sayfaları <span style="text-transform:none;letter-spacing:0">— slider'da bu sırayla görünür; ◀ ▶ ile sıralayın</span></label>
         <div class="adm-imgs">
-          ${imgs.map((u,i)=>`<div class="im" data-i="${i}">${i===0?'<span class="cov">KAPAK</span>':''}<img src="${esc(u)}"><button class="rm" title="Kaldır">×</button>${i>0?'<button class="mkcov" title="Kapak yap">★</button>':''}</div>`).join('')}
+          ${imgs.map((u,i)=>`<div class="im" data-i="${i}"><span class="cov">${i+1}</span><img src="${esc(u)}"><button class="rm" title="Kaldır">×</button>${i>0?`<button class="imL" title="Sola al">◀</button>`:''}${i<imgs.length-1?`<button class="imR" title="Sağa al">▶</button>`:''}</div>`).join('')}
           <div class="upl">+ Yükle</div>
           <input type="file" accept="image/*" multiple hidden class="fileInp">
         </div>
@@ -1149,10 +1167,12 @@ function bindAdmin(){
       const tmp=sorted[i].sira;sorted[i].sira=sorted[j].sira;sorted[j].sira=tmp;
       renderAdmin();renderAccordions();renderBudget();return;
     }
-    if(e.target.closest('.im .mkcov')){
+    if(e.target.closest('.im .imL')||e.target.closest('.im .imR')){
       const i=+e.target.closest('.im').dataset.i;
-      const [im]=g.images.splice(i,1);g.images.unshift(im);
-      renderAdmin();
+      const j=e.target.closest('.imL')?i-1:i+1;
+      if(j<0||j>=g.images.length)return;
+      [g.images[i],g.images[j]]=[g.images[j],g.images[i]];
+      renderAdmin();renderAccordions();
       document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');return;
     }
     if(e.target.closest('.im .rm')){
