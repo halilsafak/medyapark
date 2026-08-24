@@ -127,6 +127,7 @@ table.xls td input:focus{outline:2px solid var(--green);outline-offset:-2px;back
 table.xls td.c{text-align:center;padding:0 6px}
 table.xls td.calc{padding:9px 10px;text-align:right;font-weight:700;background:#fafbfc;white-space:nowrap}
 table.xls td.calc.net{color:var(--green);font-weight:800}
+table.xls td.top{color:var(--red);font-weight:800}
 table.xls tr.off td, table.xls tr.off td input{opacity:.4}
 table.xls td .rowdel{border:none;background:none;color:#c8cfd8;font-size:15px;font-weight:800;cursor:pointer;padding:6px 8px}
 table.xls td .rowdel:hover{color:#b42318}
@@ -1017,7 +1018,7 @@ function renderBudget(){
         <td><input type="number" class="e-hafta" min="0" step="500" value="${L.hafta||0}"></td>
         <td><input type="number" class="e-ay" min="0" step="500" value="${L.ay||0}"></td>
         <td><input type="number" class="e-unit" min="0" step="500" value="${L.unit||0}"></td>
-        <td class="calc ind">—</td>
+        <td><input type="number" class="e-ind" min="0" step="500" value="${L.ind||''}" title="Boş bırakılırsa indirim %’sinden otomatik hesaplanır"></td>
         <td class="calc top">—</td>
         <td><input type="number" class="e-bm" min="0" step="500" value="${L.bm||0}"></td>
         <td class="c"><button class="rowdel" title="Satırı sil">×</button></td>`;
@@ -1050,12 +1051,15 @@ function calc(){
     const admin=!!session;
     const eff_inc=admin?(L.inc!==false):(L.inc!==false&&L._vinc!==false);
     const eff_qty=admin?(parseFloat(L.qty)||0):(L._vqty!==undefined?(parseFloat(L._vqty)||0):(parseFloat(L.qty)||0));
-    const unitNet=(parseFloat(L.unit)||0)*(1-d/100);
+    const autoNet=(parseFloat(L.unit)||0)*(1-d/100);
+    const unitNet=(parseFloat(L.ind)>0)?parseFloat(L.ind):autoNet;
     const top=eff_qty*unitNet;
     const bm=parseFloat(L.bm)||0;
     tr.classList.toggle('off',!eff_inc);
-    const indC=tr.querySelector('.ind'),topC=tr.querySelector('.top');
-    if(indC)indC.textContent=L.unit?fmt(Math.round(unitNet)):'—';
+    const indC=tr.querySelector('td.calc.ind'),topC=tr.querySelector('.top');
+    if(indC)indC.textContent=unitNet?fmt(Math.round(unitNet)):'—';
+    const indI=tr.querySelector('.e-ind');
+    if(indI)indI.placeholder=autoNet?String(Math.round(autoNet)):'';
     if(topC)topC.textContent=top?fmt(Math.round(top)):'—';
     if(eff_inc){mec+=top;bmT+=bm;}
   });
@@ -1086,6 +1090,7 @@ document.getElementById('pbody').addEventListener('input',e=>{
   if(e.target.classList.contains('e-hafta'))L.hafta=parseFloat(e.target.value)||0;
   if(e.target.classList.contains('e-ay'))L.ay=parseFloat(e.target.value)||0;
   if(e.target.classList.contains('e-unit'))L.unit=parseFloat(e.target.value)||0;
+  if(e.target.classList.contains('e-ind'))L.ind=parseFloat(e.target.value)||0;
   if(e.target.classList.contains('e-bm'))L.bm=parseFloat(e.target.value)||0;
   if(e.target.classList.contains('e-inc'))L.inc=e.target.checked;
   calc();
@@ -1096,7 +1101,7 @@ document.getElementById('pbody').addEventListener('click',e=>{
   if(add){
     const g=GROUPS.find(x=>x.id===add.dataset.g);
     g.budget=Array.isArray(g.budget)?g.budget:[];
-    g.budget.push({label:'Yeni kalem',tarif:'',qty:1,hafta:0,ay:0,unit:0,bm:0,inc:true});
+    g.budget.push({label:'Yeni kalem',tarif:'',qty:1,hafta:0,ay:0,unit:0,ind:0,bm:0,inc:true});
     renderBudget();return;
   }
   const del=e.target.closest('.rowdel');
@@ -1135,7 +1140,8 @@ document.getElementById('offerPdfBtn').addEventListener('click',()=>{
     rows+=`<tr class="pgh"><td colspan="8">${esc(g.name)}</td></tr>`;
     lines.forEach(L=>{
       const q=admin?(parseFloat(L.qty)||0):(L._vqty!==undefined?parseFloat(L._vqty)||0:parseFloat(L.qty)||0);
-      const unitNet=(parseFloat(L.unit)||0)*(1-d/100);
+      const autoNet=(parseFloat(L.unit)||0)*(1-d/100);
+      const unitNet=(parseFloat(L.ind)>0)?parseFloat(L.ind):autoNet;
       const top=Math.round(q*unitNet);
       const bm=parseFloat(L.bm)||0;
       mec+=top;bmT+=bm;
@@ -1146,7 +1152,7 @@ document.getElementById('offerPdfBtn').addEventListener('click',()=>{
         <td class="r">${L.hafta?fmt(L.hafta):'—'}</td>
         <td class="r">${L.ay?fmt(L.ay):'—'}</td>
         <td class="r">${L.unit?fmt(L.unit):'—'}</td>
-        <td class="r"><b>${top?fmt(top):'—'}</b></td>
+        <td class="r" style="color:#c0392b"><b>${top?fmt(top):'—'}</b></td>
         <td class="r">${bm?fmt(bm):'—'}</td>
       </tr>`;
     });
