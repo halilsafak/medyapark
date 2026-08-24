@@ -50,7 +50,7 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .tool{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;transition:.15s}
 .tool:hover{border-color:#c4ccd6}
 .tool.on{background:var(--green);border-color:var(--green);color:#fff}
-#map{height:540px;border:1px solid var(--line);border-radius:14px;background:var(--soft);position:relative;overflow:hidden}
+#map{height:580px;width:100vw;margin-left:calc(50% - 50vw);border:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;background:var(--soft);position:relative;overflow:hidden}
 .key-notice{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:var(--soft);z-index:5}
 .key-notice .box{max-width:540px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px}
 .key-notice h3{font-size:16px;font-weight:800;margin-bottom:10px}
@@ -452,6 +452,9 @@ fuar:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 56">
 const COLORS={led:"#c0392b",board:"#e8971e",wall:"#2e7d4f",avm:"#6f5bb5",durak:"#2f7fa3",fuar:"#13233b"};
 const TYPENAME={led:"LED Ekran",board:"Board",wall:"Duvar Reklamı",avm:"AVM Mecrası",durak:"Akıllı Durak",fuar:"Fuar Merkezi"};
 const iconUrl=t=>'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(ICON_SVG[t](COLORS[t]));
+/* Harita pinleri: haleli nokta (ortada dolu daire, çevresinde yarı saydam hale) */
+const DOT_SVG=c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="19" fill="${c}" opacity=".35"/><circle cx="20" cy="20" r="12.5" fill="${c}"/></svg>`;
+const dotUrl=t=>'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(DOT_SVG(COLORS[t]||'#13233b'));
 const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const fmt=v=>v.toLocaleString("tr-TR")+" ₺";
 
@@ -557,9 +560,10 @@ window.initMap=function(){
 };
 function addMarker(p){
   const isF=p.t==='fuar';
+  const sz=isF?42:(p.hl?34:28);
   const m=new google.maps.Marker({
     position:{lat:p.lat,lng:p.lng},map:map,title:p.name,draggable:editMode,
-    icon:{url:iconUrl(p.t),scaledSize:new google.maps.Size(isF?38:38,isF?46:44),anchor:new google.maps.Point(19,isF?45:43)},
+    icon:{url:dotUrl(p.t),scaledSize:new google.maps.Size(sz,sz),anchor:new google.maps.Point(sz/2,sz/2)},
     zIndex:isF?900:(p.hl?800:100)
   });
   m.addListener('click',()=>{
