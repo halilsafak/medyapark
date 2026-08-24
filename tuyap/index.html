@@ -87,8 +87,9 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .acc-head{display:flex;align-items:center;gap:16px;padding:14px 20px;cursor:pointer;user-select:none;background:#fff}
 .acc-head:hover{background:var(--soft)}
 .acc-head:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
-.acc-ico{width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--soft);border:1px solid var(--line)}
+.acc-ico{width:52px;height:52px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--soft);border:1px solid var(--line);overflow:hidden}
 .acc-ico svg{width:38px;height:38px}
+.acc-ico img{width:100%;height:100%;object-fit:contain;background:#fff;padding:4px}
 .acc-tt h3{font-size:15.5px;font-weight:700}
 .acc-tt .cat{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:1px}
 .acc-badges{margin-left:auto;display:flex;align-items:center;gap:10px}
@@ -676,7 +677,7 @@ function newPoint(lat,lng){
 }
 function pinHTML(p){
   const isF=p.t==='fuar';
-  const sz=isF?20:(p.hl?15:12);
+  const sz=isF?24:(p.hl?18:15);
   return `<div class="pmk${isF?' pf':''}${p.hl?' ph':''}" style="--c:${COLORS[p.t]||'#13233b'};--sz:${sz}px">
     <span class="ring"></span>${(isF||p.hl)?'<span class="ring r2"></span>':''}<span class="core"></span></div>`;
 }
@@ -902,7 +903,7 @@ function renderAccordions(){
     el.dataset.g=g.id;
     el.innerHTML=`
     <div class="acc-head" tabindex="0" role="button" aria-expanded="${openIds.has(g.id)}">
-      <div class="acc-ico">${iconArt(t)}</div>
+      <div class="acc-ico">${g.logo_url?`<img src="${esc(g.logo_url)}" alt="${esc(g.name)}">`:iconArt(t)}</div>
       <div class="acc-tt"><h3>${esc(g.name)}</h3><div class="cat">${(Array.isArray(g.types)?g.types:[]).map(x=>TYPENAME[x]||x).join(' · ')||esc(g.cat)}</div></div>
       <div class="acc-badges">
         <span class="count-badge">Öneri: <b>${esc(g.count_text)}</b></span>
@@ -1147,6 +1148,14 @@ function renderAdmin(){
         <div class="fld full"><label>Neden bu mecra?</label><textarea class="f-why">${esc(g.why)}</textarea></div>
       </div>
       <div class="fld" style="margin-top:4px;font-size:11.5px;color:var(--muted)">Bütçe kalemleri artık <b>Bütçe</b> sekmesindeki tablodan doldurulur.</div>
+      <div class="fld" style="margin-top:10px"><label>Grup Logosu <span style="text-transform:none;letter-spacing:0">— açılır listenin başında ürün ikonu yerine görünür</span></label>
+        <div class="logo-row" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+          <div class="logo-prev" style="height:40px;min-width:70px">${g.logo_url?`<img src="${esc(g.logo_url)}">`:'<span>Logo yok</span>'}</div>
+          <button class="btn primary sm grpLogoUp" style="margin-left:auto">${g.logo_url?'Değiştir':'Logo Yükle'}</button>
+          ${g.logo_url?'<button class="btn danger sm grpLogoRm">Kaldır</button>':''}
+          <input type="file" accept="image/*" hidden class="grpLogoInp">
+        </div>
+      </div>
       <div class="fld" style="margin-top:10px"><label>PDF Katalog <span style="text-transform:none;letter-spacing:0">— ziyaretçi açılır listeden indirebilir</span></label>
         <div class="logo-row" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px">
           <span class="pdfState" style="font-size:12.5px;font-weight:600;color:${g.pdf_url?'var(--green)':'var(--muted)'}">${g.pdf_url?('📄 '+esc(g.pdf_name||'katalog.pdf')):'PDF yüklenmedi'}</span>
@@ -1192,6 +1201,12 @@ function bindAdmin(){
       g.images.splice(i,1);renderAdmin();
       document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');return;
     }
+    if(e.target.closest('.grpLogoUp')){acc.querySelector('.grpLogoInp').click();return;}
+    if(e.target.closest('.grpLogoRm')){
+      g.logo_url='';renderAdmin();renderAccordions();
+      document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');
+      admMsg('Grup logosu kaldırıldı — "Tüm Değişiklikleri Kaydet" ile kalıcılaştırın.');return;
+    }
     if(e.target.closest('.pdfUp')){acc.querySelector('.pdfInp').click();return;}
     if(e.target.closest('.pdfRm')){
       g.pdf_url='';g.pdf_name='';renderAdmin();
@@ -1207,6 +1222,20 @@ function bindAdmin(){
     if(e.target.classList.contains('typeChk')){
       g.types=[...acc.querySelectorAll('.typeChk:checked')].map(x=>x.dataset.t);
       renderAccordions();applyFilter();return;
+    }
+    if(e.target.classList.contains('grpLogoInp')){
+      const f=e.target.files[0];e.target.value='';
+      if(!f)return;
+      const cz=await compressImage(f,400,0.92);
+      const path=`${FOLDER}/gruplogo_${g.id}_${Date.now()}_${safeName(cz.name)}`;
+      const up=await supa.storage.from(BUCKET).upload(path,cz.blob,{contentType:cz.type});
+      if(up.error){admMsg('Logo yüklenemedi: '+up.error.message,false);return;}
+      const {data}=supa.storage.from(BUCKET).getPublicUrl(path);
+      g.logo_url=data.publicUrl;
+      renderAdmin();renderAccordions();
+      document.querySelector(`.adm-acc[data-g="${g.id}"]`)?.classList.add('open');
+      admMsg('Grup logosu yüklendi — "Tüm Değişiklikleri Kaydet" ile kalıcılaştırın.');
+      return;
     }
     if(e.target.classList.contains('pdfInp')){
       const f=e.target.files[0];e.target.value='';
@@ -1247,7 +1276,7 @@ function bindAdmin(){
 document.getElementById('saveAllBtn').addEventListener('click',async()=>{
   const st=document.getElementById('saveState');st.textContent='Kaydediliyor…';
   const rows=GROUPS.map(g=>({id:g.id,sira:g.sira,name:g.name,cat:g.cat,count_text:g.count_text,descr:g.descr,why:g.why,
-    specs:g.specs||[],images:g.images||[],budget:g.budget||[],types:g.types||[],pdf_url:g.pdf_url||'',pdf_name:g.pdf_name||'',visible:g.visible!==false,updated_at:new Date().toISOString()}));
+    specs:g.specs||[],images:g.images||[],budget:g.budget||[],types:g.types||[],logo_url:g.logo_url||'',pdf_url:g.pdf_url||'',pdf_name:g.pdf_name||'',visible:g.visible!==false,updated_at:new Date().toISOString()}));
   const {error}=await supa.from('tuyap_gruplar').upsert(rows);
   if(error){st.textContent='';admMsg('Kaydedilemedi: '+error.message,false);return;}
   st.textContent='';admMsg('Tüm değişiklikler kaydedildi ✓');
