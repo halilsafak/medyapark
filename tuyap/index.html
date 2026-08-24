@@ -264,13 +264,16 @@ td.net{color:var(--green);font-weight:800}
 <!-- ================= HARİTA ================= -->
 <div class="view active" id="vmap">
   <div class="filterbar">
-    <span class="fb-label">Mecra</span>
+    <span class="fb-label">Ürün</span>
     <button class="chip active" data-f="all"><span class="dot" style="background:var(--ink)"></span>Tümü</button>
-    <button class="chip" data-f="led"><span class="dot" style="background:var(--led)"></span>LED Ekran</button>
-    <button class="chip" data-f="board"><span class="dot" style="background:var(--board)"></span>Board</button>
-    <button class="chip" data-f="wall"><span class="dot" style="background:var(--wall)"></span>Duvar</button>
-    <button class="chip" data-f="avm"><span class="dot" style="background:var(--avm)"></span>AVM</button>
-    <button class="chip" data-f="durak"><span class="dot" style="background:var(--durak)"></span>Akıllı Durak</button>
+    <button class="chip" data-f="led"><span class="dot" style="background:#c0392b"></span>LED Ekran</button>
+    <button class="chip" data-f="megaboard"><span class="dot" style="background:#e8971e"></span>Megaboard</button>
+    <button class="chip" data-f="ultraboard"><span class="dot" style="background:#b45309"></span>Ultraboard</button>
+    <button class="chip" data-f="megalight"><span class="dot" style="background:#a16207"></span>Megalight</button>
+    <button class="chip" data-f="raket"><span class="dot" style="background:#6f5bb5"></span>Raket / CLP</button>
+    <button class="chip" data-f="wall"><span class="dot" style="background:#2e7d4f"></span>Duvar</button>
+    <button class="chip" data-f="durak"><span class="dot" style="background:#2f7fa3"></span>Akıllı Durak</button>
+    <button class="chip" data-f="arac"><span class="dot" style="background:#0e7490"></span>Araç Giydirme</button>
     <div class="fb-right">
       <button class="tool" id="satBtn">Uydu Görünümü</button>
       <button class="tool" id="editBtn">İşaretleme Modu</button>
@@ -294,7 +297,7 @@ td.net{color:var(--green);font-weight:800}
 
   <div class="page-heading">
     <h1 id="pageTitle">Tüyap 2026 Tarım Fuarı · <b>Adana Açık Hava Reklam Duyuru Önerileri</b></h1>
-    <div class="sub">Hedef kitle: Çukurova illerindeki tüm tarımcılar · 6 il · 130+ reklam yüzeyi · Ekim başı – 8 Kasım</div>
+    <div class="sub" id="pageSub">Hedef kitle: Çukurova illerindeki tüm tarımcılar · 6 il · 130+ reklam yüzeyi · Ekim başı – 8 Kasım</div>
   </div>
 
   <div class="sec-title">Önerilen Mecralar</div>
@@ -381,6 +384,7 @@ td.net{color:var(--green);font-weight:800}
         <div class="fld" style="margin:0"><label>Varsayılan İndirim %</label><input type="number" id="setDisc" min="0" max="60"></div>
         <button class="btn primary" id="saveSetBtn">Kaydet</button>
       </div>
+      <div class="fld" style="margin:12px 0 0"><label>Başlık Altı Açıklama</label><input type="text" id="setSub" placeholder="Hedef kitle: ..."></div>
     </div>
 
     <div class="sec-title" style="font-size:16px">Mecra Grupları <span style="font-weight:500;font-size:12px;color:var(--muted)">— ▲▼ ile sıralayın, alanları düzenleyin, en altta Kaydet'e basın</span></div>
@@ -465,11 +469,32 @@ fuar:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 46 56">
 <circle cx="23" cy="22" r="19.5" fill="${c}" stroke="#fff" stroke-width="3"/>
 <circle cx="23" cy="22" r="14.5" fill="none" stroke="#fff" stroke-width="1.4" opacity=".45"/>
 <path d="M23 10.5 l3.5 7.1 7.8 1.15 -5.65 5.5 1.35 7.8 -7 -3.7 -7 3.7 1.35 -7.8 -5.65 -5.5 7.8 -1.15 Z" fill="#4fbf7f"/>
+</svg>`,
+raket:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56">
+<ellipse cx="24" cy="52.5" rx="9" ry="2.6" fill="rgba(19,35,59,.20)"/>
+<rect x="21.4" y="38" width="5.2" height="13" rx="2.2" fill="#46536a"/>
+<rect x="9" y="3.5" width="30" height="37" rx="4" fill="#1c2940" stroke="#fff" stroke-width="2.6"/>
+<rect x="12.5" y="7" width="23" height="30" rx="2" fill="${c}"/>
+<rect x="16" y="12" width="16" height="4" rx="2" fill="#fff" opacity=".95"/>
+<rect x="16" y="19" width="11" height="3.4" rx="1.7" fill="#fff" opacity=".7"/>
+<rect x="16" y="25" width="13" height="3.4" rx="1.7" fill="#fff" opacity=".5"/>
+</svg>`,
+arac:c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56">
+<ellipse cx="24" cy="52.5" rx="16" ry="2.8" fill="rgba(19,35,59,.20)"/>
+<rect x="3" y="14" width="42" height="28" rx="5" fill="${c}" stroke="#fff" stroke-width="2.6"/>
+<rect x="7" y="18.5" width="9.5" height="7.5" rx="1.6" fill="#fff" opacity=".9"/>
+<rect x="19.2" y="18.5" width="9.5" height="7.5" rx="1.6" fill="#fff" opacity=".9"/>
+<rect x="31.4" y="18.5" width="9.5" height="7.5" rx="1.6" fill="#fff" opacity=".9"/>
+<rect x="7" y="30" width="22" height="4" rx="2" fill="#fff" opacity=".85"/>
+<circle cx="13" cy="43" r="4.6" fill="#1c2940" stroke="#fff" stroke-width="2.2"/>
+<circle cx="35" cy="43" r="4.6" fill="#1c2940" stroke="#fff" stroke-width="2.2"/>
 </svg>`
 };
-const COLORS={led:"#c0392b",board:"#e8971e",wall:"#2e7d4f",avm:"#6f5bb5",durak:"#2f7fa3",fuar:"#13233b"};
-const TYPENAME={led:"LED Ekran",board:"Board",wall:"Duvar Reklamı",avm:"AVM Mecrası",durak:"Akıllı Durak",fuar:"Fuar Merkezi"};
-const iconUrl=t=>'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(ICON_SVG[t](COLORS[t]));
+const COLORS={led:"#c0392b",megaboard:"#e8971e",ultraboard:"#b45309",megalight:"#a16207",raket:"#6f5bb5",wall:"#2e7d4f",durak:"#2f7fa3",arac:"#0e7490",fuar:"#13233b"};
+const TYPENAME={led:"LED Ekran",megaboard:"Megaboard",ultraboard:"Ultraboard",megalight:"Megalight",raket:"Raket / CLP",wall:"Duvar Reklamı",durak:"Akıllı Durak",arac:"Araç Giydirme",fuar:"Fuar Merkezi"};
+/* ürün tipi → çizim eşlemesi (akordeon ikonları) */
+const ARTMAP={led:'led',megaboard:'board',ultraboard:'board',megalight:'board',raket:'raket',wall:'wall',durak:'durak',arac:'arac',fuar:'fuar'};
+const iconArt=t=>ICON_SVG[ARTMAP[t]||'board'](COLORS[t]||'#13233b');
 /* Harita pinleri: haleli nokta (ortada dolu daire, çevresinde yarı saydam hale) */
 const DOT_SVG=c=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="19" fill="${c}" opacity=".35"/><circle cx="20" cy="20" r="12.5" fill="${c}"/></svg>`;
 const dotUrl=t=>'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(DOT_SVG(COLORS[t]||'#13233b'));
@@ -537,6 +562,8 @@ function applySettings(){
   }
   const d=parseFloat(SETTINGS.indirim);
   if(!isNaN(d))document.getElementById('disc').value=d;
+  if(SETTINGS.alt_baslik!==undefined&&SETTINGS.alt_baslik!=='')
+    document.getElementById('pageSub').textContent=SETTINGS.alt_baslik;
   const brand=document.getElementById('brandLogo');
   if(SETTINGS.logo_url){
     brand.innerHTML=`<img src="${esc(SETTINGS.logo_url)}" alt="Medyapark">`;
@@ -571,7 +598,7 @@ window.initMap=function(){
   fitAll();applyFilter();
   map.addListener('click',e=>{
     if(!editMode)return;
-    const t=(curF==='all')?'led':curF;
+    const t=(curF==='all'||curF==='fuar')?'led':curF;
     const p={id:'p'+Date.now(),t:t,grp:null,lat:e.latLng.lat(),lng:e.latLng.lng(),name:'Yeni Nokta',meta:'Elle eklendi',why:'',img:'',hl:false,sira:PTS.length+1};
     PTS.push(p);addMarker(p);markers[p.id].setDraggable(true);openInfo(p);
   });
@@ -662,18 +689,23 @@ function flyTo(id){
 }
 function applyFilter(){
   if(map)PTS.forEach(p=>{
-    const ok=curF==='all'||p.t===curF||p.t==='fuar';
+    let ok;
+    if(p.t==='fuar')ok=true;
+    else{
+      const g=GROUPS.find(x=>x.id===p.grp);
+      const types=g&&Array.isArray(g.types)?g.types:[p.t];
+      ok=curF==='all'||types.includes(curF);
+    }
     if(markers[p.id])markers[p.id].setMap(ok?map:null);
   });
   document.querySelectorAll('.acc').forEach(a=>{
     const g=GROUPS.find(x=>x.id===a.dataset.g);
-    a.style.display=(g&&(curF==='all'||dominantType(g)===curF))?'':'none';
+    const types=g&&Array.isArray(g.types)?g.types:[];
+    a.style.display=(g&&(curF==='all'||types.includes(curF)))?'':'none';
   });
 }
 function dominantType(g){
-  const pts=PTS.filter(p=>p.grp===g.id);
-  if(pts.length)return pts[0].t;
-  return {lednet:'led',osb:'board',m1:'avm',optimum:'wall',esas:'board',durak:'durak',duvar2:'wall',stad:'board',havamas:'board'}[g.id]||'board';
+  return (Array.isArray(g.types)&&g.types[0])||'megaboard';
 }
 
 document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
@@ -720,8 +752,8 @@ function renderAccordions(){
     el.dataset.g=g.id;
     el.innerHTML=`
     <div class="acc-head" tabindex="0" role="button" aria-expanded="${openIds.has(g.id)}">
-      <div class="acc-ico">${ICON_SVG[t](COLORS[t])}</div>
-      <div class="acc-tt"><h3>${esc(g.name)}</h3><div class="cat">${esc(g.cat)}</div></div>
+      <div class="acc-ico">${iconArt(t)}</div>
+      <div class="acc-tt"><h3>${esc(g.name)}</h3><div class="cat">${(Array.isArray(g.types)?g.types:[]).map(x=>TYPENAME[x]||x).join(' · ')||esc(g.cat)}</div></div>
       <div class="acc-badges">
         <span class="count-badge">Öneri: <b>${esc(g.count_text)}</b></span>
         <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
@@ -902,6 +934,7 @@ function renderAdmin(){
   document.getElementById('setGmKey').value=SETTINGS.gmaps_key||'';
   document.getElementById('setTitle').value=SETTINGS.baslik||'';
   document.getElementById('setDisc').value=SETTINGS.indirim||'20';
+  document.getElementById('setSub').value=SETTINGS.alt_baslik||'';
   const lp=document.getElementById('logoPrev');
   lp.innerHTML=SETTINGS.logo_url?`<img src="${esc(SETTINGS.logo_url)}">`:'<span>Logo yüklenmedi</span>';
   const list=document.getElementById('admList');list.innerHTML='';
@@ -924,6 +957,15 @@ function renderAdmin(){
       <div class="adm-grid">
         <div class="fld"><label>Mecra Adı</label><input type="text" class="f-name" value="${esc(g.name)}"></div>
         <div class="fld"><label>Öneri Rozeti (kaç mecra?)</label><input type="text" class="f-count" value="${esc(g.count_text)}"></div>
+        <div class="fld full"><label>İçerdiği Ürünler <span style="text-transform:none;letter-spacing:0">— filtreler ve renkler buna göre çalışır</span></label>
+          <div style="display:flex;flex-wrap:wrap;gap:6px 14px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px">
+            ${['led','megaboard','ultraboard','megalight','raket','wall','durak','arac'].map(tt=>`
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer">
+              <input type="checkbox" class="typeChk" data-t="${tt}" ${(Array.isArray(g.types)&&g.types.includes(tt))?'checked':''} style="accent-color:${COLORS[tt]}">
+              <span class="dot" style="width:8px;height:8px;border-radius:50%;background:${COLORS[tt]}"></span>${TYPENAME[tt]}
+            </label>`).join('')}
+          </div>
+        </div>
         <div class="fld full"><label>Açıklama</label><textarea class="f-descr">${esc(g.descr)}</textarea></div>
         <div class="fld full"><label>Neden bu mecra?</label><textarea class="f-why">${esc(g.why)}</textarea></div>
       </div>
@@ -985,6 +1027,10 @@ function bindAdmin(){
     const acc=e.target.closest('.adm-acc');if(!acc)return;
     const g=GROUPS.find(x=>x.id===acc.dataset.g);
     if(e.target.classList.contains('visChk')){g.visible=e.target.checked;return;}
+    if(e.target.classList.contains('typeChk')){
+      g.types=[...acc.querySelectorAll('.typeChk:checked')].map(x=>x.dataset.t);
+      renderAccordions();applyFilter();return;
+    }
     if(e.target.classList.contains('pdfInp')){
       const f=e.target.files[0];e.target.value='';
       if(!f)return;
@@ -1024,7 +1070,7 @@ function bindAdmin(){
 document.getElementById('saveAllBtn').addEventListener('click',async()=>{
   const st=document.getElementById('saveState');st.textContent='Kaydediliyor…';
   const rows=GROUPS.map(g=>({id:g.id,sira:g.sira,name:g.name,cat:g.cat,count_text:g.count_text,descr:g.descr,why:g.why,
-    specs:g.specs||[],images:g.images||[],budget:g.budget||[],pdf_url:g.pdf_url||'',pdf_name:g.pdf_name||'',visible:g.visible!==false,updated_at:new Date().toISOString()}));
+    specs:g.specs||[],images:g.images||[],budget:g.budget||[],types:g.types||[],pdf_url:g.pdf_url||'',pdf_name:g.pdf_name||'',visible:g.visible!==false,updated_at:new Date().toISOString()}));
   const {error}=await supa.from('tuyap_gruplar').upsert(rows);
   if(error){st.textContent='';admMsg('Kaydedilemedi: '+error.message,false);return;}
   st.textContent='';admMsg('Tüm değişiklikler kaydedildi ✓');
@@ -1068,7 +1114,8 @@ document.getElementById('clearKeyBtn').addEventListener('click',async()=>{
 document.getElementById('saveSetBtn').addEventListener('click',async()=>{
   const rows=[
     {key:'baslik',value:document.getElementById('setTitle').value},
-    {key:'indirim',value:document.getElementById('setDisc').value}
+    {key:'indirim',value:document.getElementById('setDisc').value},
+    {key:'alt_baslik',value:document.getElementById('setSub').value}
   ];
   const {error}=await supa.from('tuyap_ayarlar').upsert(rows);
   if(error){admMsg('Kaydedilemedi: '+error.message,false);return;}
