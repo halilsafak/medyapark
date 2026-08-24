@@ -50,7 +50,7 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .tool{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);cursor:pointer;transition:.15s}
 .tool:hover{border-color:#c4ccd6}
 .tool.on{background:var(--green);border-color:var(--green);color:#fff}
-#map{height:580px;width:100vw;margin-left:calc(50% - 50vw);border:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;background:var(--soft);position:relative;overflow:hidden}
+#map{height:680px;width:100vw;margin-left:calc(50% - 50vw);border:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;background:var(--soft);position:relative;overflow:hidden}
 .key-notice{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;background:var(--soft);z-index:5}
 .key-notice .box{max-width:540px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px}
 .key-notice h3{font-size:16px;font-weight:800;margin-bottom:10px}
@@ -147,6 +147,11 @@ table.xls td .rowdel:hover{color:#b42318}
 /* Teklif PDF */
 .offer-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
 .offer-bar .oh{font-size:12px;color:var(--muted)}
+#topBtn{position:fixed;right:22px;bottom:22px;width:46px;height:46px;border-radius:50%;border:none;background:var(--green);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(19,35,59,.25);z-index:2500;opacity:0;pointer-events:none;transform:translateY(8px);transition:.25s}
+#topBtn.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+#topBtn:hover{background:var(--green-d)}
+#topBtn svg{width:20px;height:20px}
+@media print{#topBtn{display:none!important}}
 #printDoc{display:none}
 @media print{
   body>*:not(#printDoc){display:none!important}
@@ -317,7 +322,7 @@ td.net{color:var(--green);font-weight:800}
 .iw .btns .up{color:var(--green);border-color:var(--green-line)}
 
 @media(max-width:860px){.ab-cols{grid-template-columns:1fr}.adm-grid{grid-template-columns:1fr}.hd-title{display:none}.bud-line,.bl-head{grid-template-columns:1fr 1fr 60px 90px 30px}}
-@media(max-width:640px){#map{height:420px}.hd-pill{display:none}}
+@media(max-width:640px){#map{height:520px}.hd-pill{display:none}}
 </style>
 </head>
 <body>
@@ -486,6 +491,9 @@ td.net{color:var(--green);font-weight:800}
 </div>
 </main>
 
+<button id="topBtn" aria-label="Yukarı çık" title="Yukarı çık">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+</button>
 <div id="printDoc"></div>
 <div class="lb" id="lb"><button class="x" aria-label="Kapat">×</button><img id="lbImg" alt=""></div>
 <input type="file" accept="image/*" hidden id="ptFile">
@@ -993,8 +1001,8 @@ function renderBudget(){
     ?'Excel gibi doğrudan hücrelere yazın; İndirimli Fiyat, Toplam ve Genel Toplam anında hesaplanır. Değişiklikleri kalıcılaştırmak için alttaki Kaydet\u0027e basın. Ziyaretçiler bu tabloyu salt okunur görür.'
     :'Önerilen mecraların tarifeleri ve Medyapark özel indirimli yatırım tutarları. Adetleri değiştirebilir, istemediğiniz kalemin işaretini kaldırabilirsiniz — toplamlar anında güncellenir. Seçimleriniz yalnızca bu ekranda geçerlidir; "Teklif PDF\u0027i İndir" ile döküm alıp bize iletebilirsiniz.';
   document.getElementById('phead').innerHTML=admin
-    ?`<tr><th style="width:38px">Dahil</th><th style="width:19%">Mecra / Kalem</th><th style="width:14%">Tarife Notu</th><th class="r" style="width:58px">Adet</th><th class="r" style="width:100px">Haftalık ₺</th><th class="r" style="width:100px">Aylık ₺</th><th class="r" style="width:105px">Liste Fiyatı ₺</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:105px">Baskı & Montaj ₺</th><th style="width:32px"></th></tr>`
-    :`<tr><th style="width:38px">Dahil</th><th style="width:21%">Mecra / Kalem</th><th style="width:15%">Tarife Notu</th><th class="r" style="width:64px">Adet</th><th class="r" style="width:95px">Haftalık ₺</th><th class="r" style="width:95px">Aylık ₺</th><th class="r" style="width:105px">Liste Fiyatı</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:110px">Baskı & Montaj</th></tr>`;
+    ?`<tr><th style="width:38px">Dahil</th><th style="width:19%">Mecra / Kalem</th><th style="width:14%">Tarife Notu</th><th class="r" style="width:58px">Adet</th><th class="r" style="width:70px">Hafta</th><th class="r" style="width:70px">Ay</th><th class="r" style="width:105px">Liste Fiyatı ₺</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:105px">Baskı & Montaj ₺</th><th style="width:32px"></th></tr>`
+    :`<tr><th style="width:38px">Dahil</th><th style="width:21%">Mecra / Kalem</th><th style="width:15%">Tarife Notu</th><th class="r" style="width:64px">Adet</th><th class="r" style="width:70px">Hafta</th><th class="r" style="width:70px">Ay</th><th class="r" style="width:105px">Liste Fiyatı</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:110px">Baskı & Montaj</th></tr>`;
   const body=document.getElementById('pbody');body.innerHTML='';
   GROUPS.slice().sort((a,b)=>a.sira-b.sira).forEach(g=>{
     g.budget=Array.isArray(g.budget)?g.budget:[];
@@ -1015,8 +1023,8 @@ function renderBudget(){
         <td><input type="text" class="e-label" value="${esc(L.label)}"></td>
         <td><input type="text" class="e-tarif" value="${esc(L.tarif||'')}"></td>
         <td><input type="number" class="e-qty" min="0" value="${L.qty||0}"></td>
-        <td><input type="number" class="e-hafta" min="0" step="500" value="${L.hafta||0}"></td>
-        <td><input type="number" class="e-ay" min="0" step="500" value="${L.ay||0}"></td>
+        <td><input type="number" class="e-hafta" min="0" step="1" value="${L.hafta||0}"></td>
+        <td><input type="number" class="e-ay" min="0" step="1" value="${L.ay||0}"></td>
         <td><input type="number" class="e-unit" min="0" step="500" value="${L.unit||0}"></td>
         <td><input type="number" class="e-ind" min="0" step="500" value="${L.ind||''}" title="Boş bırakılırsa indirim %’sinden otomatik hesaplanır"></td>
         <td class="calc top">—</td>
@@ -1030,8 +1038,8 @@ function renderBudget(){
         <td style="padding:10px 12px;font-weight:600">${esc(L.label)}</td>
         <td style="padding:10px 12px;color:var(--muted);font-size:12.5px">${esc(L.tarif||'')}</td>
         <td><input type="number" class="v-qty" min="0" max="${L.qty||0}" value="${L._vqty}" title="Adedi azaltabilirsiniz (en fazla ${L.qty||0})"></td>
-        <td class="calc">${L.hafta?fmt(L.hafta):'—'}</td>
-        <td class="calc">${L.ay?fmt(L.ay):'—'}</td>
+        <td class="calc">${L.hafta||'—'}</td>
+        <td class="calc">${L.ay||'—'}</td>
         <td class="calc">${L.unit?fmt(L.unit):'—'}</td>
         <td class="calc ind">—</td>
         <td class="calc top">—</td>
@@ -1149,8 +1157,8 @@ document.getElementById('offerPdfBtn').addEventListener('click',()=>{
         <td>${esc(L.label)}</td>
         <td style="color:#6d7a8c">${esc(L.tarif||'')}</td>
         <td class="r">${q}</td>
-        <td class="r">${L.hafta?fmt(L.hafta):'—'}</td>
-        <td class="r">${L.ay?fmt(L.ay):'—'}</td>
+        <td class="r">${L.hafta||'—'}</td>
+        <td class="r">${L.ay||'—'}</td>
         <td class="r">${L.unit?fmt(L.unit):'—'}</td>
         <td class="r" style="color:#c0392b"><b>${top?fmt(top):'—'}</b></td>
         <td class="r">${bm?fmt(bm):'—'}</td>
@@ -1169,7 +1177,7 @@ document.getElementById('offerPdfBtn').addEventListener('click',()=>{
     <h1>Seçili Mecra Dökümü</h1>
     <div class="p-note">${admin?'Medyapark tarafından hazırlanmıştır.':'Bu döküm, sunum sayfasındaki seçimlerinizle oluşturulmuştur; nihai teklif Medyapark onayına tabidir.'}</div>
     <table>
-      <tr><th style="width:24%">Mecra / Kalem</th><th style="width:17%">Tarife Notu</th><th class="r">Adet</th><th class="r">Haftalık ₺</th><th class="r">Aylık ₺</th><th class="r">Liste Fiyatı</th><th class="r">Toplam (İnd.)</th><th class="r">Baskı & Montaj</th></tr>
+      <tr><th style="width:24%">Mecra / Kalem</th><th style="width:17%">Tarife Notu</th><th class="r">Adet</th><th class="r">Hafta</th><th class="r">Ay</th><th class="r">Liste Fiyatı</th><th class="r">Toplam (İnd.)</th><th class="r">Baskı & Montaj</th></tr>
       ${rows||'<tr><td colspan="8" style="text-align:center;color:#6d7a8c">Seçili kalem yok</td></tr>'}
     </table>
     <div class="p-tots">
@@ -1515,6 +1523,13 @@ document.getElementById('saveSetBtn').addEventListener('click',async()=>{
 /* =========================================================
    BAŞLAT
    ========================================================= */
+/* yukarı çık oku */
+const topBtn=document.getElementById('topBtn');
+window.addEventListener('scroll',()=>{
+  topBtn.classList.toggle('show',window.scrollY>400);
+},{passive:true});
+topBtn.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+
 supa.auth.onAuthStateChange(()=>refreshSession());
 refreshSession();
 loadData();
