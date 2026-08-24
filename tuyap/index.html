@@ -58,19 +58,12 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .editing-hint{display:none;margin-top:10px;background:var(--green-soft);border:1px solid var(--green-line);color:var(--green-d);font-size:13px;font-weight:600;padding:10px 16px;border-radius:10px}
 .editing-hint.show{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .editing-hint .savepos{margin-left:auto;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;border:none;background:var(--ink);color:#fff;cursor:pointer}
-/* Sinyal animasyonlu harita pinleri */
+/* Harita pinleri: sabit haleli nokta */
 .pmkhost{position:absolute;transform:translate(-50%,-50%);cursor:pointer}
-.pmk{position:relative;display:grid;place-items:center;width:calc(var(--sz)*3.4);height:calc(var(--sz)*3.4);cursor:pointer}
+.pmk{position:relative;display:grid;place-items:center;width:calc(var(--sz)*2.2);height:calc(var(--sz)*2.2);cursor:pointer}
 .pmk .core{width:var(--sz);height:var(--sz);border-radius:50%;background:var(--c);border:2px solid #fff;box-shadow:0 1px 5px rgba(19,35,59,.45);z-index:2}
-.pmk .ring{position:absolute;width:var(--sz);height:var(--sz);border-radius:50%;background:var(--c);opacity:.45;animation:sig 2.2s ease-out infinite}
-.pmk .ring.r2{animation-delay:1.1s}
-.pmk.pf .ring{animation-duration:2.8s}
-@keyframes sig{
-  0%{transform:scale(1);opacity:.45}
-  70%{transform:scale(3.2);opacity:0}
-  100%{transform:scale(3.2);opacity:0}
-}
-@media (prefers-reduced-motion: reduce){.pmk .ring{animation:none;opacity:.25;transform:scale(1.8)}}
+.pmk .ring{position:absolute;width:var(--sz);height:var(--sz);border-radius:50%;background:var(--c);opacity:.28;transform:scale(1.9)}
+.pmk .ring.r2{display:none}
 
 /* ================= BAŞLIK ================= */
 .page-heading{margin:30px 0 22px;text-align:center;padding:26px 20px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#fff, var(--soft))}
@@ -308,7 +301,6 @@ td.net{color:var(--green);font-weight:800}
     <button class="chip" data-f="arac"><span class="dot" style="background:#0e7490"></span>Araç Giydirme</button>
     <div class="fb-right">
       <button class="tool" id="satBtn">Uydu Görünümü</button>
-      <button class="tool" id="editBtn">İşaretleme Modu</button>
       <button class="tool" id="fitBtn">Tümünü Göster</button>
     </div>
   </div>
@@ -321,11 +313,6 @@ td.net{color:var(--green);font-weight:800}
         <p style="font-size:12px;color:var(--muted)">Anahtar herhangi bir projeden olabilir; Google Cloud'da "Maps JavaScript API" etkin olmalı.</p>
       </div>
     </div>
-  </div>
-  <div class="editing-hint" id="editHint">
-    <span>İşaretleme modu açık — "＋ Yeni Nokta" ile veya haritada boş yere tıklayarak nokta ekleyin. Pinleri sürükleyin; ad, ürün tipi, grup, fotoğraf ve silme için pine tıklayın.</span>
-    <button class="savepos" id="addPtBtn" style="background:var(--green)">＋ Yeni Nokta</button>
-    <button class="savepos" id="savePosBtn" style="display:none">Konum Değişikliklerini Kaydet</button>
   </div>
 
   <div class="page-heading">
@@ -865,26 +852,6 @@ document.getElementById('satBtn').addEventListener('click',e=>{
   e.currentTarget.textContent=satMode?'Sokak Görünümü':'Uydu Görünümü';
 });
 document.getElementById('fitBtn').addEventListener('click',fitAll);
-document.getElementById('editBtn').addEventListener('click',e=>{
-  editMode=!editMode;e.currentTarget.classList.toggle('on',editMode);
-  document.getElementById('editHint').classList.toggle('show',editMode);
-  document.getElementById('savePosBtn').style.display=(editMode&&session)?'':'none';
-  if(map){rebuildMarkers();infoWin&&infoWin.close();}
-});
-document.getElementById('addPtBtn').addEventListener('click',()=>{
-  if(!map){alert('Önce harita yüklenmeli (Maps anahtarı).');return;}
-  const c=map.getCenter();
-  newPoint(c.lat(),c.lng());
-});
-document.getElementById('savePosBtn').addEventListener('click',async()=>{
-  if(!session){alert('Kaydetmek için Yönetim sekmesinden giriş yapın.');return;}
-  const rows=PTS.map(p=>({id:p.id,grp:p.grp,t:p.t,lat:p.lat,lng:p.lng,name:p.name,meta:p.meta||'',why:p.why||'',img:p.img||'',hl:!!p.hl,sira:p.sira||0}));
-  const up=await supa.from('tuyap_noktalar').upsert(rows);
-  let delErr=null;
-  if(deletedPts.size){const d=await supa.from('tuyap_noktalar').delete().in('id',[...deletedPts]);delErr=d.error;}
-  if(up.error||delErr){alert('Kaydedilemedi: '+(up.error?.message||delErr?.message));}
-  else{deletedPts.clear();PTS.forEach(p=>delete p._dirty);alert('Konumlar kaydedildi ✓');}
-});
 
 /* =========================================================
    AKORDEONLAR
@@ -1055,18 +1022,10 @@ async function refreshSession(){
   document.getElementById('loginWrap').style.display=session?'none':'';
   document.getElementById('adminWrap').style.display=session?'':'none';
   if(session)document.getElementById('whoAmI').textContent=session.user.email;
-  document.getElementById('savePosBtn').style.display=(editMode&&session)?'':'none';
   const budTab=document.getElementById('budTab');
   budTab.style.display=session?'':'none';
   const admTab=document.getElementById('admTab');
   admTab.style.display=(session||ADMIN_PARAM)?'':'none';
-  const editBtn=document.getElementById('editBtn');
-  editBtn.style.display=(session||ADMIN_PARAM)?'':'none';
-  if(!(session||ADMIN_PARAM)&&editMode){
-    editMode=false;editBtn.classList.remove('on');
-    document.getElementById('editHint').classList.remove('show');
-    if(map)rebuildMarkers();
-  }
   if(!session&&budTab.classList.contains('active')){
     document.querySelector('.tab[data-view="vmap"]').click();
   }
