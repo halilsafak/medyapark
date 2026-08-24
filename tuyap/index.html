@@ -257,6 +257,15 @@ td.net{color:var(--green);font-weight:800}
 .adm-imgs .im .cov{position:absolute;top:3px;left:3px;min-width:16px;text-align:center;font-size:9px;font-weight:800;background:var(--green);color:#fff;padding:2px 5px;border-radius:99px}
 .upl{width:96px;height:72px;border:1.5px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer}
 .upl:hover{border-color:var(--green);color:var(--green)}
+/* Harita noktaları editörü */
+.pt-head{display:grid;grid-template-columns:1.7fr 150px 1.5fr 32px;gap:8px;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:0 2px 6px}
+.pt-list{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+.pt-row{display:grid;grid-template-columns:1.7fr 150px 1.5fr 32px;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line)}
+.pt-row:last-child{border-bottom:none}
+.pt-row input,.pt-row select{font-family:inherit;font-size:12.5px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;color:var(--ink);background:#fff;width:100%}
+.pt-row input:focus,.pt-row select:focus{outline:2px solid var(--green);border-color:var(--green)}
+.pt-row .ptdel{width:26px;height:26px;border-radius:7px;border:1px solid #f1c1bb;background:#fff;color:#b42318;font-weight:800;cursor:pointer}
+.pt-row .ptdot{position:absolute}
 .savebar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:14px 0;display:flex;gap:12px;align-items:center;margin-top:6px}
 .savebar .st{font-size:12px;color:var(--muted)}
 
@@ -425,6 +434,16 @@ td.net{color:var(--green);font-weight:800}
         <button class="btn primary" id="saveSetBtn">Kaydet</button>
       </div>
       <div class="fld" style="margin:12px 0 0"><label>Başlık Altı Açıklama</label><input type="text" id="setSub" placeholder="Hedef kitle: ..."></div>
+    </div>
+
+    <div class="set-card">
+      <h4>Harita Noktaları <span style="font-weight:500;color:var(--muted);font-size:12px">— ad, ürün tipi ve bağlı grubu düzenleyin; "Detaya Git" bağlı gruba gider</span></h4>
+      <div class="pt-head"><span>Nokta Adı</span><span>Ürün Tipi</span><span>Bağlı Grup</span><span></span></div>
+      <div id="ptList" class="pt-list"></div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:12px">
+        <button class="btn green sm" id="ptSaveBtn">Noktaları Kaydet</button>
+        <span class="st" id="ptSaveState" style="font-size:12px;color:var(--muted)"></span>
+      </div>
     </div>
 
     <div class="sec-title" style="font-size:16px">Mecra Grupları <span style="font-weight:500;font-size:12px;color:var(--muted)">— ▲▼ ile sıralayın, alanları düzenleyin, en altta Kaydet'e basın</span></div>
@@ -1169,8 +1188,54 @@ function renderAdmin(){
     </div>`;
     list.appendChild(el);
   });
+  renderPtEditor();
   bindAdmin();
 }
+function renderPtEditor(){
+  const wrap=document.getElementById('ptList');if(!wrap)return;
+  const typeOpts=t=>['led','megaboard','ultraboard','megalight','raket','wall','durak','arac','fuar']
+    .map(tt=>`<option value="${tt}"${t===tt?' selected':''}>${TYPENAME[tt]}</option>`).join('');
+  const grpOpts=gr=>'<option value="">— Bağımsız —</option>'+GROUPS.slice().sort((a,b)=>a.sira-b.sira)
+    .map(g=>`<option value="${g.id}"${gr===g.id?' selected':''}>${esc(g.name)}</option>`).join('');
+  wrap.innerHTML=PTS.slice().sort((a,b)=>(a.sira||0)-(b.sira||0)).map(p=>`
+  <div class="pt-row" data-p="${p.id}">
+    <input type="text" class="pt-name" value="${esc(p.name)}" style="border-left:4px solid ${COLORS[p.t]||'#13233b'}">
+    <select class="pt-type">${typeOpts(p.t)}</select>
+    <select class="pt-grp">${grpOpts(p.grp)}</select>
+    <button class="ptdel" title="Noktayı sil">×</button>
+  </div>`).join('');
+}
+document.getElementById('ptList').addEventListener('change',e=>{
+  const row=e.target.closest('.pt-row');if(!row)return;
+  const p=PTS.find(x=>x.id===row.dataset.p);if(!p)return;
+  if(e.target.classList.contains('pt-name')){p.name=e.target.value;}
+  if(e.target.classList.contains('pt-type')){p.t=e.target.value;e.target.closest('.pt-row').querySelector('.pt-name').style.borderLeft='4px solid '+(COLORS[p.t]||'#13233b');}
+  if(e.target.classList.contains('pt-grp')){p.grp=e.target.value||null;}
+  p._dirty=true;
+  if(map&&markers[p.id])refreshMarkerIcon(p);
+  renderAccordions();
+});
+document.getElementById('ptList').addEventListener('click',e=>{
+  const del=e.target.closest('.ptdel');if(!del)return;
+  const row=del.closest('.pt-row');
+  const i=PTS.findIndex(x=>x.id===row.dataset.p);
+  if(i<0)return;
+  if(!confirm('"'+PTS[i].name+'" noktası silinsin mi?'))return;
+  const id=PTS[i].id;
+  if(markers[id]){markers[id].setMap(null);delete markers[id];}
+  deletedPts.add(id);PTS.splice(i,1);
+  renderPtEditor();renderAccordions();
+});
+document.getElementById('ptSaveBtn').addEventListener('click',async()=>{
+  const st=document.getElementById('ptSaveState');st.textContent='Kaydediliyor…';
+  const rows=PTS.map(p=>({id:p.id,grp:p.grp,t:p.t,lat:p.lat,lng:p.lng,name:p.name,meta:p.meta||'',why:p.why||'',img:p.img||'',hl:!!p.hl,sira:p.sira||0}));
+  const up=await supa.from('tuyap_noktalar').upsert(rows);
+  let delErr=null;
+  if(deletedPts.size){const d=await supa.from('tuyap_noktalar').delete().in('id',[...deletedPts]);delErr=d.error;}
+  if(up.error||delErr){st.textContent='Hata: '+(up.error?.message||delErr?.message);return;}
+  deletedPts.clear();PTS.forEach(p=>delete p._dirty);
+  st.textContent='Kaydedildi ✓';setTimeout(()=>st.textContent='',3500);
+});
 function bindAdmin(){
   const list=document.getElementById('admList');
   list.onclick=async e=>{
