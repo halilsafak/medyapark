@@ -59,7 +59,7 @@ main{max-width:1240px;margin:0 auto;padding:26px 24px 60px}
 .editing-hint.show{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .editing-hint .savepos{margin-left:auto;font-size:12px;font-weight:700;padding:7px 14px;border-radius:8px;border:none;background:var(--ink);color:#fff;cursor:pointer}
 /* Sinyal animasyonlu harita pinleri */
-.pmkwrap{transform:translateY(50%)}
+.pmkhost{position:absolute;transform:translate(-50%,-50%);cursor:pointer}
 .pmk{position:relative;display:grid;place-items:center;width:calc(var(--sz)*3.4);height:calc(var(--sz)*3.4);cursor:pointer}
 .pmk .core{width:var(--sz);height:var(--sz);border-radius:50%;background:var(--c);border:2px solid #fff;box-shadow:0 1px 5px rgba(19,35,59,.45);z-index:2}
 .pmk .ring{position:absolute;width:var(--sz);height:var(--sz);border-radius:50%;background:var(--c);opacity:.45;animation:sig 2.2s ease-out infinite}
@@ -642,17 +642,22 @@ function loadGoogleMaps(){
   gmLoaded=true;
   document.getElementById('keyNotice').style.display='none';
   const sc=document.createElement('script');
-  sc.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&callback=initMap&language=tr&region=TR&v=weekly&libraries=marker`;
+  sc.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&callback=initMap&language=tr&region=TR`;
   sc.async=true;
   sc.onerror=()=>{gmLoaded=false;document.getElementById('keyNotice').style.display='flex';};
   document.head.appendChild(sc);
 }
 window.initMap=function(){
   map=new google.maps.Map(document.getElementById('map'),{
-    center:{lat:37.005,lng:35.32},zoom:12,mapId:'DEMO_MAP_ID',
-    mapTypeControl:false,streetViewControl:true,fullscreenControl:true
+    center:{lat:37.005,lng:35.32},zoom:12,
+    mapTypeControl:false,streetViewControl:true,fullscreenControl:true,
+    styles:[
+      {featureType:"poi",elementType:"labels",stylers:[{visibility:"off"}]},
+      {featureType:"poi.business",stylers:[{visibility:"off"}]},
+      {featureType:"transit",stylers:[{visibility:"off"}]}
+    ]
   });
-  infoWin=new google.maps.InfoWindow();
+  infoWin=new google.maps.InfoWindow({pixelOffset:new google.maps.Size(0,-14)});
   PTS.forEach(addMarker);
   fitAll();applyFilter();
   map.addListener('click',e=>{
@@ -664,34 +669,57 @@ function newPoint(lat,lng){
   const t=(curF==='all'||curF==='fuar')?'led':curF;
   const p={id:'p'+Date.now(),t:t,grp:null,lat:lat,lng:lng,name:'Yeni Nokta',meta:'Elle eklendi',why:'',img:'',hl:false,sira:PTS.length+1};
   PTS.push(p);addMarker(p);
-  markers[p.id].gmpDraggable=true;
+  
   openInfo(p);
   return p;
 }
-function buildPin(p){
+function pinHTML(p){
   const isF=p.t==='fuar';
   const sz=isF?20:(p.hl?15:12);
-  const wrap=document.createElement('div');
-  wrap.className='pmkwrap';
-  wrap.innerHTML=`<div class="pmk${isF?' pf':''}${p.hl?' ph':''}" style="--c:${COLORS[p.t]||'#13233b'};--sz:${sz}px">
-    <span class="ring"></span>${(isF||p.hl)?'<span class="ring r2"></span>':''}<span class="core"></span>
-  </div>`;
-  return wrap;
+  return `<div class="pmk${isF?' pf':''}${p.hl?' ph':''}" style="--c:${COLORS[p.t]||'#13233b'};--sz:${sz}px">
+    <span class="ring"></span>${(isF||p.hl)?'<span class="ring r2"></span>':''}<span class="core"></span></div>`;
 }
-function ptPos(m){
-  const pos=m.position;
-  return {lat:typeof pos.lat==='function'?pos.lat():pos.lat, lng:typeof pos.lng==='function'?pos.lng():pos.lng};
+/* Animasyonlu pin: kendi katmanımız (harita stillerini bozmaz) */
+class PulsePin extends google.maps.OverlayView{
+  constructor(p){super();this.p=p;this.div=null;}
+  onAdd(){
+    const d=document.createElement('div');
+    d.className='pmkhost';d.title=this.p.name;
+    d.style.zIndex=this.p.t==='fuar'?900:(this.p.hl?800:100);
+    d.innerHTML=pinHTML(this.p);
+    d.addEventListener('click',ev=>{ev.stopPropagation();openInfo(this.p);});
+    this.div=d;this.getPanes().overlayMouseTarget.appendChild(d);
+  }
+  draw(){
+    if(!this.div)return;
+    const proj=this.getProjection();if(!proj)return;
+    const pos=proj.fromLatLngToDivPixel(new google.maps.LatLng(this.p.lat,this.p.lng));
+    if(pos){this.div.style.left=pos.x+'px';this.div.style.top=pos.y+'px';}
+  }
+  onRemove(){if(this.div){this.div.remove();this.div=null;}}
+  refresh(){if(this.div){this.div.title=this.p.name;this.div.innerHTML=pinHTML(this.p);this.draw();}}
 }
 function addMarker(p){
-  const isF=p.t==='fuar';
-  const m=new google.maps.marker.AdvancedMarkerElement({
-    position:{lat:p.lat,lng:p.lng},map:map,title:p.name,
-    gmpDraggable:editMode,content:buildPin(p),
-    zIndex:isF?900:(p.hl?800:100)
-  });
-  m.addListener('click',()=>openInfo(p));
-  m.addListener('dragend',()=>{const c=ptPos(m);p.lat=c.lat;p.lng=c.lng;p._dirty=true;});
+  let m;
+  if(editMode){
+    /* Düzenleme: sürüklenebilir klasik pin */
+    m=new google.maps.Marker({
+      position:{lat:p.lat,lng:p.lng},map:map,title:p.name,draggable:true,
+      icon:{url:dotUrl(p.t),scaledSize:new google.maps.Size(24,24),anchor:new google.maps.Point(12,12)},
+      zIndex:p.t==='fuar'?900:(p.hl?800:100)
+    });
+    m.addListener('click',()=>openInfo(p));
+    m.addListener('dragend',()=>{const pos=m.getPosition();p.lat=pos.lat();p.lng=pos.lng();p._dirty=true;});
+  }else{
+    m=new PulsePin(p);m.setMap(map);
+  }
   markers[p.id]=m;
+}
+function rebuildMarkers(){
+  Object.values(markers).forEach(m=>m.setMap(null));
+  markers={};
+  if(map)PTS.forEach(addMarker);
+  applyFilter();
 }
 function openInfo(p){
   const col=COLORS[p.t]||'#13233b';
@@ -727,13 +755,19 @@ function openInfo(p){
       ${p.grp&&g?`<button class="golink" onclick="goDetail('${p.grp}')">Detaya Git →</button>`:''}
     </div>`;
   }
-  infoWin.setContent(html);infoWin.open({map:map,anchor:markers[p.id]});
+  infoWin.setContent(html);
+  const mk=markers[p.id];
+  if(mk instanceof google.maps.Marker){infoWin.open({map:map,anchor:mk});}
+  else{infoWin.setPosition({lat:p.lat,lng:p.lng});infoWin.open(map);}
 }
-window.renamePt=(id,v)=>{const p=PTS.find(x=>x.id===id);if(p){p.name=v;p._dirty=true;markers[id].title=v;renderAccordions();}};
+window.renamePt=(id,v)=>{const p=PTS.find(x=>x.id===id);if(p){p.name=v;p._dirty=true;refreshMarkerIcon(p);renderAccordions();}};
 function refreshMarkerIcon(p){
-  const isF=p.t==='fuar';
-  markers[p.id].content=buildPin(p);
-  markers[p.id].zIndex=isF?900:(p.hl?800:100);
+  const m=markers[p.id];if(!m)return;
+  if(m instanceof google.maps.Marker){
+    m.setIcon({url:dotUrl(p.t),scaledSize:new google.maps.Size(24,24),anchor:new google.maps.Point(12,12)});
+    m.setZIndex(p.t==='fuar'?900:(p.hl?800:100));
+    m.setTitle(p.name);
+  }else{m.refresh();}
 }
 window.setPtType=(id,v)=>{
   const p=PTS.find(x=>x.id===id);if(!p)return;
@@ -746,7 +780,7 @@ window.setPtGrp=(id,v)=>{
   p.grp=v||null;p._dirty=true;
   renderAccordions();
 };
-window.delPt=(id)=>{const i=PTS.findIndex(x=>x.id===id);if(i>-1){markers[id].map=null;delete markers[id];deletedPts.add(id);PTS.splice(i,1);infoWin.close();renderAccordions();}};
+window.delPt=(id)=>{const i=PTS.findIndex(x=>x.id===id);if(i>-1){markers[id].setMap(null);delete markers[id];deletedPts.add(id);PTS.splice(i,1);infoWin.close();renderAccordions();}};
 window.pickPtImg=(id)=>{
   if(!session){alert('Fotoğraf yüklemek için Yönetim sekmesinden giriş yapın.');return;}
   ptUploadId=id;document.getElementById('ptFile').click();
@@ -774,7 +808,7 @@ document.getElementById('ptFile').addEventListener('change',async e=>{
 function fitAll(){
   if(!map)return;
   const b=new google.maps.LatLngBounds();let n=0;
-  PTS.forEach(p=>{if(markers[p.id]&&markers[p.id].map){b.extend({lat:p.lat,lng:p.lng});n++;}});
+  PTS.forEach(p=>{if(markers[p.id]&&markers[p.id].getMap()){b.extend({lat:p.lat,lng:p.lng});n++;}});
   if(n)map.fitBounds(b,60);
 }
 window.goDetail=(grpId)=>{infoWin&&infoWin.close();openGroupDetail(grpId);};
@@ -802,7 +836,7 @@ function applyFilter(){
       const types=g&&Array.isArray(g.types)?g.types:[p.t];
       ok=curF==='all'||types.includes(curF);
     }
-    if(markers[p.id])markers[p.id].map=ok?map:null;
+    if(markers[p.id])markers[p.id].setMap(ok?map:null);
   });
   document.querySelectorAll('.acc').forEach(a=>{
     const g=GROUPS.find(x=>x.id===a.dataset.g);
@@ -829,7 +863,7 @@ document.getElementById('editBtn').addEventListener('click',e=>{
   editMode=!editMode;e.currentTarget.classList.toggle('on',editMode);
   document.getElementById('editHint').classList.toggle('show',editMode);
   document.getElementById('savePosBtn').style.display=(editMode&&session)?'':'none';
-  if(map){Object.values(markers).forEach(m=>m.gmpDraggable=editMode);infoWin&&infoWin.close();}
+  if(map){rebuildMarkers();infoWin&&infoWin.close();}
 });
 document.getElementById('addPtBtn').addEventListener('click',()=>{
   if(!map){alert('Önce harita yüklenmeli (Maps anahtarı).');return;}
@@ -1025,7 +1059,7 @@ async function refreshSession(){
   if(!(session||ADMIN_PARAM)&&editMode){
     editMode=false;editBtn.classList.remove('on');
     document.getElementById('editHint').classList.remove('show');
-    if(map)Object.values(markers).forEach(m=>m.gmpDraggable=false);
+    if(map)rebuildMarkers();
   }
   if(!session&&budTab.classList.contains('active')){
     document.querySelector('.tab[data-view="vmap"]').click();
