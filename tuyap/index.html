@@ -114,7 +114,7 @@ main{max-width:1290px;margin:0 auto;padding:26px 24px 60px}
 .scount{position:absolute;bottom:12px;right:14px;font-size:11.5px;font-weight:700;color:#fff;background:rgba(19,35,59,.72);padding:4px 11px;border-radius:99px;z-index:3;font-variant-numeric:tabular-nums}
 .slide-empty{text-align:center;color:var(--muted);font-size:13px;font-weight:600;background:var(--soft);border:1px dashed var(--line);border-radius:12px;padding:44px 20px}
 /* Excel tarzı bütçe tablosu */
-table.xls{width:100%;border-collapse:collapse;min-width:1180px;background:#fff;font-variant-numeric:tabular-nums}
+table.xls{width:100%;border-collapse:collapse;min-width:1250px;background:#fff;font-variant-numeric:tabular-nums}
 table.xls th{position:sticky;top:0;background:#f1f4f7;border:1px solid #d7dde4;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;padding:9px 10px;text-align:left;z-index:2}
 table.xls th.r{text-align:right}
 table.xls td{border:1px solid #e2e7ec;padding:0;font-size:13.5px;background:#fff}
@@ -128,6 +128,13 @@ table.xls td.c{text-align:center;padding:0 6px}
 table.xls td.calc{padding:9px 10px;text-align:right;font-weight:700;background:#fafbfc;white-space:nowrap}
 table.xls td.calc.net{color:var(--green);font-weight:800}
 table.xls td.top{color:var(--red);font-weight:800}
+.bimg{width:58px;height:42px;border-radius:6px;object-fit:cover;cursor:zoom-in;border:1px solid var(--line);display:block}
+.bimg-wrap{position:relative;display:inline-block;margin:5px 0}
+.bimg-rm{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;border:none;background:rgba(19,35,59,.85);color:#fff;font-size:10px;font-weight:800;cursor:pointer;line-height:1}
+.bimg-add{width:58px;height:42px;margin:5px auto;border:1.5px dashed var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:800;font-size:16px;cursor:pointer}
+.bimg-add:hover{border-color:var(--green);color:var(--green)}
+.bimg-oto{position:absolute;bottom:-5px;left:-5px;font-size:7.5px;font-weight:800;letter-spacing:.05em;background:var(--green);color:#fff;padding:1.5px 5px;border-radius:99px;line-height:1.3}
+.bimg-rm.ovr{background:rgba(46,125,79,.9);font-size:9px}
 table.xls tr.off td, table.xls tr.off td input{opacity:.4}
 table.xls td .rowdel{border:none;background:none;color:#c8cfd8;font-size:15px;font-weight:800;cursor:pointer;padding:6px 8px}
 table.xls td .rowdel:hover{color:#b42318}
@@ -396,6 +403,7 @@ td.net{color:var(--green);font-weight:800}
     <label>Medyapark Özel İndirimi&nbsp; %<input type="number" id="disc" value="20" min="0" max="60" step="1"></label>
     <span class="hint">Onay kutusu kalemi toplama dahil eder/çıkarır · × satırı siler</span>
   </div>
+  <input type="file" accept="image/*" hidden id="budImgFile">
   <div class="offer-bar" id="offerBar">
     <button class="btn green" id="offerPdfBtn">Seçimlerimle Teklif PDF'i İndir</button>
     <span class="oh" id="offerHint"></span>
@@ -993,6 +1001,21 @@ document.getElementById('lb').addEventListener('click',()=>document.getElementBy
 /* =========================================================
    BÜTÇE — Excel tarzı düzenlenebilir tablo (grup verisine bağlı)
    ========================================================= */
+
+/* Bütçe satırı görseli: elle yüklenen öncelikli; yoksa grubun nokta fotoğraflarından
+   isim benzerliğine göre, o da yoksa ilk fotoğraflı noktadan otomatik alınır. */
+function lineImg(g,L){
+  if(L.img)return {url:L.img,auto:false};
+  const pts=PTS.filter(p=>p.grp===g.id&&p.img).sort((a,b)=>(a.sira||0)-(b.sira||0));
+  if(!pts.length)return {url:'',auto:false};
+  const stop=new Set(['duvar','duvarı','duvarlari','duvarları','pano','panosu','ekran','ekranı','adet','paket','liste','giydirme','cephe','kavşağı','kavsagi','önü','onu','cad','cadde','caddesi','blv','bulvarı']);
+  const words=(L.label||'').toLocaleLowerCase('tr').split(/[^a-zçğıöşü0-9]+/).filter(w=>w.length>=4&&!stop.has(w));
+  for(const p of pts){
+    const pn=(p.name||'').toLocaleLowerCase('tr');
+    if(words.some(w=>pn.includes(w)))return {url:p.img,auto:true};
+  }
+  return {url:pts[0].img,auto:true};
+}
 function renderBudget(){
   const admin=!!session;
   document.getElementById('budControls').style.display=admin?'':'none';
@@ -1001,15 +1024,15 @@ function renderBudget(){
     ?'Excel gibi doğrudan hücrelere yazın; İndirimli Fiyat, Toplam ve Genel Toplam anında hesaplanır. Değişiklikleri kalıcılaştırmak için alttaki Kaydet\u0027e basın. Ziyaretçiler bu tabloyu salt okunur görür.'
     :'Önerilen mecraların tarifeleri ve Medyapark özel indirimli yatırım tutarları. Adetleri değiştirebilir, istemediğiniz kalemin işaretini kaldırabilirsiniz — toplamlar anında güncellenir. Seçimleriniz yalnızca bu ekranda geçerlidir; "Teklif PDF\u0027i İndir" ile döküm alıp bize iletebilirsiniz.';
   document.getElementById('phead').innerHTML=admin
-    ?`<tr><th style="width:38px">Dahil</th><th style="width:19%">Mecra / Kalem</th><th style="width:14%">Tarife Notu</th><th class="r" style="width:58px">Adet</th><th class="r" style="width:70px">Hafta</th><th class="r" style="width:70px">Ay</th><th class="r" style="width:105px">Liste Fiyatı ₺</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:105px">Baskı & Montaj ₺</th><th style="width:32px"></th></tr>`
-    :`<tr><th style="width:38px">Dahil</th><th style="width:21%">Mecra / Kalem</th><th style="width:15%">Tarife Notu</th><th class="r" style="width:64px">Adet</th><th class="r" style="width:70px">Hafta</th><th class="r" style="width:70px">Ay</th><th class="r" style="width:105px">Liste Fiyatı</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:110px">Baskı & Montaj</th></tr>`;
+    ?`<tr><th style="width:74px">Görsel</th><th style="width:38px">Dahil</th><th style="width:17%">Mecra / Kalem</th><th style="width:14%">Tarife Notu</th><th class="r" style="width:58px">Adet</th><th class="r" style="width:70px">Hafta</th><th class="r" style="width:70px">Ay</th><th class="r" style="width:105px">Liste Fiyatı ₺</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:105px">Baskı & Montaj ₺</th><th style="width:32px"></th></tr>`
+    :`<tr><th style="width:74px">Görsel</th><th style="width:38px">Dahil</th><th style="width:19%">Mecra / Kalem</th><th style="width:15%">Tarife Notu</th><th class="r" style="width:64px">Adet</th><th class="r" style="width:70px">Hafta</th><th class="r" style="width:70px">Ay</th><th class="r" style="width:105px">Liste Fiyatı</th><th class="r" style="width:105px">İndirimli Fiyat</th><th class="r" style="width:115px">Toplam</th><th class="r" style="width:110px">Baskı & Montaj</th></tr>`;
   const body=document.getElementById('pbody');body.innerHTML='';
   GROUPS.slice().sort((a,b)=>a.sira-b.sira).forEach(g=>{
     g.budget=Array.isArray(g.budget)?g.budget:[];
     const lines=admin?g.budget:g.budget.filter(L=>L.inc!==false);
     if(!admin&&(!lines.length||g.visible===false))return;
     const gh=document.createElement('tr');gh.className='gh';
-    gh.innerHTML=`<td colspan="${admin?11:10}">${esc(g.name)}${admin?` <button class="addrow" data-g="${g.id}">+ Kalem Ekle</button>`:''}</td>`;
+    gh.innerHTML=`<td colspan="${admin?12:11}">${esc(g.name)}${admin?` <button class="addrow" data-g="${g.id}">+ Kalem Ekle</button>`:''}</td>`;
     body.appendChild(gh);
     lines.forEach((L)=>{
       const i=g.budget.indexOf(L);
@@ -1019,6 +1042,10 @@ function renderBudget(){
       if(admin){
         if(!L.inc)tr.classList.add('off');
         tr.innerHTML=`
+        <td class="c bimg-cell">${(()=>{const im=lineImg(g,L);
+          if(!im.url)return `<div class="bimg-add" title="Görsel yükle">+</div>`;
+          if(im.auto)return `<span class="bimg-wrap"><img class="bimg" src="${esc(im.url)}" data-img="${esc(im.url)}" loading="lazy"><span class="bimg-oto" title="Harita noktasından otomatik alındı">OTO</span><button class="bimg-rm ovr" title="Farklı görsel yükle">✎</button></span>`;
+          return `<span class="bimg-wrap"><img class="bimg" src="${esc(im.url)}" data-img="${esc(im.url)}" loading="lazy"><button class="bimg-rm" title="Görseli kaldır (otomatiğe döner)">×</button></span>`;})()}</td>
         <td class="c"><input type="checkbox" class="e-inc"${L.inc?' checked':''}></td>
         <td><input type="text" class="e-label" value="${esc(L.label)}"></td>
         <td><input type="text" class="e-tarif" value="${esc(L.tarif||'')}"></td>
@@ -1034,6 +1061,7 @@ function renderBudget(){
         if(L._vinc===undefined)L._vinc=true;
         if(L._vqty===undefined)L._vqty=L.qty||0;
         tr.innerHTML=`
+        <td class="c">${(()=>{const im=lineImg(g,L);return im.url?`<img class="bimg" src="${esc(im.url)}" data-img="${esc(im.url)}" loading="lazy">`:'<span style="color:#c6cdd6">—</span>';})()}</td>
         <td class="c"><input type="checkbox" class="v-inc"${L._vinc?' checked':''} title="Bu kalemi teklife dahil et/çıkar"></td>
         <td style="padding:10px 12px;font-weight:600">${esc(L.label)}</td>
         <td style="padding:10px 12px;color:var(--muted);font-size:12.5px">${esc(L.tarif||'')}</td>
@@ -1103,13 +1131,35 @@ document.getElementById('pbody').addEventListener('input',e=>{
   if(e.target.classList.contains('e-inc'))L.inc=e.target.checked;
   calc();
 });
+let budImgTarget=null;
 document.getElementById('pbody').addEventListener('click',e=>{
+  const zi=e.target.closest('.bimg');
+  if(zi&&zi.dataset.img){
+    document.getElementById('lbImg').src=zi.dataset.img;
+    document.getElementById('lb').classList.add('show');
+    return;
+  }
   if(!session)return;
+  const tr0=e.target.closest('tr:not(.gh)');
+  if(tr0&&e.target.closest('.bimg-add')){
+    budImgTarget={g:tr0.dataset.g,i:+tr0.dataset.i};
+    document.getElementById('budImgFile').click();return;
+  }
+  if(tr0&&e.target.closest('.bimg-rm.ovr')){
+    budImgTarget={g:tr0.dataset.g,i:+tr0.dataset.i};
+    document.getElementById('budImgFile').click();return;
+  }
+  if(tr0&&e.target.closest('.bimg-rm')){
+    const g=GROUPS.find(x=>x.id===tr0.dataset.g);
+    const L=g&&g.budget[+tr0.dataset.i];
+    if(L){L.img='';renderBudget();}
+    return;
+  }
   const add=e.target.closest('.addrow');
   if(add){
     const g=GROUPS.find(x=>x.id===add.dataset.g);
     g.budget=Array.isArray(g.budget)?g.budget:[];
-    g.budget.push({label:'Yeni kalem',tarif:'',qty:1,hafta:0,ay:0,unit:0,ind:0,bm:0,inc:true});
+    g.budget.push({label:'Yeni kalem',tarif:'',qty:1,hafta:0,ay:0,unit:0,ind:0,bm:0,img:'',inc:true});
     renderBudget();return;
   }
   const del=e.target.closest('.rowdel');
@@ -1119,6 +1169,21 @@ document.getElementById('pbody').addEventListener('click',e=>{
     g.budget.splice(+tr.dataset.i,1);
     renderBudget();return;
   }
+});
+document.getElementById('budImgFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';
+  if(!f||!budImgTarget)return;
+  const g=GROUPS.find(x=>x.id===budImgTarget.g);
+  const L=g&&g.budget[budImgTarget.i];
+  budImgTarget=null;
+  if(!L)return;
+  const cz=await compressImage(f,900,0.85);
+  const path=`${FOLDER}/butce_${g.id}_${Date.now()}_${safeName(cz.name)}`;
+  const up=await supa.storage.from(BUCKET).upload(path,cz.blob,{contentType:cz.type});
+  if(up.error){alert('Görsel yüklenemedi: '+up.error.message);return;}
+  const {data}=supa.storage.from(BUCKET).getPublicUrl(path);
+  L.img=data.publicUrl;
+  renderBudget();
 });
 document.getElementById('budSaveBtn').addEventListener('click',async()=>{
   if(!session){alert('Kaydetmek için Yönetim sekmesinden giriş yapın.');return;}
