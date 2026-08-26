@@ -2258,6 +2258,8 @@ async function teamDel(id){ if(confirm('Silinsin mi?')){ await api('team_delete&
 /* ---------- SAYFALAR ---------- */
 async function sayfalar(c){
   const st=await api('settings_get'); const pages=await api('pages_list'); ui._pages=pages;
+  ui._siteUrl=(st.siteUrl||'https://medyaparkadana.com').replace(/\/+$/,'');
+  if(!ui._mecralar) ui._mecralar=await api('mecra_list');
   const hero=st.hero||{};
   const pageRows=pages.map(p=>`<div class="list-item"><div class="nm">${esc(p.title||p.slug)}</div><div class="meta">/${esc(p.slug)} · ${(p.blocks||[]).length} blok${p.in_menu===false?' · menüde değil':''}</div>
     <button class="btn btn-outline btn-sm" onclick="pageEdit('${p.slug}')">Düzenle</button>${['biz-kimiz','neler-yapiyoruz','iletisim','referanslar'].includes(p.slug)?'':`<button class="btn btn-danger btn-sm" onclick="pageDel('${p.slug}')">Sil</button>`}</div>`).join('');
@@ -2277,21 +2279,86 @@ async function sayfalar(c){
 async function saveHero(){ await api('settings_save',{logoText:gv('logoText'),logoImage:gv('logoImg'),hero:{eyebrow:gv('hEye'),title:gv('hTitle'),desc:gv('hDesc')}}); alert('Kaydedildi.'); }
 
 function pageEdit(slug){ const p=(ui._pages||[]).find(x=>x.slug===slug)||{slug,blocks:[]}; ui._pageSlug=slug; ui._blocks=JSON.parse(JSON.stringify(p.blocks||[])); ui._pageTitle=p.title||''; ui._pageMenu=p.in_menu!==false; renderPageEd(); document.getElementById('pageEd').scrollIntoView({behavior:'smooth'}); }
-function blkLabel(t){ return {heading:'Başlık',text:'Metin',image:'Görsel',gallery:'Galeri',features:'Özellikler',faq:'S.S.S.',cta:'Çağrı (CTA)',spacer:'Boşluk'}[t]||t; }
+function blkLabel(t){ return {heading:'Başlık',text:'Metin',image:'Görsel',gallery:'Galeri',features:'Özellikler',faq:'S.S.S.',cta:'Çağrı (CTA)',spacer:'Boşluk',
+  hero:'Kapak (Hero)',imagetext:'Görsel + Metin',counters:'Sayaçlar',logos:'Logo Şeridi',quote:'Alıntı / Vurgu',video:'Video',map:'Harita',contact:'İletişim Kartları',mecracards:'Mecra Kartları',divider:'İnce Çizgi'}[t]||t; }
 function renderPageEd(){ const blocks=ui._blocks; const box=document.getElementById('pageEd'); if(!box)return;
   const blk=blocks.map((b,i)=>blockEditor(b,i)).join('');
   box.innerHTML=`<div class="sec-card" style="margin-top:14px">
-    <button class="btn btn-outline btn-sm" onclick="renderSection()">‹ Sayfalara dön</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="renderSection()">‹ Sayfalara dön</button>
+      <a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="${esc(ui._siteUrl||'')}/sayfa/${esc(ui._pageSlug)}">Sayfayı Gör ↗</a>
+    </div>
     <div class="row2" style="margin-top:12px"><div class="field"><label class="flabel">Sayfa başlığı</label><input class="inp" id="pgTitle" value="${esc(ui._pageTitle)}"></div>
     <div class="field"><label class="flabel">Menüde göster</label><select class="inp" id="pgMenu"><option value="1" ${ui._pageMenu?'selected':''}>Evet</option><option value="0" ${!ui._pageMenu?'selected':''}>Hayır</option></select></div></div>
+    ${!blocks.length?`<div class="banner" style="margin:4px 0 12px">Boş sayfa. İsterseniz hazır bir kurgudan başlayın:
+      <button class="btn btn-outline btn-sm" onclick="tplInsert('hakkimizda')">Hakkımızda</button>
+      <button class="btn btn-outline btn-sm" onclick="tplInsert('hizmetler')">Hizmetler</button>
+      <button class="btn btn-outline btn-sm" onclick="tplInsert('iletisim')">İletişim</button></div>`:''}
     <h4 style="margin:10px 0 8px">Bloklar</h4>${blk||'<p class="muted">Henüz blok yok. Aşağıdan ekleyin.</p>'}
-    <div class="addbar"><span class="muted" style="align-self:center;font-size:12px">Blok ekle:</span>
-      <button onclick="blkAdd('heading')">Başlık</button><button onclick="blkAdd('text')">Metin</button><button onclick="blkAdd('image')">Görsel</button><button onclick="blkAdd('gallery')">Galeri</button><button onclick="blkAdd('features')">Özellikler</button><button onclick="blkAdd('faq')">SSS</button><button onclick="blkAdd('cta')">CTA</button><button onclick="blkAdd('spacer')">Boşluk</button></div>
-    <div style="margin-top:16px"><button class="btn btn-primary" onclick="pageSaveBlocks()">Sayfayı Kaydet</button></div></div>`;
+    <div class="addbar"><span class="abt">Bölümler:</span>
+      <button onclick="blkAdd('hero')">Kapak</button><button onclick="blkAdd('imagetext')">Görsel+Metin</button><button onclick="blkAdd('counters')">Sayaçlar</button><button onclick="blkAdd('mecracards')">Mecra Kartları</button><button onclick="blkAdd('logos')">Logo Şeridi</button><button onclick="blkAdd('contact')">İletişim</button><button onclick="blkAdd('map')">Harita</button><button onclick="blkAdd('cta')">CTA</button></div>
+    <div class="addbar"><span class="abt">İçerik:</span>
+      <button onclick="blkAdd('heading')">Başlık</button><button onclick="blkAdd('text')">Metin</button><button onclick="blkAdd('image')">Görsel</button><button onclick="blkAdd('gallery')">Galeri</button><button onclick="blkAdd('features')">Özellikler</button><button onclick="blkAdd('faq')">SSS</button><button onclick="blkAdd('quote')">Alıntı</button><button onclick="blkAdd('video')">Video</button><button onclick="blkAdd('divider')">Çizgi</button><button onclick="blkAdd('spacer')">Boşluk</button></div>
+    <div style="margin-top:16px"><button class="btn btn-primary" onclick="pageSaveBlocks()">Sayfayı Kaydet</button>
+    <span class="muted" style="font-size:12px;margin-left:10px">Değişiklik sitede kaydettikten sonra görünür.</span></div></div>`;
 }
+const PG_TPL={
+ hakkimizda:[
+  {type:'hero',title:'Adana\'nın Açıkhava Reklam Ağı',eyebrow:'MEDYAPARK',sub:'Şehrin en değerli noktalarında, ölçülebilir görünürlük.',label:'Reklam Alanlarını İncele',link:'#',img:'',h:420,oc:'#0b1f2a',oo:0.45},
+  {type:'text',text:'Medyapark Adana olarak şehrin alışveriş merkezlerinden stadyumuna, ana arterlerinden servis hatlarına uzanan açıkhava reklam envanterini tek elden yönetiyoruz.'},
+  {type:'counters',items:[{n:'140+',label:'Reklam Yüzeyi'},{n:'7',label:'Ana Lokasyon'},{n:'15',label:'Yıllık Milyon Ziyaretçi'}]},
+  {type:'imagetext',side:'left',url:'',title:'Neden Medyapark?',text:'Doğru lokasyon, doğru hedef kitle.\nBaskıdan montaja tek muhatap.',label:'',link:''},
+  {type:'cta',title:'Markanızı şehirle buluşturalım',label:'Bize Ulaşın',link:''}],
+ hizmetler:[
+  {type:'hero',title:'Hizmetlerimiz',eyebrow:'MEDYAPARK',sub:'Planlamadan yayına uçtan uca açıkhava reklam yönetimi.',label:'',link:'',img:'',h:340,oc:'#0b1f2a',oo:0.45},
+  {type:'features',items:[{title:'Mecra Planlama',desc:'Hedef kitlenize göre lokasyon ve dönem önerisi.'},{title:'Baskı & Üretim',desc:'Vinil, duratrans ve folyo üretimi.'},{title:'Montaj & Yayın',desc:'Uygulama, fotoğraflı raporlama ve takip.'}]},
+  {type:'mecracards',ids:[]},
+  {type:'cta',title:'Kampanyanız için teklif alın',label:'Teklif İste',link:''}],
+ iletisim:[
+  {type:'heading',text:'Bize Ulaşın'},
+  {type:'contact',title:''},
+  {type:'map',code:''},
+  {type:'faq',items:[{q:'Minimum kiralama süresi nedir?',a:'LED ekranlarda 1 hafta, diğer mecralarda 1 aydır.'},{q:'Baskı ücrete dahil mi?',a:'Baskı ve montaj ayrı kalem olarak fiyatlandırılır.'}]},
+  {type:'cta',title:'Aklınıza takılan bir şey mi var?',label:'Hemen Arayın',link:''}]};
+function tplInsert(k){ syncBlocks(); const t=PG_TPL[k]; if(!t)return;
+  if(ui._blocks.length && !confirm('Şablon blokları mevcut blokların sonuna eklenecek. Devam edilsin mi?')) return;
+  ui._blocks.push(...JSON.parse(JSON.stringify(t))); renderPageEd(); }
 function blockEditor(b,i){
-  const head=`<div class="blk-head"><span class="bt">${blkLabel(b.type)}</span><button class="btn btn-outline btn-sm" onclick="blkMove(${i},-1)">↑</button><button class="btn btn-outline btn-sm" onclick="blkMove(${i},1)">↓</button><button class="btn btn-danger btn-sm" onclick="blkDel(${i})">Sil</button></div>`;
+  const off=b.off===true;
+  const head=`<div class="blk-head"><span class="bt">${blkLabel(b.type)}${off?' <em style="font-style:normal;font-size:11px;color:#b3261e">(sitede gizli)</em>':''}</span>
+    <button class="btn btn-outline btn-sm" title="Yukarı" onclick="blkMove(${i},-1)">↑</button>
+    <button class="btn btn-outline btn-sm" title="Aşağı" onclick="blkMove(${i},1)">↓</button>
+    <button class="btn btn-outline btn-sm" title="Kopyala" onclick="blkDup(${i})">⧉</button>
+    <button class="btn btn-outline btn-sm" title="${off?'Sitede göster':'Sitede gizle'}" onclick="blkToggle(${i})">${off?'🚫':'👁'}</button>
+    <button class="btn btn-danger btn-sm" onclick="blkDel(${i})">Sil</button></div>`;
   let body='';
+  const up=(id)=>`<button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('${id}').value=u;})">Yükle</button>`;
+  if(b.type==='hero') body=`<div class="row2"><input class="inp" id="blk${i}_title" value="${esc(b.title||'')}" placeholder="Büyük başlık"><input class="inp" id="blk${i}_eyebrow" value="${esc(b.eyebrow||'')}" placeholder="Üst etiket (ops)"></div>
+    <textarea class="inp" id="blk${i}_sub" style="min-height:56px;margin-top:8px" placeholder="Alt açıklama (ops)">${esc(b.sub||'')}</textarea>
+    <div style="display:flex;gap:8px;margin-top:8px"><input class="inp" id="blk${i}_img" value="${esc(b.img||'')}" placeholder="Arka plan görseli">${up('blk'+i+'_img')}</div>
+    <div style="display:flex;gap:8px;margin-top:8px"><input class="inp" id="blk${i}_imgMobil" value="${esc(b.imgMobil||'')}" placeholder="Mobil görsel (ops)">${up('blk'+i+'_imgMobil')}</div>
+    <div class="row2" style="margin-top:8px"><input class="inp" id="blk${i}_label" value="${esc(b.label||'')}" placeholder="Buton yazısı (ops)"><input class="inp" id="blk${i}_link" value="${esc(b.link||'')}" placeholder="Buton linki"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
+      <label class="muted" style="font-size:12px">Yükseklik <input class="inp" id="blk${i}_h" type="number" value="${b.h||420}" style="width:86px;display:inline-block"> px</label>
+      <label class="muted" style="font-size:12px">Karartma <input id="blk${i}_oc" type="color" value="${esc(b.oc||'#0b1f2a')}" style="vertical-align:middle"></label>
+      <label class="muted" style="font-size:12px">Yoğunluk <input class="inp" id="blk${i}_oo" type="number" step="0.05" min="0" max="1" value="${b.oo!=null?b.oo:0.45}" style="width:76px;display:inline-block"></label></div>`;
+  else if(b.type==='imagetext') body=`<div style="display:flex;gap:8px"><input class="inp" id="blk${i}_url" value="${esc(b.url||'')}" placeholder="Görsel">${up('blk'+i+'_url')}
+      <select class="inp" id="blk${i}_side" style="flex:0 0 130px"><option value="left" ${b.side!=='right'?'selected':''}>Görsel solda</option><option value="right" ${b.side==='right'?'selected':''}>Görsel sağda</option></select></div>
+    <input class="inp" id="blk${i}_title" value="${esc(b.title||'')}" placeholder="Başlık" style="margin-top:8px">
+    <textarea class="inp" id="blk${i}_text" style="min-height:90px;margin-top:8px" placeholder="Metin (her satır bir paragraf)">${esc(b.text||'')}</textarea>
+    <div class="row2" style="margin-top:8px"><input class="inp" id="blk${i}_label" value="${esc(b.label||'')}" placeholder="Buton yazısı (ops)"><input class="inp" id="blk${i}_link" value="${esc(b.link||'')}" placeholder="Buton linki"></div>`;
+  else if(b.type==='counters'){ const it=Array.isArray(b.items)?b.items:[]; body=`<textarea class="inp" id="blk${i}_items" style="min-height:90px" placeholder="150+ | Reklam Yüzeyi">${esc(it.map(x=>`${x.n||''} | ${x.label||''}`).join('\n'))}</textarea><p class="muted" style="font-size:11px">Her satıra bir sayaç: <b>Rakam | Etiket</b> — rakamın yanına +, %, M gibi ek yazabilirsiniz, sayı kısmı animasyonla sayılır.</p>`; }
+  else if(b.type==='logos'){ const imgs=Array.isArray(b.images)?b.images:[]; body=`<input class="inp" id="blk${i}_title" value="${esc(b.title||'')}" placeholder="Bölüm başlığı (ops, ör. Referanslarımız)" style="margin-bottom:8px">
+    ${imgs.map((g,k)=>`<div class="list-item" style="padding:8px 10px"><div class="nm" style="font-size:12px;word-break:break-all">${esc(g)}</div><button class="btn btn-danger btn-sm" onclick="blkGalDel(${i},${k})">Sil</button></div>`).join('')||'<p class="muted" style="font-size:12px">Logo yok.</p>'}
+    <button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="pickUpload('image/*',u=>blkGalAdd(${i},u))">+ Logo ekle</button>`; }
+  else if(b.type==='quote') body=`<textarea class="inp" id="blk${i}_text" style="min-height:70px" placeholder="Alıntı / vurgu cümlesi">${esc(b.text||'')}</textarea><input class="inp" id="blk${i}_who" value="${esc(b.who||'')}" placeholder="Kaynak / kişi (ops)" style="margin-top:8px">`;
+  else if(b.type==='video') body=`<input class="inp" id="blk${i}_url" value="${esc(b.url||'')}" placeholder="YouTube linki veya .mp4 adresi"><p class="muted" style="font-size:11px">YouTube linkini olduğu gibi yapıştırın (youtu.be/... veya watch?v=...).</p>`;
+  else if(b.type==='map') body=`<textarea class="inp" id="blk${i}_code" style="min-height:70px" placeholder="Google Maps > Paylaş > Harita yerleştir kodunu yapıştırın">${esc(b.code||'')}</textarea>`;
+  else if(b.type==='contact') body=`<input class="inp" id="blk${i}_title" value="${esc(b.title||'')}" placeholder="Bölüm başlığı (ops)"><p class="muted" style="font-size:11px">Telefon, e-posta ve adres <b>Ayarlar</b> bölümünden otomatik gelir; tıklanınca arama/mail açılır.</p>`;
+  else if(b.type==='mecracards'){ const ids=(Array.isArray(b.ids)?b.ids:[]).map(String); const ms=(ui._mecralar||[]).filter(m=>m.hidden!==true);
+    body=`<p class="muted" style="font-size:11.5px;margin:0 0 8px">Kart olarak gösterilecek mecraları seçin. <b>Hiçbiri seçilmezse yayındaki tüm mecralar</b> gösterilir.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:6px">${ms.map(m=>`<label style="display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" class="blk${i}_mid" value="${m.id}" ${ids.includes(String(m.id))?'checked':''}> ${esc(m.name)}</label>`).join('')}</div>`; }
+  else if(b.type==='divider') body=`<p class="muted" style="font-size:12px;margin:0">İnce yatay ayırıcı çizgi — ayar gerektirmez.</p>`;
   if(b.type==='heading') body=`<input class="inp" id="blk${i}_text" value="${esc(b.text||'')}" placeholder="Başlık metni">`;
   else if(b.type==='text') body=`<textarea class="inp" id="blk${i}_text" style="min-height:90px" placeholder="Paragraf metni">${esc(b.text||'')}</textarea>`;
   else if(b.type==='image') body=`<div style="display:flex;gap:8px"><input class="inp" id="blk${i}_url" value="${esc(b.url||'')}" placeholder="Görsel URL"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('blk${i}_url').value=u;})">Yükle</button></div><input class="inp" id="blk${i}_caption" value="${esc(b.caption||'')}" placeholder="Alt yazı (ops)" style="margin-top:8px">`;
@@ -2300,20 +2367,40 @@ function blockEditor(b,i){
   else if(b.type==='faq'){ const items=Array.isArray(b.items)?b.items:[]; body=`<textarea class="inp" id="blk${i}_items" style="min-height:120px" placeholder="Her satır: Soru | Cevap">${esc(items.map(x=>`${x.q||''} | ${x.a||''}`).join('\n'))}</textarea><p class="muted" style="font-size:11px">Her satıra bir S.S.S.: <b>Soru | Cevap</b></p>`; }
   else if(b.type==='cta') body=`<input class="inp" id="blk${i}_title" value="${esc(b.title||'')}" placeholder="Başlık" style="margin-bottom:8px"><div class="row2"><input class="inp" id="blk${i}_label" value="${esc(b.label||'')}" placeholder="Buton yazısı"><input class="inp" id="blk${i}_link" value="${esc(b.link||'')}" placeholder="Link (tel: / https:)"></div>`;
   else if(b.type==='spacer') body=`<input class="inp" id="blk${i}_size" type="number" value="${b.size||40}" placeholder="Yükseklik px">`;
-  return `<div class="blk">${head}${body}</div>`;
+  return `<div class="blk${off?' blk-off':''}">${head}${body}</div>`;
 }
+function blkDup(i){ syncBlocks(); ui._blocks.splice(i+1,0,JSON.parse(JSON.stringify(ui._blocks[i]))); renderPageEd(); }
+function blkToggle(i){ syncBlocks(); ui._blocks[i].off=ui._blocks[i].off===true?undefined:true; renderPageEd(); }
 function readBlocks(){ return ui._blocks.map((b,i)=>{ const g=id=>{const e=document.getElementById('blk'+i+'_'+id);return e?e.value:'';};
-  if(b.type==='heading')return {type:'heading',text:g('text')};
-  if(b.type==='text')return {type:'text',text:g('text')};
-  if(b.type==='image')return {type:'image',url:g('url'),caption:g('caption')};
-  if(b.type==='gallery')return {type:'gallery',images:(Array.isArray(b.images)?b.images:[])};
-  if(b.type==='features')return {type:'features',items:g('items').split('\n').map(l=>l.split('|')).filter(a=>a[0]&&a[0].trim()).map(a=>({title:(a[0]||'').trim(),desc:(a[1]||'').trim()}))};
-  if(b.type==='faq')return {type:'faq',items:g('items').split('\n').map(l=>l.split('|')).filter(a=>a[0]&&a[0].trim()).map(a=>({q:(a[0]||'').trim(),a:(a[1]||'').trim()}))};
-  if(b.type==='cta')return {type:'cta',title:g('title'),label:g('label'),link:g('link')};
-  if(b.type==='spacer')return {type:'spacer',size:+g('size')||40};
-  return b; }); }
+  let o;
+  if(b.type==='heading')o={type:'heading',text:g('text')};
+  else if(b.type==='text')o={type:'text',text:g('text')};
+  else if(b.type==='image')o={type:'image',url:g('url'),caption:g('caption')};
+  else if(b.type==='gallery')o={type:'gallery',images:(Array.isArray(b.images)?b.images:[])};
+  else if(b.type==='features')o={type:'features',items:g('items').split('\n').map(l=>l.split('|')).filter(a=>a[0]&&a[0].trim()).map(a=>({title:(a[0]||'').trim(),desc:(a[1]||'').trim()}))};
+  else if(b.type==='faq')o={type:'faq',items:g('items').split('\n').map(l=>l.split('|')).filter(a=>a[0]&&a[0].trim()).map(a=>({q:(a[0]||'').trim(),a:(a[1]||'').trim()}))};
+  else if(b.type==='cta')o={type:'cta',title:g('title'),label:g('label'),link:g('link')};
+  else if(b.type==='spacer')o={type:'spacer',size:+g('size')||40};
+  else if(b.type==='hero')o={type:'hero',title:g('title'),eyebrow:g('eyebrow'),sub:g('sub'),img:g('img'),imgMobil:g('imgMobil'),label:g('label'),link:g('link'),h:+g('h')||420,oc:g('oc')||'#0b1f2a',oo:Math.min(1,Math.max(0,parseFloat(g('oo'))||0))};
+  else if(b.type==='imagetext')o={type:'imagetext',url:g('url'),side:g('side')||'left',title:g('title'),text:g('text'),label:g('label'),link:g('link')};
+  else if(b.type==='counters')o={type:'counters',items:g('items').split('\n').map(l=>l.split('|')).filter(a=>a[0]&&a[0].trim()).map(a=>({n:(a[0]||'').trim(),label:(a[1]||'').trim()}))};
+  else if(b.type==='logos')o={type:'logos',title:g('title'),images:(Array.isArray(b.images)?b.images:[])};
+  else if(b.type==='quote')o={type:'quote',text:g('text'),who:g('who')};
+  else if(b.type==='video')o={type:'video',url:g('url')};
+  else if(b.type==='map')o={type:'map',code:g('code')};
+  else if(b.type==='contact')o={type:'contact',title:g('title')};
+  else if(b.type==='mecracards')o={type:'mecracards',ids:[...document.querySelectorAll('.blk'+i+'_mid:checked')].map(e=>+e.value)};
+  else if(b.type==='divider')o={type:'divider'};
+  else o={...b};
+  if(b.off===true)o.off=true;
+  return o; }); }
 function syncBlocks(){ if(document.getElementById('pageEd')&&ui._blocks) ui._blocks=readBlocks(); }
-function blkAdd(t){ syncBlocks(); const def={heading:{type:'heading',text:'Başlık'},text:{type:'text',text:''},image:{type:'image',url:'',caption:''},gallery:{type:'gallery',images:[]},features:{type:'features',items:[]},faq:{type:'faq',items:[]},cta:{type:'cta',title:'',label:'',link:''},spacer:{type:'spacer',size:40}}[t]; ui._blocks.push(def); renderPageEd(); }
+function blkAdd(t){ syncBlocks(); const def={heading:{type:'heading',text:'Başlık'},text:{type:'text',text:''},image:{type:'image',url:'',caption:''},gallery:{type:'gallery',images:[]},features:{type:'features',items:[]},faq:{type:'faq',items:[]},cta:{type:'cta',title:'',label:'',link:''},spacer:{type:'spacer',size:40},
+  hero:{type:'hero',title:'',eyebrow:'',sub:'',img:'',imgMobil:'',label:'',link:'',h:420,oc:'#0b1f2a',oo:0.45},
+  imagetext:{type:'imagetext',url:'',side:'left',title:'',text:'',label:'',link:''},
+  counters:{type:'counters',items:[]},logos:{type:'logos',title:'',images:[]},
+  quote:{type:'quote',text:'',who:''},video:{type:'video',url:''},map:{type:'map',code:''},
+  contact:{type:'contact',title:''},mecracards:{type:'mecracards',ids:[]},divider:{type:'divider'}}[t]; ui._blocks.push(def); renderPageEd(); }
 function blkMove(i,d){ syncBlocks(); const j=i+d; if(j<0||j>=ui._blocks.length)return; [ui._blocks[i],ui._blocks[j]]=[ui._blocks[j],ui._blocks[i]]; renderPageEd(); }
 function blkDel(i){ syncBlocks(); ui._blocks.splice(i,1); renderPageEd(); }
 function blkGalAdd(i,url){ syncBlocks(); ui._blocks[i].images=ui._blocks[i].images||[]; ui._blocks[i].images.push(url); renderPageEd(); }

@@ -770,11 +770,48 @@ function renderSepetInline(){ const box=document.getElementById('sepetInner'); i
     +`${showPrices()?`<div class="tot"><span>Toplam</span><span>${money(cartTotal())}</span></div>`:'<div style="height:10px"></div>'}<button class="btn btn-primary" style="width:100%" onclick="toggleCart()">Teklif Al</button>`; }
 
 /* ---- sayfalar ---- */
-function renderBlocks(blocks){ return (blocks||[]).map(b=>{
+function ytId(u){ const m=String(u||'').match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([\w-]{6,})/); return m?m[1]:null; }
+function mapSrc(code){ code=String(code||'').trim(); const m=code.match(/src="([^"]+)"/); if(m)return m[1]; if(/^https?:\/\//.test(code))return code; return null; }
+function renderBlocks(blocks){ return (blocks||[]).filter(b=>b&&b.off!==true).map(b=>{
+  if(b.type==='hero'){ const h=Math.max(220,+b.h||420);
+    return `<section class="pg-hero" style="min-height:${h}px">
+      ${bgLayers(b.img,b.imgMobil,'pg-hero-bg','')}
+      <div class="pg-hero-ov" style="background:${esc(b.oc||'#0b1f2a')};opacity:${b.oo!=null?+b.oo:0.45}"></div>
+      <div class="pg-hero-in">${b.eyebrow?`<span class="pg-hero-eye">${esc(b.eyebrow)}</span>`:''}
+        ${b.title?`<h2>${esc(b.title)}</h2>`:''}${b.sub?`<p>${esc(b.sub)}</p>`:''}
+        ${b.label?`<a class="btn btn-primary" href="${esc(b.link||'#')}">${esc(b.label)}</a>`:''}</div></section>`; }
+  if(b.type==='imagetext'){ const rev=b.side==='right'?' rev':'';
+    return `<div class="pg-it${rev}">
+      <div class="pg-it-img" ${b.url?`style="background-image:url('${esc(b.url)}')" onclick="lightbox('${esc(b.url)}')"`:''}></div>
+      <div class="pg-it-tx">${b.title?`<h3>${esc(b.title)}</h3>`:''}
+        ${(b.text||'').split('\n').map(x=>x.trim()?`<p>${esc(x)}</p>`:'').join('')}
+        ${b.label?`<a class="btn btn-outline" href="${esc(b.link||'#')}">${esc(b.label)}</a>`:''}</div></div>`; }
+  if(b.type==='counters'){ const it=Array.isArray(b.items)?b.items:[]; return it.length?`<div class="pgc">${it.map(x=>{
+      const num=String(x.n||'').replace(/[^\d]/g,'')||'0', suf=String(x.n||'').replace(/[\d.\s]/g,'');
+      return `<div class="pgc-i"><b class="pgc-n" data-to="${esc(num)}">0</b><i>${esc(suf)}</i><span>${esc(x.label||'')}</span></div>`;}).join('')}</div>`:''; }
+  if(b.type==='logos'){ const imgs=Array.isArray(b.images)?b.images:[]; return imgs.length?`${b.title?`<h2 class="pg-h" style="text-align:center">${esc(b.title)}</h2>`:''}<div class="pg-logos">${imgs.map(g=>`<div class="pg-lg"><img loading="lazy" src="${esc(g)}" alt=""></div>`).join('')}</div>`:''; }
+  if(b.type==='quote')return `<blockquote class="pg-quote"><p>${esc(b.text||'')}</p>${b.who?`<cite>${esc(b.who)}</cite>`:''}</blockquote>`;
+  if(b.type==='video'){ const id=ytId(b.url);
+    if(id) return `<div class="pg-video"><iframe loading="lazy" src="https://www.youtube-nocookie.com/embed/${esc(id)}" title="Video" allowfullscreen frameborder="0"></iframe></div>`;
+    if(/\.mp4(\?|$)/.test(b.url||'')) return `<div class="pg-video"><video controls preload="metadata" src="${esc(b.url)}"></video></div>`;
+    return ''; }
+  if(b.type==='map'){ const src=mapSrc(b.code); return src?`<div class="pg-mapblk"><iframe loading="lazy" src="${esc(src)}" frameborder="0" allowfullscreen></iframe></div>`:''; }
+  if(b.type==='contact'){ const st=D.settings||{};
+    return `<div class="pg-cn">${b.title?`<h3>${esc(b.title)}</h3>`:''}
+      <div class="pg-cn-g">
+      ${st.phone?`<a class="pg-cn-i" href="tel:${esc(String(st.phone).replace(/\s/g,''))}"><b>Telefon</b><span>${esc(st.phone)}</span></a>`:''}
+      ${st.email?`<a class="pg-cn-i" href="mailto:${esc(st.email)}"><b>E-Posta</b><span>${esc(st.email)}</span></a>`:''}
+      ${st.address?`<div class="pg-cn-i"><b>Adres</b><span>${esc(st.address)}</span></div>`:''}</div></div>`; }
+  if(b.type==='mecracards'){ const ids=(Array.isArray(b.ids)?b.ids:[]).map(String);
+    const list=(D.mecralar||[]).filter(m=>!ids.length||ids.includes(String(m.id)));
+    return list.length?`<div class="pg-mc">${list.map(m=>`<a class="pg-mci" href="${BASE}mecra/${mSlug(m)}" onclick="openMec('${m.id}');return false;">
+      <div class="pg-mci-im" style="background-image:url('${esc(m.image||m.kapak||'')}')"></div>
+      <div class="pg-mci-tx"><b>${esc(m.name)}</b>${m.badge?`<em>${esc(m.badge)}</em>`:''}</div></a>`).join('')}</div>`:''; }
+  if(b.type==='divider')return `<hr class="pg-div">`;
   if(b.type==='heading')return `<h2 class="pg-h">${esc(b.text||'')}</h2>`;
   if(b.type==='text')return `<div class="pg-t">${(b.text||'').split('\n').map(p=>p.trim()?`<p>${esc(p)}</p>`:'').join('')}</div>`;
-  if(b.type==='image')return `<figure class="pg-img"><img src="${esc(b.url||'')}" alt="${esc(b.caption||'')}">${b.caption?`<figcaption>${esc(b.caption)}</figcaption>`:''}</figure>`;
-  if(b.type==='gallery'){ const imgs=Array.isArray(b.images)?b.images:[]; return imgs.length?`<div class="pg-gal">${imgs.map(g=>`<div class="pg-gi" style="background-image:url('${esc(g)}')"></div>`).join('')}</div>`:''; }
+  if(b.type==='image')return `<figure class="pg-img"><img loading="lazy" src="${esc(b.url||'')}" alt="${esc(b.caption||'')}" onclick="lightbox('${esc(b.url||'')}')" style="cursor:zoom-in">${b.caption?`<figcaption>${esc(b.caption)}</figcaption>`:''}</figure>`;
+  if(b.type==='gallery'){ const imgs=Array.isArray(b.images)?b.images:[]; return imgs.length?`<div class="pg-gal">${imgs.map(g=>`<div class="pg-gi" style="background-image:url('${esc(g)}');cursor:zoom-in" onclick="lightbox('${esc(g)}')"></div>`).join('')}</div>`:''; }
   if(b.type==='features'){ const it=Array.isArray(b.items)?b.items:[]; return `<div class="pg-feat">${it.map(x=>`<div class="pg-fc"><h3>${esc(x.title||'')}</h3><p>${esc(x.desc||'')}</p></div>`).join('')}</div>`; }
   if(b.type==='faq'){ const it=Array.isArray(b.items)?b.items:[]; return `<div class="pg-faq">${it.map(x=>`<details class="acc"><summary>${esc(x.q||'')}</summary><div>${esc(x.a||'')}</div></details>`).join('')}</div>`; }
   if(b.type==='cta')return `<div class="pg-cta"><h3>${esc(b.title||'')}</h3>${b.label?`<a class="btn btn-primary" href="${esc(b.link||'#')}">${esc(b.label)}</a>`:''}</div>`;
@@ -789,6 +826,17 @@ function renderPage(slug){
   else { inner=`<div class="sechead"><h1>${esc(pg.title||'')}</h1></div><div class="page-body">${esc(pg.body||'')}</div>`; }
   if(slug==='iletisim'){ const s=D.settings; inner+=`<div class="pg-contact"><div><b>Telefon:</b> ${esc(s.phone||'')}</div><div><b>E-Posta:</b> ${esc(s.email||'')}</div><div><b>Adres:</b> ${esc(s.address||'')}</div></div>`; }
   app().innerHTML=`<div class="pg-top"><div class="pg-crumb">${nav}</div><h1 class="pg-title">${esc(pg.title||'')}</h1></div>${inner}`;
+  pgCounters();
+}
+function pgCounters(){
+  const els=[...document.querySelectorAll('.pgc-n')]; if(!els.length)return;
+  const anim=el=>{ const to=+el.dataset.to||0, dur=1300, t0=performance.now();
+    const step=t=>{ const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(to*e).toLocaleString('tr-TR'); if(p<1)requestAnimationFrame(step); };
+    requestAnimationFrame(step); };
+  if(!('IntersectionObserver' in window)){ els.forEach(anim); return; }
+  const io=new IntersectionObserver(es=>es.forEach(x=>{ if(x.isIntersecting){ anim(x.target); io.unobserve(x.target); } }),{threshold:.4});
+  els.forEach(e=>io.observe(e));
 }
 /* ---- header menüsü (panelden yönetilir) ---- */
 function menuLink(it,kapat){
