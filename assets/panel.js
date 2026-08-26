@@ -163,6 +163,7 @@ const LOG_AD={
   unit_save:['Pozisyon','kaydetti'], unit_delete:['Pozisyon','sildi'],
   customer_save:['Müşteri','kaydetti'], customer_delete:['Müşteri','sildi'],
   supplier_save:['Tedarikçi','kaydetti'], supplier_delete:['Tedarikçi','sildi'],
+  quote_builder_save:['Teklif','hazırladı'],
   job_save:['İş','kaydetti'], job_move:['İş','aşama değiştirdi'], job_delete:['İş','sildi'],
   note_save:['Not','kaydetti'], note_delete:['Not','sildi'],
   team_save:['Ekip üyesi','kaydetti'], team_delete:['Ekip üyesi','sildi'],
@@ -188,6 +189,17 @@ function logYaz(act, body, q){
 
 /* ---- Veri katmanı köprüsü: eski api(action,body) -> Supabase ---- */
 const DELMAP={product_delete:'products',mecra_delete:'mecralar',alt_delete:'alt_mecralar',unit_delete:'units',customer_delete:'customers',team_delete:'team',note_delete:'notes',quote_delete:'quotes',job_delete:'jobs'};
+/* Form kaydetmelerini saran ortak yardimci: hata olursa artik sessizce
+   yutulmuyor, kullaniciya gosteriliyor. */
+async function guard(fn, hataBasligi){
+  try{ return await fn(); }
+  catch(e){
+    const msg=(e&&(e.message||e.hint||e.details))||String(e);
+    console.error(hataBasligi||'Islem hatasi:', e);
+    alert((hataBasligi||'İşlem başarısız')+':\n\n'+msg);
+    return null;
+  }
+}
 async function saveRow(table, body){ const id=body.id; const row={...body}; delete row.id;
   if(id){ const {error}=await sb.from(table).update(row).eq('id',id); if(error)throw error; return {id}; }
   const {data,error}=await sb.from(table).insert(row).select('id').single(); if(error)throw error; return {id:data.id}; }
@@ -197,7 +209,10 @@ async function api(action, body){
   parts.slice(1).forEach(kv=>{ const i=kv.indexOf('='); if(i>=0)q[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1)); });
   const ok=(d)=>d;
 
-  if(act.endsWith('_delete') && DELMAP[act]){ const {error}=await sb.from(DELMAP[act]).delete().eq('id',q.id); if(error)throw error; logYaz(act,body,q); return ok(); }
+  if(act.endsWith('_delete') && DELMAP[act]){
+    const delId=(q.id!=null&&q.id!=='')?q.id:(body&&body.id);
+    if(delId==null||delId==='') throw new Error('Silinecek kayıt belirtilmedi.');
+    const {error}=await sb.from(DELMAP[act]).delete().eq('id',delId); if(error)throw error; logYaz(act,body,q); return ok(); }
 
   switch(act){
     case 'dashboard_stats':{
@@ -294,6 +309,36 @@ async function api(action, body){
     case 'supplier_delete':{ const {error}=await sb.from('suppliers').delete().eq('id',body.id); if(error)throw error; return ok(true); }
 
     case 'quotes_list':{ const {data,error}=await sb.from('quotes').select('*').order('created_at',{ascending:false}); if(error)throw error; return ok(data); }
+    case 'units_full':{
+      /* Teklif olusturucu icin: pozisyon + mecra/alt/urun adlari tek listede */
+      const [ur,mr,ar,pr]=await Promise.all([
+        sb.from('units').select('*').order('sort').order('id'),
+        sb.from('mecralar').select('id,name'),
+        sb.from('alt_mecralar').select('id,name'),
+        sb.from('products').select('id,name')]);
+      for(const r of [ur,mr,ar,pr]) if(r.error) throw r.error;
+      const mi=Object.fromEntries((mr.data||[]).map(x=>[x.id,x.name]));
+      const ai=Object.fromEntries((ar.data||[]).map(x=>[x.id,x.name]));
+      const pi=Object.fromEntries((pr.data||[]).map(x=>[x.id,x.name]));
+      return ok((ur.data||[]).map(u=>({id:u.id,name:u.name,olcu:u.olcu,konum:u.konum,
+        mecra:mi[u.mecra_id]||'',alt:ai[u.alt_mecra_id]||'',urun:pi[u.product_id]||''})));
+    }
+    case 'quote_builder_save':{
+      const {quote,items}=body;
+      let qid=quote.id;
+      const row={...quote}; delete row.id;
+      if(qid){ const {error}=await sb.from('quotes').update(row).eq('id',qid); if(error)throw error;
+               const del=await sb.from('quote_items').delete().eq('quote_id',qid); if(del.error)throw del.error; }
+      else{ const {data,error}=await sb.from('quotes').insert(row).select('id').single(); if(error)throw error; qid=data.id; }
+      if(items && items.length){
+        const rows=items.map(i=>({quote_id:qid,unit_id:i.unit_id||null,mecra_name:i.mecra_name||'',
+          unit_name:i.unit_name||'',product_name:i.product_name||'',olcu:i.olcu||'',
+          start_day:i.start_day||null,period:i.period||'',adet:i.adet||1,price:i.price||0,aciklama:i.aciklama||''}));
+        const {error}=await sb.from('quote_items').insert(rows); if(error)throw error;
+      }
+      logYaz('quote_builder_save',{id:qid,firma:quote.firma||quote.customer_name});
+      return ok({id:qid});
+    }
     case 'quote_get':{
       const [qr,ir]=await Promise.all([ sb.from('quotes').select('*').eq('id',q.id).single(), sb.from('quote_items').select('*').eq('quote_id',q.id) ]);
       if(qr.error)throw qr.error; if(ir.error)throw ir.error; return ok({quote:qr.data,items:ir.data});
@@ -352,23 +397,56 @@ async function doLogin(){ const {error}=await sb.auth.signInWithPassword({email:
   showApp(); }
 async function logout(){ await sb.auth.signOut(); showLogin(); }
 
-const NAV=[
- ['dashboard','Dashboard','dashboard','Genel'],
- ['anasayfa','Anasayfa','home',''],
- ['is-takibi','İş Takibi','jobs',''],
- ['urunler','Ürünler','products','Envanter'],
- ['mecralar','Mecralar','media',''],
- ['harita','Harita','map',''],
- ['listeler','Doluluk','lists',''],
- ['musteriler','Müşteriler','customers','Satış'],
- ['teklifler','Teklifler','quotes',''],
- ['talepler','Planlama Talepleri','notes',''],
- ['tedarikciler','Tedarikçiler','truck',''],
- ['raporlar','Raporlar','report',''],
- ['ekip','Ekip','team','Yönetim'],
- ['sayfalar','Sayfalar','pages',''],
- ['notlar','Notlar','notes',''],
- ['ayarlar','Ayarlar','settings','']];
+const NAVG=[
+ ['Genel','dashboard',[
+   ['dashboard','Dashboard','dashboard'],
+   ['raporlar','Raporlar','report']]],
+ ['Envanter','media',[
+   ['mecralar','Mecralar','media'],
+   ['urunler','Ürünler','products'],
+   ['harita','Harita','map'],
+   ['listeler','Doluluk','lists']]],
+ ['Satış','quotes',[
+   ['teklifler','Teklifler','quotes'],
+   ['talepler','Planlama Talepleri','notes'],
+   ['musteriler','Müşteriler','customers']]],
+ ['Operasyon','jobs',[
+   ['is-takibi','İş Takibi','jobs'],
+   ['tedarikciler','Tedarikçiler','truck']]],
+ ['Site İçeriği','home',[
+   ['anasayfa','Anasayfa','home'],
+   ['sayfalar','Sayfalar','pages']]],
+ ['Yönetim','settings',[
+   ['ekip','Ekip','team'],
+   ['notlar','Notlar','notes'],
+   ['ayarlar','Ayarlar','settings']]]];
+const NAV=NAVG.flatMap(g=>g[2].map(n=>[n[0],n[1],n[2],'']));
+/* Bir bölüm hangi grupta? */
+function navGrupOf(sec){ const g=NAVG.find(g=>g[2].some(n=>n[0]===sec)); return g?g[0]:null; }
+function navAcikGruplar(){
+  try{ const v=JSON.parse(localStorage.getItem('mp_nav_acik')||'null'); if(Array.isArray(v))return new Set(v); }catch(e){}
+  return new Set(NAVG.map(g=>g[0]));       /* ilk açılışta hepsi açık */
+}
+function navGrupTogle(ad){
+  const set=navAcikGruplar(); set.has(ad)?set.delete(ad):set.add(ad);
+  try{ localStorage.setItem('mp_nav_acik',JSON.stringify([...set])); }catch(e){}
+  navCiz();
+}
+function navCiz(){
+  const box=document.getElementById('navScroll'); if(!box)return;
+  const acik=navAcikGruplar();
+  box.innerHTML=NAVG.map(g=>{
+    const ac=acik.has(g[0]);
+    const items=g[2].map(n=>`<button class="navi${ui.section===n[0]?' on':''}" data-s="${n[0]}" onclick="go('${n[0]}')">
+      ${ic(n[2],17)}<span>${esc(n[1])}</span>${n[0]==='teklifler'?'<i class="nav-badge" id="qBadge"></i>':''}${n[0]==='talepler'?'<i class="nav-badge" id="lBadge"></i>':''}</button>`).join('');
+    return `<div class="nav-g${ac?' open':''}">
+      <button class="nav-gh" onclick="navGrupTogle('${g[0].replace(/'/g,"\\'")}')">
+        ${ic(g[1],15)}<span>${esc(g[0])}</span>
+        <svg class="nav-ch" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="nav-gb">${items}</div></div>`;
+  }).join('');
+}
 const TITLES={dashboard:'Dashboard',anasayfa:'Anasayfa Karşılama','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Doluluk',musteriler:'Müşteriler',tedarikciler:'Tedarikçiler',raporlar:'Raporlar',teklifler:'Teklifler',talepler:'Medya Planlama Talepleri',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
 function userChip(){
   const me=ui._me||{}; const ad=me.name||(ui._email||'').split('@')[0]||'Kullanıcı';
@@ -383,15 +461,11 @@ function showApp(){
   const logo = st.logoImage
     ? `<img src="${esc(st.logoImage)}" alt="logo">`
     : `<span class="wm">medya<b>park</b></span>`;
-  let nav='';
-  NAV.forEach(n=>{
-    if(n[3]) nav+=`<div class="nav-grp">${esc(n[3])}</div>`;
-    nav+=`<button class="navi" data-s="${n[0]}" onclick="go('${n[0]}')">${ic(n[2],17)}<span>${esc(n[1])}</span>${n[0]==='teklifler'?'<i class="nav-badge" id="qBadge"></i>':''}</button>`;
-  });
+  const nav='';
   root().innerHTML=`<div class="app">
     <nav class="side">
       <div class="brand">${logo}<span class="brand-sub">Yönetim Paneli</span></div>
-      <div class="nav-scroll">${nav}</div>
+      <div class="nav-scroll" id="navScroll"></div>
       <button class="navi logout" onclick="logout()">${ic('logout',17)}<span>Çıkış</span></button>
     </nav>
     <div class="main">
@@ -404,7 +478,7 @@ function showApp(){
       </header>
       <div class="content" id="content"></div>
     </div></div>`;
-  go('dashboard');
+  navCiz(); go('dashboard');
   api('settings_get').then(st=>{ ui._settings=st; if(st.panelTheme)applyPanelTheme(st.panelTheme);
     if(st.favicon){ let l=document.head.querySelector("link[rel~='icon']");
       if(!l){ l=document.createElement('link'); l.rel='icon'; document.head.appendChild(l); } l.href=st.favicon; } }).catch(()=>{});
@@ -421,10 +495,16 @@ async function yeniTeklifKontrol(){
     if(b){ b.textContent=n||''; b.style.display=n?'inline-flex':'none'; }
     if(_sonTeklif!==null && n>_sonTeklif) toast(`${n-_sonTeklif} yeni teklif talebi geldi`);
     _sonTeklif=n;
+    const lr=await sb.from('leads').select('id').eq('okundu',false);
+    const lb=document.getElementById('lBadge');
+    if(lb && !lr.error){ const k=(lr.data||[]).length; lb.textContent=k||''; lb.style.display=k?'inline-flex':'none'; }
   }catch(e){}
 }
-function go(s){ ui.section=s; document.querySelectorAll('.navi').forEach(n=>n.classList.toggle('on',n.dataset.s===s));
-  document.getElementById('ttl').textContent=TITLES[s]||''; renderSection(); }
+function go(s){ ui.section=s;
+  const g=navGrupOf(s);                        /* kapali gruptaki bolume gidilirse grubu ac */
+  if(g){ const set=navAcikGruplar(); if(!set.has(g)){ set.add(g); try{localStorage.setItem('mp_nav_acik',JSON.stringify([...set]));}catch(e){} } }
+  navCiz();
+  document.getElementById('ttl').textContent=TITLES[s]||''; renderSection(); yeniTeklifKontrol&&yeniTeklifKontrol(); }
 
 async function renderSection(){
   const c=document.getElementById('content'); c.innerHTML='<p class="muted">Yükleniyor…</p>';
@@ -718,7 +798,9 @@ async function isTakibi(c){
 async function jobMove(id,status){ await api('job_move',{id,status}); renderSection(); }
 async function jobDelete(id){ if(confirm('Silinsin mi?')){ await api('job_delete&id='+id); renderSection(); } }
 async function jobForm(st,id){
-  const [cu,su,mc]=await Promise.all([api('customers_list'),api('suppliers_list'),api('mecra_list')]);
+  const veri=await guard(()=>Promise.all([api('customers_list'),api('suppliers_list'),api('mecra_list')]),'Form açılamadı');
+  if(!veri) return;
+  const [cu,su,mc]=veri;
   const j = id ? (await api('jobs_list')).find(x=>x.id===id)||{} : {};
   const opt=(arr,val,lbl)=>`<option value="">— yok —</option>`+arr.map(x=>
     `<option value="${x.id}" ${String(val)===String(x.id)?'selected':''}>${esc(lbl(x))}</option>`).join('');
@@ -730,8 +812,8 @@ async function jobForm(st,id){
     <div class="field"><label class="flabel">Mecra</label><select class="inp" id="jm">${opt(mc,j.mecra_id,x=>x.name)}</select></div>
   </div>
   <div class="row2">
-    <div class="field"><label class="flabel">Tedarikçi (baskı/montaj)</label><select class="inp" id="jsup">${opt(su,j.supplier_id,x=>x.firma+(x.kategori?' · '+x.kategori:''))}</select></div>
-    <div class="field"><label class="flabel">Aşama</label><select class="inp" id="js">${JOBST.map(x=>`<option value="${x[0]}" ${(j.status||st)===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>
+    <div class="field"><label class="flabel">Tedarikçi (baskı/montaj)</label><select class="inp" id="jsup">${opt(su,j.supplier_id,x=>(x.firma||x.name||'—')+((x.kategori||x.type)?' · '+(x.kategori||x.type):''))}</select></div>
+    <div class="field"><label class="flabel">Aşama</label><select class="inp" id="js">${JOBST.map(x=>`<option value="${x[0]}" ${(j.status||st||'tasarim')===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>
   </div>
   <div class="row2">
     <div class="field"><label class="flabel">Başlangıç</label><input class="inp" type="date" id="jsd" value="${esc(j.start_day)}"></div>
@@ -743,10 +825,11 @@ async function jobForm(st,id){
 async function jobSave(){
   if(!gv('jt').trim()){ alert('Başlık zorunlu.'); return; }
   const num=v=>v?+v:null;
-  await api('job_save',{id:+gv('jid')||0,title:gv('jt'),note:gv('jn'),status:gv('js'),
+  const r=await guard(()=>api('job_save',{id:+gv('jid')||0,title:gv('jt'),note:gv('jn'),status:gv('js')||'tasarim',
     customer_id:num(gv('jc')),mecra_id:num(gv('jm')),supplier_id:num(gv('jsup')),
-    start_day:gv('jsd')||null,end_day:gv('jed')||null});
-  closeModal(); renderSection();
+    start_day:gv('jsd')||null,end_day:gv('jed')||null}),'İş kaydedilemedi');
+  if(r===null) return;
+  closeModal(); renderSection(); toast('İş kaydedildi.');
 }
 
 /* ---------- ÜRÜNLER ---------- */
@@ -2122,7 +2205,7 @@ function custImport(){
       return `Tamamlandı.\n${eklendi} yeni kayıt eklendi.\n${guncellendi} kayıt güncellendi.\n${atlandi} kayıt atlandı.`;
     }});
 }
-async function custDel(id){ if(!confirm('Bu müşteri silinsin mi?'))return; await api('customer_delete',{id}); renderSection(); }
+/* custDel tek tanima indirildi — asagiya bakin */
 
 /* ---------- TEDARİKÇİLER ---------- */
 const SUP_COLS=[
@@ -2133,7 +2216,7 @@ const SUP_COLS=[
   {key:'iban',label:'IBAN',w:30},{key:'notlar',label:'Notlar',w:34}];
 async function tedarikciler(c){
   const list=await api('suppliers_list'); ui._sup=list;
-  const kat={}; list.forEach(x=>{ const k=x.kategori||'Diğer'; (kat[k]=kat[k]||[]).push(x); });
+  const kat={}; list.forEach(x=>{ x.firma=x.firma||x.name||''; x.kategori=x.kategori||x.type||''; const k=x.kategori||'Diğer'; (kat[k]=kat[k]||[]).push(x); });
   const bloklar=Object.keys(kat).sort().map(k=>`
     <div class="sec-card"><div class="sec-head" style="margin-bottom:10px">
       <h4 style="font-size:14px;margin:0">${esc(k)} <span class="chip">${kat[k].length}</span></h4></div>
@@ -2176,12 +2259,14 @@ function supForm(id){ const x=(ui._sup||[]).find(s=>s.id===id)||{aktif:true};
 }
 async function supSave(){
   if(!gv('sf').trim()){ alert('Firma adı zorunlu.'); return; }
-  await api('supplier_save',{id:+gv('sid'),firma:gv('sf'),kategori:gv('sk'),ilgili_kisi:gv('sik'),telefon:gv('st'),
+  const r=await guard(()=>api('supplier_save',{id:+gv('sid'),firma:gv('sf'),kategori:gv('sk'),ilgili_kisi:gv('sik'),telefon:gv('st'),
     eposta:gv('se'),iban:gv('sib'),adres:gv('sa'),vergi_no:gv('sv'),vergi_dairesi:gv('svd'),notlar:gv('sn'),
-    aktif:document.getElementById('sak').checked});
-  closeModal(); renderSection();
+    aktif:document.getElementById('sak').checked}),'Tedarikçi kaydedilemedi');
+  if(r===null) return;
+  closeModal(); renderSection(); toast('Tedarikçi kaydedildi.');
 }
-async function supDel(id){ if(!confirm('Bu tedarikçi silinsin mi?'))return; await api('supplier_delete',{id}); renderSection(); }
+async function supDel(id){ if(!confirm('Bu tedarikçi silinsin mi?'))return;
+  await guard(()=>api('supplier_delete',{id}),'Tedarikçi silinemedi'); renderSection(); }
 async function supExport(){
   const list=ui._sup||await api('suppliers_list');
   if(!list.length){ alert('Aktarılacak tedarikçi yok.'); return; }
@@ -2221,15 +2306,19 @@ function custForm(id){ const x=(ui._cust||[]).find(c=>c.id===id)||{};
     <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="closeModal()">Vazgeç</button><button class="btn btn-primary btn-sm" onclick="custSave()">Kaydet</button></div>`);
 }
 async function custSave(){ await api('customer_save',{id:+gv('cid'),firma:gv('cf'),ilgili_kisi:gv('cik'),telefon:gv('ct'),eposta:gv('ce'),adres:gv('ca'),vergi_no:gv('cv'),vergi_dairesi:gv('cvd'),puan:+gv('cp')}); closeModal(); renderSection(); }
-async function custDel(id){ if(confirm('Silinsin mi?')){ await api('customer_delete&id='+id); renderSection(); } }
+async function custDel(id){ if(!confirm('Bu müşteri silinsin mi?'))return;
+  await guard(()=>api('customer_delete',{id}),'Müşteri silinemedi'); renderSection(); }
 
 /* ---------- TEKLİFLER ---------- */
 async function teklifler(c){
   const list=await api('quotes_list');
+  ui._quotes=list;
   const rows=list.map(q=>`<tr><td>#${q.id}</td><td>${esc(q.customer_name||'-')}<br><span class="muted" style="font-size:12px">${esc(q.firma||'')}</span></td>
     <td>${esc(q.telefon||'')}</td><td>${money(q.total)}</td><td><span class="badge-st st-${q.status}">${q.status}</span></td><td>${(q.created_at||'').slice(0,10)}</td>
-    <td><button class="btn btn-outline btn-sm" onclick="quoteView(${q.id})">Aç</button> <button class="btn btn-danger btn-sm" onclick="quoteDel(${q.id})">Sil</button></td></tr>`).join('');
-  c.innerHTML=`<div class="sec-card"><div class="sec-head"><h3>Gelen Teklifler</h3></div>
+    <td>${q.kaynak==='panel'?'<span class="pill">panel</span> ':''}<button class="btn btn-outline btn-sm" onclick="${'${q.kaynak===\'panel\'?`qbEdit(${q.id})`:`quoteView(${q.id})`}'}">Aç</button> <button class="btn btn-danger btn-sm" onclick="quoteDel(${q.id})">Sil</button></td></tr>`).join('');
+  c.innerHTML=`<div class="sec-card"><div class="sec-head">
+      <div><h3>Teklifler</h3><p class="sub">${list.length} kayıt · siteden gelenler ve panelde hazırlananlar</p></div>
+      <button class="btn btn-primary btn-sm" onclick="qbNew()">${ic('plus',15)} Yeni Teklif Hazırla</button></div>
     ${rows?`<table class="tbl"><thead><tr><th>#</th><th>Müşteri</th><th>Telefon</th><th>Tutar</th><th>Durum</th><th>Tarih</th><th></th></tr></thead><tbody>${rows}</tbody></table>`:'<p class="muted">Henüz teklif yok.</p>'}</div>`;
 }
 async function quoteView(id){
@@ -2246,6 +2335,184 @@ async function quoteStatus(id){ const r=await api('quote_status',{id,status:gv('
     if(r.conflicts && r.conflicts.length){ msg+='\n\n⚠ Çakışma (bu aylar başka müşteride dolu, atlandı):\n· '+r.conflicts.join('\n· '); }
     alert(msg); }
   renderSection(); }
+/* ================= TEKLİF OLUŞTURUCU (panel) ================= */
+let QB={id:0,customer_id:null,customer_name:'',firma:'',telefon:'',eposta:'',note:'',
+        gecerlilik:'',indirim:0,kdv:20,items:[]};
+
+async function qbNew(){ QB={id:0,customer_id:null,customer_name:'',firma:'',telefon:'',eposta:'',note:'',
+  gecerlilik:qbTarih(15),indirim:0,kdv:20,items:[]}; await qbRender(); }
+
+async function qbEdit(id){
+  const d=await guard(()=>api('quote_get&id='+id),'Teklif açılamadı'); if(!d)return;
+  const q=d.quote;
+  QB={id:q.id,customer_id:q.customer_id||null,customer_name:q.customer_name||'',firma:q.firma||'',
+      telefon:q.telefon||'',eposta:q.eposta||'',note:q.note||'',gecerlilik:q.gecerlilik||'',
+      indirim:+q.indirim||0,kdv:q.kdv!=null?+q.kdv:20,
+      items:(d.items||[]).map(i=>({unit_id:i.unit_id,mecra_name:i.mecra_name,unit_name:i.unit_name,
+        product_name:i.product_name,olcu:i.olcu,period:i.period,start_day:i.start_day,
+        adet:i.adet||1,price:+i.price||0,aciklama:i.aciklama||''}))};
+  await qbRender();
+}
+function qbTarih(gunSonra){ const d=new Date(Date.now()+(gunSonra||0)*864e5); return d.toISOString().slice(0,10); }
+function qbAra(){ const t=(gv('qbUnitQ')||'').toLocaleLowerCase('tr'); return (ui._qbUnits||[]).filter(u=>
+  !t || [u.mecra,u.alt,u.name,u.konum].some(x=>String(x||'').toLocaleLowerCase('tr').includes(t))); }
+
+async function qbRender(){
+  const c=document.getElementById('content');
+  if(!ui._qbUnits){
+    const veri=await guard(()=>Promise.all([api('units_full'),api('customers_list')]),'Veriler yüklenemedi');
+    if(!veri) return;
+    ui._qbUnits=veri[0]; ui._qbCust=veri[1];
+  }
+  const cu=ui._qbCust||[];
+  c.innerHTML=`<div class="sec-head">
+      <div><h3>${QB.id?'Teklif #'+QB.id:'Yeni Teklif'}</h3><p class="sub">Alanları ekleyin, fiyatları girin; çıktıyı yazdırın veya PDF kaydedin.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="go('teklifler')">‹ Listeye dön</button>
+        <button class="btn btn-outline btn-sm" onclick="qbPrint()">${ic('download',15)} Yazdır / PDF</button>
+        <button class="btn btn-primary btn-sm" onclick="qbSave()">Kaydet</button></div></div>
+
+    <div class="sec-card"><h4 style="margin:0 0 12px;font-size:14px">Müşteri</h4>
+      <div class="field" style="max-width:420px"><label class="flabel">Kayıtlı müşteriden seç</label>
+        <select class="inp" id="qbCust" onchange="qbCustPick(this.value)">
+          <option value="">— elle gireceğim —</option>
+          ${cu.map(x=>`<option value="${x.id}" ${String(QB.customer_id)===String(x.id)?'selected':''}>${esc(x.firma||x.ilgili_kisi||('#'+x.id))}</option>`).join('')}
+        </select></div>
+      <div class="row2"><div class="field"><label class="flabel">Yetkili kişi</label><input class="inp" id="qbAd" value="${esc(QB.customer_name)}"></div>
+      <div class="field"><label class="flabel">Firma</label><input class="inp" id="qbFirma" value="${esc(QB.firma)}"></div></div>
+      <div class="row2"><div class="field"><label class="flabel">Telefon</label><input class="inp" id="qbTel" value="${esc(QB.telefon)}"></div>
+      <div class="field"><label class="flabel">E-posta</label><input class="inp" id="qbMail" value="${esc(QB.eposta)}"></div></div>
+    </div>
+
+    <div class="sec-card"><h4 style="margin:0 0 10px;font-size:14px">Teklif Kalemleri</h4>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <input class="inp" id="qbUnitQ" placeholder="Alan ara — mecra, pozisyon veya konum" oninput="qbListe()" style="flex:1;min-width:220px">
+        <button class="btn btn-outline btn-sm" onclick="qbAddSerbest()">+ Serbest satır</button></div>
+      <div id="qbBulunan" class="qb-found"></div>
+      <div id="qbItems"></div>
+    </div>
+
+    <div class="sec-card"><h4 style="margin:0 0 12px;font-size:14px">Özet ve Koşullar</h4>
+      <div class="row2">
+        <div class="field"><label class="flabel">İndirim (%)</label><input class="inp" type="number" id="qbInd" min="0" max="100" step="0.5" value="${QB.indirim}" oninput="qbToplam()"></div>
+        <div class="field"><label class="flabel">KDV (%)</label><input class="inp" type="number" id="qbKdv" min="0" max="100" step="1" value="${QB.kdv}" oninput="qbToplam()"></div></div>
+      <div class="field" style="max-width:260px"><label class="flabel">Geçerlilik tarihi</label><input class="inp" type="date" id="qbGec" value="${esc(QB.gecerlilik)}"></div>
+      <div class="field"><label class="flabel">Not / koşullar</label><textarea class="inp" id="qbNot" placeholder="Baskı ve montaj dahildir. Fiyatlar aylıktır…">${esc(QB.note)}</textarea></div>
+      <div id="qbOzet" class="qb-ozet"></div>
+    </div>`;
+  qbListe(); qbItems();
+}
+function qbCustPick(id){
+  const x=(ui._qbCust||[]).find(c=>String(c.id)===String(id));
+  QB.customer_id=x?x.id:null;
+  if(x){ document.getElementById('qbAd').value=x.ilgili_kisi||''; document.getElementById('qbFirma').value=x.firma||'';
+         document.getElementById('qbTel').value=x.telefon||''; document.getElementById('qbMail').value=x.eposta||''; }
+}
+function qbListe(){
+  const box=document.getElementById('qbBulunan'); if(!box)return;
+  const t=(gv('qbUnitQ')||'').trim();
+  if(!t){ box.innerHTML='<p class="muted" style="font-size:12.5px;margin:0">Eklemek için yukarıdan alan arayın (ör. "M1", "raket", "stadyum").</p>'; return; }
+  const list=qbAra().slice(0,40);
+  box.innerHTML=list.length?list.map(u=>`<button class="qb-f" onclick="qbAdd(${u.id})">
+      <b>${esc(u.mecra)} · ${esc(u.name)}</b><span>${esc(u.alt||'')}${u.olcu?' · '+esc(u.olcu):''}${u.konum?' · '+esc(u.konum):''}</span></button>`).join('')
+    :'<p class="muted" style="font-size:12.5px;margin:0">Eşleşen alan yok.</p>';
+}
+function qbAdd(unitId){
+  const u=(ui._qbUnits||[]).find(x=>x.id===unitId); if(!u)return;
+  if(QB.items.some(i=>i.unit_id===unitId)){ toast('Bu alan zaten listede.'); return; }
+  QB.items.push({unit_id:u.id,mecra_name:u.mecra,unit_name:u.name,product_name:u.urun||'',olcu:u.olcu||'',
+    period:'1 ay',start_day:'',adet:1,price:0,aciklama:u.konum||''});
+  qbItems();
+}
+function qbAddSerbest(){
+  QB.items.push({unit_id:null,mecra_name:'',unit_name:'Serbest kalem',product_name:'',olcu:'',
+    period:'1 ay',start_day:'',adet:1,price:0,aciklama:''});
+  qbItems();
+}
+function qbDel(i){ QB.items.splice(i,1); qbItems(); }
+function qbSet(i,k,v){ QB.items[i][k]=(k==='price'||k==='adet')?(parseFloat(v)||0):v; qbToplam(); }
+function qbItems(){
+  const box=document.getElementById('qbItems'); if(!box)return;
+  if(!QB.items.length){ box.innerHTML='<p class="muted" style="font-size:13px">Henüz kalem yok.</p>'; qbToplam(); return; }
+  box.innerHTML=`<table class="tbl qb-tbl"><thead><tr>
+      <th style="min-width:190px">Alan</th><th>Açıklama</th><th style="width:96px">Dönem</th>
+      <th style="width:132px">Başlangıç</th><th style="width:70px">Adet</th>
+      <th style="width:120px">Birim (₺)</th><th style="width:110px;text-align:right">Tutar</th><th style="width:44px"></th></tr></thead>
+    <tbody>${QB.items.map((i,ix)=>`<tr>
+      <td>${i.unit_id?`<b>${esc(i.mecra_name)}</b><br><span class="muted" style="font-size:12px">${esc(i.unit_name)}${i.olcu?' · '+esc(i.olcu):''}</span>`
+        :`<input class="inp inp-sm" value="${esc(i.unit_name)}" oninput="qbSet(${ix},'unit_name',this.value)">`}</td>
+      <td><input class="inp inp-sm" value="${esc(i.aciklama)}" oninput="qbSet(${ix},'aciklama',this.value)"></td>
+      <td><input class="inp inp-sm" value="${esc(i.period)}" oninput="qbSet(${ix},'period',this.value)"></td>
+      <td><input class="inp inp-sm" type="date" value="${esc(i.start_day)}" oninput="qbSet(${ix},'start_day',this.value)"></td>
+      <td><input class="inp inp-sm" type="number" min="1" value="${i.adet}" oninput="qbSet(${ix},'adet',this.value)"></td>
+      <td><input class="inp inp-sm" type="number" min="0" step="100" value="${i.price}" oninput="qbSet(${ix},'price',this.value)"></td>
+      <td style="text-align:right" class="mono" id="qbT${ix}">${money(i.adet*i.price)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="qbDel(${ix})">×</button></td></tr>`).join('')}</tbody></table>`;
+  qbToplam();
+}
+function qbHesap(){
+  const ara=QB.items.reduce((a,i)=>a+(i.adet||0)*(i.price||0),0);
+  const ind=+((gv('qbInd')||0))||0, kdv=+((gv('qbKdv')||0))||0;
+  const indTut=ara*ind/100, net=ara-indTut, kdvTut=net*kdv/100;
+  return {ara,ind,indTut,net,kdv,kdvTut,genel:net+kdvTut};
+}
+function qbToplam(){
+  QB.items.forEach((i,ix)=>{ const el=document.getElementById('qbT'+ix); if(el)el.textContent=money(i.adet*i.price); });
+  const box=document.getElementById('qbOzet'); if(!box)return;
+  const h=qbHesap();
+  box.innerHTML=`<div class="qb-row"><span>Ara toplam</span><b>${money(h.ara)}</b></div>
+    ${h.ind?`<div class="qb-row disc"><span>İndirim (%${h.ind})</span><b>− ${money(h.indTut)}</b></div>`:''}
+    <div class="qb-row"><span>Net</span><b>${money(h.net)}</b></div>
+    <div class="qb-row"><span>KDV (%${h.kdv})</span><b>${money(h.kdvTut)}</b></div>
+    <div class="qb-row total"><span>Genel Toplam</span><b>${money(h.genel)}</b></div>`;
+}
+async function qbSave(){
+  const ad=gv('qbAd').trim(), firma=gv('qbFirma').trim();
+  if(!ad && !firma){ alert('En az yetkili kişi veya firma adı girin.'); return; }
+  if(!QB.items.length){ alert('Teklife en az bir kalem ekleyin.'); return; }
+  const h=qbHesap();
+  const payload={id:QB.id||0,customer_id:QB.customer_id,customer_name:ad,firma,telefon:gv('qbTel'),eposta:gv('qbMail'),
+    note:gv('qbNot'),gecerlilik:gv('qbGec')||null,indirim:h.ind,kdv:h.kdv,total:h.genel,
+    kaynak:'panel',status:QB.id?undefined:'yeni',okundu:true};
+  Object.keys(payload).forEach(k=>payload[k]===undefined&&delete payload[k]);
+  const r=await guard(()=>api('quote_builder_save',{quote:payload,items:QB.items}),'Teklif kaydedilemedi');
+  if(r===null) return;
+  QB.id=r.id; toast('Teklif kaydedildi.'); go('teklifler');
+}
+function qbPrint(){
+  const h=qbHesap(), st=ui._settings||{};
+  const satir=QB.items.map(i=>`<tr><td><b>${esc(i.mecra_name||'')}</b>${i.unit_name?'<br>'+esc(i.unit_name):''}${i.olcu?'<br><i>'+esc(i.olcu)+'</i>':''}</td>
+    <td>${esc(i.aciklama||'')}</td><td>${esc(i.period||'')}</td><td>${esc(i.start_day||'')}</td>
+    <td style="text-align:center">${i.adet}</td><td style="text-align:right">${money(i.price)}</td>
+    <td style="text-align:right">${money(i.adet*i.price)}</td></tr>`).join('');
+  const w=window.open('','_blank'); if(!w){ alert('Yazdırma penceresi engellendi. Tarayıcının açılır pencere iznini verin.'); return; }
+  w.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Teklif${QB.id?' #'+QB.id:''}</title>
+  <style>body{font-family:system-ui,Segoe UI,Arial,sans-serif;color:#16233b;padding:32px;font-size:13px}
+  h1{font-size:21px;margin:0 0 4px}.mut{color:#667;font-size:12px}
+  .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #16233b;padding-bottom:14px;margin-bottom:18px}
+  table{width:100%;border-collapse:collapse;margin:14px 0}th,td{border:1px solid #d6dbe6;padding:7px 9px;vertical-align:top}
+  th{background:#f4f6fb;text-align:left;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase}
+  i{font-style:normal;color:#667;font-size:11.5px}
+  .sum{width:320px;margin-left:auto}.sum td{border:0;padding:5px 0}.sum .tt{border-top:2px solid #16233b;font-weight:700;font-size:15px;padding-top:9px}
+  .note{margin-top:18px;padding:12px 14px;background:#f4f6fb;border-radius:8px;white-space:pre-wrap}
+  @media print{body{padding:0}}</style></head><body>
+  <div class="hd"><div><h1>${esc(st.logoText||'Medyapark Adana')}</h1><div class="mut">Açıkhava Reklam Hizmetleri</div>
+    <div class="mut">${esc(st.phone||'')}${st.email?' · '+esc(st.email):''}</div></div>
+    <div style="text-align:right"><h1>TEKLİF${QB.id?' #'+QB.id:''}</h1>
+      <div class="mut">Tarih: ${new Date().toLocaleDateString('tr-TR')}</div>
+      ${gv('qbGec')?`<div class="mut">Geçerlilik: ${esc(gv('qbGec'))}</div>`:''}</div></div>
+  <div><b>${esc(gv('qbFirma')||'')}</b><br><span class="mut">${esc(gv('qbAd')||'')}${gv('qbTel')?' · '+esc(gv('qbTel')):''}${gv('qbMail')?' · '+esc(gv('qbMail')):''}</span></div>
+  <table><thead><tr><th>Reklam Alanı</th><th>Açıklama</th><th>Dönem</th><th>Başlangıç</th><th>Adet</th><th>Birim</th><th>Tutar</th></tr></thead><tbody>${satir}</tbody></table>
+  <table class="sum"><tr><td>Ara toplam</td><td style="text-align:right">${money(h.ara)}</td></tr>
+    ${h.ind?`<tr><td>İndirim (%${h.ind})</td><td style="text-align:right">− ${money(h.indTut)}</td></tr>`:''}
+    <tr><td>Net</td><td style="text-align:right">${money(h.net)}</td></tr>
+    <tr><td>KDV (%${h.kdv})</td><td style="text-align:right">${money(h.kdvTut)}</td></tr>
+    <tr><td class="tt">Genel Toplam</td><td class="tt" style="text-align:right">${money(h.genel)}</td></tr></table>
+  ${gv('qbNot')?`<div class="note">${esc(gv('qbNot'))}</div>`:''}
+  </body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),400);
+}
+
 async function quoteDel(id){ if(confirm('Teklif silinsin mi?')){ await api('quote_delete&id='+id); renderSection(); } }
 
 /* ---------- EKİP ---------- */
