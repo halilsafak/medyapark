@@ -64,6 +64,9 @@ async function load(){
     ]);
     const err=[stg,pg,pr,mc,al,un,bk].map(x=>x.error).find(Boolean); if(err) throw err;
     const settings={}; (stg.data||[]).forEach(r=>settings[r.k]=r.v);
+    /* taslak (hidden) mecra ve alanlar sitede hiç görünmez */
+    mc.data=(mc.data||[]).filter(m=>m.hidden!==true);
+    al.data=(al.data||[]).filter(a=>a.hidden!==true);
     const products=pr.data||[]; const prodOf=id=>products.find(p=>String(p.id)===String(id))||{};
     const bmap={}; (bk.data||[]).forEach(b=>{(bmap[b.unit_id]=bmap[b.unit_id]||[]).push({ym:b.ym,status:b.status});});
     const uByAlt={}; (un.data||[]).forEach(u=>{u.booked=bmap[u.id]||[]; if(u.alt_mecra_id!=null)(uByAlt[u.alt_mecra_id]=uByAlt[u.alt_mecra_id]||[]).push(u);});

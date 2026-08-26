@@ -1436,6 +1436,10 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
       ${visSel('m',m,'gosterim','İstatistik bloğu')}
       ${visSel('m',m,'maps','Mini harita')}</div>
 
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Yayın durumu</label>
+      <label class="switch"><input type="checkbox" id="mpub" ${m.hidden===true?'':'checked'}><span class="sl"></span><span class="txt">Sitede yayında</span></label>
+      <p class="muted" style="font-size:12px;margin:6px 0 0">Kapalıyken bu mecra ve tüm alanları sitede hiç görünmez (taslak). Panelde çalışmaya devam edebilirsiniz.</p></div>
+
     <div class="fld-box"><label class="flabel" style="font-weight:700">Tanıtım sayfası</label>
       <p class="muted" style="font-size:12px;margin:0 0 10px">Kapalıyken ve bu mecrada tek bir alan varsa, ziyaretçi karta tıklayınca doğrudan o alanın detayına gider (duvar reklamı gibi tekil satılan yerler için).</p>
       <label class="switch"><input type="checkbox" id="mhub" ${m.hub===false?'':'checked'}><span class="sl"></span><span class="txt">Tanıtım sayfasını göster</span></label></div>
@@ -1452,6 +1456,7 @@ async function mecSave(){ const id=+gv('mid');
   const visible=collectVis('m',['kapak','aciklama','kroki','avantajlar','logo','gosterim','maps'],prev);
   const avantajlar=[]; for(let i=0;i<4;i++){ const t=(gv('mav_t'+i)||'').trim(), d=(gv('mav_d'+i)||'').trim(); if(t||d)avantajlar.push({t,d}); }
   const r=await api('mecra_save',{id,name:gv('mname'),theme_color:gv('mcolor'),badge:gv('mbadge'),
+    hidden:!(document.getElementById('mpub')||{checked:true}).checked,
     gunluk_gosterim:gv('mgg'),toplam_alan:gv('mta'),slug:(gv('mslug').trim()||pslug(gv('mname'))),
     image:gv('mimage'),image_mobil:gv('mimagem'),
     kapak:gv('mkapak'),kapak_mobil:gv('mkapakm'),
@@ -1507,6 +1512,7 @@ async function altEdit(id,mid){
     <div class="field"><label class="flabel">Galeri görselleri</label>${galRows||'<p class="muted" style="font-size:12px">Henüz yok.</p>'}<div><button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="pickUpload('image/*',u=>altGalAdd(${id},${mid},u))">+ Galeri görseli ekle</button></div></div>
     <div class="field"><label class="flabel">Yerleşim planı görseli</label><div style="display:flex;gap:8px"><input class="inp" id="ayerlesim" value="${esc(a.yerlesim_plani)}"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('ayerlesim').value=u;})">Yükle</button></div></div>
     <div class="field"><label class="flabel">Marquee (kayan şerit — * ile ayır)</label><input class="inp" id="amarquee" value="${esc(a.marquee)}" placeholder="200+ Mağaza * 15M Ziyaretçi * ..."></div>
+    <label class="switch" style="margin-bottom:10px"><input type="checkbox" id="apub" ${a.hidden===true?'':'checked'}><span class="sl"></span><span class="txt">Sitede yayında (kapalı = taslak)</span></label>
     <div class="field"><label class="flabel">Google Maps (iframe kodu)</label><textarea class="inp" id="amaps">${esc(a.maps)}</textarea>${visSel('',a,'maps','Harita')}</div>
     <div class="field"><label class="flabel">Avantajlar (4 mini kart)</label>${advInputs}${visSel('',a,'avantajlar','Avantajlar')}</div>
     <div class="field"><label class="flabel">Fiyatlandırma — Aylık baz (₺) + otomatik indirim %</label>
@@ -1523,7 +1529,7 @@ async function altSave(){ const id=+gv('aid'), mid=+gv('amid');
   const adv=[0,1,2,3].map(i=>({t:gv('av'+i+'t'),d:gv('av'+i+'d')})).filter(x=>x.t||x.d);
   const visible=collectVis('',['baslik','aciklama','maps','avantajlar','galeri'],a0.visible||{});
   const bz=gv('afbaz'); const fiyat = bz!==''? {baz:+bz, hafta:(gv('afhafta')!==''?+gv('afhafta'):null), ind3:+gv('afind3')||0, ind6:+gv('afind6')||0, ind12:+gv('afind12')||0} : null;
-  await api('alt_save',{id,name:gv('aname'),product_id:+gv('aprod'),slug:(gv('aslug').trim()||pslug(gv('aname'))),baslik:gv('abaslik'),aciklama:gv('aacik'),intro_baslik:gv('aintro'),gunluk_gosterim:gv('agg'),toplam_alan:gv('ata'),image:gv('aimage'),image_mobil:gv('aimagem'),kapak:gv('akapak'),kapak_mobil:gv('akapakm'),kapak_color:gv('akcolor'),kapak_opacity:parseFloat(gv('akop')||'0.4'),kapak_height:parseInt(gv('akh')||'600',10),marquee:gv('amarquee'),yerlesim_plani:gv('ayerlesim'),maps:gv('amaps'),avantajlar:adv,fiyat,visible});
+  await api('alt_save',{id,name:gv('aname'),product_id:+gv('aprod'),slug:(gv('aslug').trim()||pslug(gv('aname'))),baslik:gv('abaslik'),aciklama:gv('aacik'),intro_baslik:gv('aintro'),gunluk_gosterim:gv('agg'),toplam_alan:gv('ata'),image:gv('aimage'),image_mobil:gv('aimagem'),kapak:gv('akapak'),kapak_mobil:gv('akapakm'),kapak_color:gv('akcolor'),kapak_opacity:parseFloat(gv('akop')||'0.4'),kapak_height:parseInt(gv('akh')||'600',10),marquee:gv('amarquee'),yerlesim_plani:gv('ayerlesim'),maps:gv('amaps'),avantajlar:adv,fiyat,visible,hidden:!(document.getElementById('apub')||{checked:true}).checked});
   alert('Alt mecra kaydedildi.'); altEdit(id,mid); }
 async function altGalAdd(id,mid,url){ const alts=await api('alt_list&mecra_id='+mid); const a=alts.find(x=>x.id===id)||{}; const gal=Array.isArray(a.galeri)?a.galeri:[]; gal.push(url); await api('alt_save',{id,galeri:gal}); altEdit(id,mid); }
 async function altGalDel(id,mid,idx){ const alts=await api('alt_list&mecra_id='+mid); const a=alts.find(x=>x.id===id)||{}; const gal=Array.isArray(a.galeri)?a.galeri:[]; gal.splice(idx,1); await api('alt_save',{id,galeri:gal}); altEdit(id,mid); }
@@ -1577,8 +1583,9 @@ async function harita(c){
       <span class="muted" style="font-size:12.5px">Şu anki motor: <b>${st.googleMapsKey?'Google Maps':'OpenStreetMap (ücretsiz)'}</b></span></div></div>
 
   <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Konum İşaretleme</h3>
-    <p class="muted" style="font-size:13px;margin:0 0 14px">Soldan bir pozisyon seçin, sonra <b>haritaya tıklayarak</b> yerini işaretleyin ve kaydedin. İşaretli konumlar sitedeki harita sayfasında pin olarak çıkar; yakın olanlar otomatik gruplanır.
-      <br><b>${yes}</b> / ${hRows.length} pozisyonun konumu işaretli.</p>
+    <p class="muted" style="font-size:13px;margin:0 0 14px">Soldan bir pozisyon seçin, sonra <b>haritaya tıklayarak</b> yerini işaretleyin ve kaydedin. Kaydedince liste otomatik olarak <b>sıradaki işaretsiz pozisyona</b> geçer; aynı direğin A/B yüzeyleri için tek işaretleme yeter.
+      <br>İşaretli konumlar sitedeki harita sayfasında pin olarak çıkar; yakın olanlar otomatik gruplanır.
+      <br><b id="hCount">${yes}</b> / ${hRows.length} pozisyonun konumu işaretli.</p>
     <div class="hmap-grid">
       <div class="hmap-side">
         <input class="inp" id="hSearch" placeholder="Pozisyon / mecra ara…" oninput="hFilter(this.value)" style="margin-bottom:10px">
@@ -1586,6 +1593,13 @@ async function harita(c){
       </div>
       <div>
         <div id="hMapNote" class="banner" style="display:none;margin-bottom:10px"></div>
+        <div class="hbar">
+          <input class="inp" id="hGeo" placeholder="Adres / yer ara — ör. M1 Adana AVM" onkeydown="if(event.key==='Enter'){event.preventDefault();hGeoSearch()}">
+          <button class="btn btn-outline btn-sm" onclick="hGeoSearch()">Bul</button>
+          <input class="inp" id="hPaste" placeholder="Koordinat veya Maps linki yapıştır" onkeydown="if(event.key==='Enter'){event.preventDefault();hPasteCoord()}">
+          <button class="btn btn-outline btn-sm" onclick="hPasteCoord()">Uygula</button>
+        </div>
+        <div id="hGeoRes" class="hgeores" style="display:none"></div>
         <div id="hSelBar" class="hselbar">Önce soldan bir pozisyon seçin.</div>
         <div id="hMapCanvas" class="hmap"></div>
       </div>
@@ -1627,6 +1641,8 @@ async function saveGa(){
 async function saveMapTexts(){ await api('settings_save',{mapTitle:gv('mapTitle'),mapDesc:gv('mapDesc'),mapKapak:gv('mapKapak')}); alert('Kaydedildi.'); }
 function hFilter(q){ hQ=(q||'').toLowerCase(); hRenderList(); }
 function hRenderList(){ const box=document.getElementById('hList'); if(!box)return;
+  const cn=document.getElementById('hCount');
+  if(cn) cn.textContent=hRows.filter(r=>r.lat!=null&&r.lng!=null).length;
   const list=hRows.filter(r=>!hQ||[r.unit,r.alt,r.mec,r.konum].some(x=>String(x||'').toLowerCase().includes(hQ)));
   box.innerHTML=list.length?list.map(r=>{ const ok=r.lat!=null&&r.lng!=null;
     return `<div class="hrow ${hSel===r.id?'on':''}" onclick="hPick(${r.id})">
@@ -1736,7 +1752,86 @@ async function hSave(){
   const p = hEngine==='google' ? {lat:hgSel.getPosition().lat(), lng:hgSel.getPosition().lng()} : hMarker.getLatLng();
   await api('unit_save',{id:hSel,lat:p.lat,lng:p.lng});
   const r=hRows.find(x=>x.id===hSel); if(r){ r.lat=p.lat; r.lng=p.lng; }
-  hRenderList(); hDrawAll(); alert('Konum kaydedildi.');
+  let msg='Konum kaydedildi.';
+  const tw=hTwins(r);
+  if(tw.length && confirm(r.unit+' kaydedildi.\n\nAynı yapının diğer yüzü olan '+tw.map(t=>t.unit).join(', ')+' için de aynı konum kullanılsın mı?')){
+    for(const t of tw){ await api('unit_save',{id:t.id,lat:p.lat,lng:p.lng}); t.lat=p.lat; t.lng=p.lng; }
+    msg='Konum kaydedildi — '+(tw.length+1)+' yüzey.';
+  }
+  hRenderList(); hDrawAll();
+  if(typeof toast==='function') toast(msg); else alert(msg);
+  hNext();
+}
+/* Aynı direğin A/B yüzeyleri: P1-A ile P1-B gibi. Yalnız A/B eki + ayraç ya da rakam şartı aranır,
+   böylece "Megaboard" gibi 'd' ile biten adlar yanlışlıkla eşleşmez. */
+function hAB(nm){
+  const m=String(nm||'').match(/^(.*?)([-_ ])?([ABab])$/);
+  if(!m) return null;
+  if(!m[2] && !/[0-9]$/.test(m[1])) return null;
+  return m[1].replace(/[-_ ]+$/,'').toLowerCase();
+}
+function hTwins(r){
+  if(!r) return [];
+  const key=hAB(r.unit); if(!key) return [];
+  return hRows.filter(x=> x.id!==r.id && x.alt===r.alt && x.lat==null && hAB(x.unit)===key );
+}
+function hVisible(){
+  return hRows.filter(r=>!hQ||[r.unit,r.alt,r.mec,r.konum].some(x=>String(x||'').toLowerCase().includes(hQ)));
+}
+function hNext(){
+  const list=hVisible();
+  const i=list.findIndex(r=>r.id===hSel);
+  const nx=list.slice(i+1).find(r=>r.lat==null) || list.find(r=>r.lat==null);
+  if(nx && nx.id!==hSel) hPick(nx.id);
+}
+/* Haritayı bir noktaya uçur (motordan bağımsız) */
+function hFly(lat,lng,z){
+  if(hEngine==='google'){ if(hgMap){ hgMap.panTo({lat:+lat,lng:+lng}); hgMap.setZoom(z||18); } }
+  else if(hMap){ hMap.setView([+lat,+lng],z||18); }
+}
+/* Adres / yer arama — Google varsa Geocoder, yoksa OpenStreetMap Nominatim */
+let hGeoHits=[];
+async function hGeoSearch(){
+  const q=(gv('hGeo')||'').trim(), box=document.getElementById('hGeoRes');
+  if(!box) return;
+  if(!q){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display='block'; box.innerHTML='<div class="muted">Aranıyor…</div>';
+  let res=[];
+  try{
+    if(hEngine==='google'){
+      res=await new Promise(ok=>{
+        new google.maps.Geocoder().geocode({address:q,region:'TR'},(r,st)=>{
+          ok(st==='OK'&&r ? r.slice(0,5).map(x=>({t:x.formatted_address,lat:x.geometry.location.lat(),lng:x.geometry.location.lng()})) : []);
+        });
+      });
+    }else{
+      const rr=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=tr&q='+encodeURIComponent(q));
+      res=(await rr.json()).map(x=>({t:x.display_name,lat:+x.lat,lng:+x.lon}));
+    }
+  }catch(e){ res=[]; }
+  if(!res.length){ box.innerHTML='<div class="muted">Sonuç bulunamadı. Adresi biraz daha açık yazmayı deneyin.</div>'; return; }
+  hGeoHits=res;
+  box.innerHTML=res.map((x,i)=>'<div onclick="hGeoGo('+i+')">'+esc(x.t)+'</div>').join('');
+  hGeoGo(0);
+}
+function hGeoGo(i){ const x=hGeoHits[i]; if(x) hFly(x.lat,x.lng,17); }
+/* "37.015902, 35.249627" ya da Google Maps linkinden koordinat ayıkla */
+function hParseLL(s){
+  s=String(s||'').trim(); if(!s) return null;
+  const m = s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+         || s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+         || s.match(/[?&](?:q|ll|query|center|daddr|saddr)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/)
+         || s.match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+  if(!m) return null;
+  const la=+m[1], ln=+m[2];
+  if(!isFinite(la)||!isFinite(ln)||Math.abs(la)>90||Math.abs(ln)>180) return null;
+  return {lat:la,lng:ln};
+}
+function hPasteCoord(){
+  if(hSel==null){ alert('Önce soldan bir pozisyon seçin.'); return; }
+  const p=hParseLL(gv('hPaste'));
+  if(!p){ alert('Koordinat okunamadı.\n\nÖrnek: 37.015902, 35.249627\nveya Google Maps adres çubuğundaki linkin tamamı.\n\nNot: maps.app.goo.gl ile başlayan kısa linkler koordinat içermez; linki tarayıcıda açıp adres çubuğundakini kopyalayın.'); return; }
+  hPlace(p.lat,p.lng); hFly(p.lat,p.lng,18);
 }
 async function hClear(){
   if(hSel==null)return; if(!confirm('Bu pozisyonun konumu silinsin mi?'))return;
