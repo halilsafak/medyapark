@@ -362,13 +362,14 @@ const NAV=[
  ['listeler','Doluluk','lists',''],
  ['musteriler','Müşteriler','customers','Satış'],
  ['teklifler','Teklifler','quotes',''],
+ ['talepler','Planlama Talepleri','notes',''],
  ['tedarikciler','Tedarikçiler','truck',''],
  ['raporlar','Raporlar','report',''],
  ['ekip','Ekip','team','Yönetim'],
  ['sayfalar','Sayfalar','pages',''],
  ['notlar','Notlar','notes',''],
  ['ayarlar','Ayarlar','settings','']];
-const TITLES={dashboard:'Dashboard',anasayfa:'Anasayfa Karşılama','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Doluluk',musteriler:'Müşteriler',tedarikciler:'Tedarikçiler',raporlar:'Raporlar',teklifler:'Teklifler',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
+const TITLES={dashboard:'Dashboard',anasayfa:'Anasayfa Karşılama','is-takibi':'İş Takibi',urunler:'Ürünler',mecralar:'Mecralar',harita:'Harita',listeler:'Doluluk',musteriler:'Müşteriler',tedarikciler:'Tedarikçiler',raporlar:'Raporlar',teklifler:'Teklifler',talepler:'Medya Planlama Talepleri',ekip:'Ekip',sayfalar:'Sayfalar',notlar:'Notlar',ayarlar:'Ayarlar'};
 function userChip(){
   const me=ui._me||{}; const ad=me.name||(ui._email||'').split('@')[0]||'Kullanıcı';
   const rol=me.role||me.yetki||'Yönetici';
@@ -404,6 +405,9 @@ function showApp(){
       <div class="content" id="content"></div>
     </div></div>`;
   go('dashboard');
+  api('settings_get').then(st=>{ ui._settings=st; if(st.panelTheme)applyPanelTheme(st.panelTheme);
+    if(st.favicon){ let l=document.head.querySelector("link[rel~='icon']");
+      if(!l){ l=document.createElement('link'); l.rel='icon'; document.head.appendChild(l); } l.href=st.favicon; } }).catch(()=>{});
   yeniTeklifKontrol(); setInterval(yeniTeklifKontrol,60000);
 }
 /* okunmamış teklif sayısı — 60 saniyede bir kontrol */
@@ -425,7 +429,7 @@ function go(s){ ui.section=s; document.querySelectorAll('.navi').forEach(n=>n.cl
 async function renderSection(){
   const c=document.getElementById('content'); c.innerHTML='<p class="muted">Yükleniyor…</p>';
   const F={dashboard,'is-takibi':isTakibi,urunler,mecralar,listeler,musteriler,teklifler,ekip,
-           sayfalar,notlar,anasayfa:anasayfaBolum,tedarikciler,raporlar,harita,ayarlar};
+           sayfalar,notlar,anasayfa:anasayfaBolum,tedarikciler,raporlar,harita,ayarlar,talepler};
   try{
     const fn=F[ui.section]; if(!fn)return;
     await fn(c);
@@ -825,7 +829,7 @@ async function buildSitemap(){
   const [mc,al,pg]=await Promise.all([api('mecra_list'), sb.from('alt_mecralar').select('*').order('sort'), api('pages_list')]);
   const alts=(al.data||[]);
   const today=new Date().toISOString().slice(0,10);
-  const urls=[[base+'/',1.0],[base+'/harita',0.8]];
+  const urls=[[base+'/',1.0],[base+'/harita',0.8],[base+'/medya-planlama',0.7]];
   mc.forEach(m=>{ const ms=m.slug||pslug(m.name); urls.push([base+'/mecra/'+ms,0.9]);
     alts.filter(a=>a.mecra_id===m.id).forEach(a=>urls.push([base+'/mecra/'+ms+'/'+(a.slug||pslug(a.name)),0.7])); });
   (pg||[]).forEach(p=>urls.push([base+'/sayfa/'+p.slug,0.5]));
@@ -1043,7 +1047,7 @@ function grpAll(btn,open){
 
 
 /* ---- HEADER MENÜSÜ ---- */
-const MNU_TIP=[['sayfa','İçerik sayfası'],['nerede','Nerelerdeyiz'],['anasayfa','Anasayfa'],
+const MNU_TIP=[['sayfa','İçerik sayfası'],['plan','Medya Planlama'],['nerede','Nerelerdeyiz'],['anasayfa','Anasayfa'],
                ['mecra','Lokasyon'],['pdf','PDF katalog'],['url','Serbest bağlantı']];
 function mnuInit(st){
   const m=(st.menu&&Array.isArray(st.menu.items))?JSON.parse(JSON.stringify(st.menu)):null;
@@ -1067,7 +1071,7 @@ function mnuRender(){
         : it.type==='mecra'
         ? `<select class="inp" onchange="ui._mnu.items[${i}].value=this.value">
              <option value="">— seç —</option>${mecs.map(m=>`<option value="${m.id}" ${String(it.value)===String(m.id)?'selected':''}>${esc(m.name)}</option>`).join('')}</select>`
-        : ['nerede','anasayfa','pdf'].includes(it.type)
+        : ['nerede','anasayfa','pdf','plan'].includes(it.type)
         ? `<input class="inp" value="" placeholder="ek bilgi gerekmiyor" disabled>`
         : `<input class="inp" value="${esc(it.value)}" placeholder="https://..." oninput="ui._mnu.items[${i}].value=this.value">`}
       <label class="mini" title="Menüde göster"><input type="checkbox" ${it.show!==false?'checked':''} onchange="ui._mnu.items[${i}].show=this.checked"></label>
@@ -1081,7 +1085,7 @@ function mnuAdd(){ ui._mnu.items.push({label:'',type:'sayfa',value:'',show:true}
 function mnuDel(i){ ui._mnu.items.splice(i,1); if(!ui._mnu.items.length)mnuAdd(); else mnuRender(); }
 function mnuMove(i,d){ const a=ui._mnu.items, j=i+d; if(j<0||j>=a.length)return; [a[i],a[j]]=[a[j],a[i]]; mnuRender(); }
 async function mnuSave(){
-  const temiz={items:ui._mnu.items.filter(i=>i.label||(['nerede','anasayfa','pdf'].includes(i.type))||i.value)};
+  const temiz={items:ui._mnu.items.filter(i=>i.label||(['nerede','anasayfa','pdf','plan'].includes(i.type))||i.value)};
   await api('settings_save',{menu:temiz});
   toast('Menü kaydedildi. Siteyi Ctrl+F5 ile yenileyin.');
 }
@@ -1429,6 +1433,12 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
           <input class="inp" id="mav_d${i}" value="${esc(a.d||a.desc||'')}" placeholder="Kısa açıklama"></div>`;}).join('')}
       ${visSel('m',m,'avantajlar','Avantajlar')}</div>
 
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Tanıtım içeriği</label>
+      ${imgField('mintro', m.intro_image, 'Tanıtım görseli (başlık + açıklamanın altında, tıklayınca büyür)', 'https://...')}
+      <div class="field" style="margin-top:12px"><label class="flabel">PDF Katalog (sidebar'daki buton — boşsa genel katalog kullanılır)</label>
+        <div style="display:flex;gap:8px"><input class="inp" id="mkatalog" value="${esc(m.katalog||'')}" placeholder="uploads/katalog.pdf">
+        <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('application/pdf',u=>{document.getElementById('mkatalog').value=u;})">Yükle</button></div></div></div>
+
     <div class="fld-box"><label class="flabel" style="font-weight:700">Diğer</label>
       ${imgField('mlogo', m.logo, 'Logo (sidebar üstünde)', 'https://...')}
       ${visSel('m',m,'logo','Logo')}
@@ -1457,6 +1467,7 @@ async function mecSave(){ const id=+gv('mid');
   const avantajlar=[]; for(let i=0;i<4;i++){ const t=(gv('mav_t'+i)||'').trim(), d=(gv('mav_d'+i)||'').trim(); if(t||d)avantajlar.push({t,d}); }
   const r=await api('mecra_save',{id,name:gv('mname'),theme_color:gv('mcolor'),badge:gv('mbadge'),
     hidden:!(document.getElementById('mpub')||{checked:true}).checked,
+    intro_image:gv('mintro'),katalog:gv('mkatalog'),
     gunluk_gosterim:gv('mgg'),toplam_alan:gv('mta'),slug:(gv('mslug').trim()||pslug(gv('mname'))),
     image:gv('mimage'),image_mobil:gv('mimagem'),
     kapak:gv('mkapak'),kapak_mobil:gv('mkapakm'),
@@ -2410,6 +2421,60 @@ async function pageDel(slug){ if(confirm('Sayfa silinsin mi?')){ await api('page
 function pageNew(){ const t=prompt('Yeni sayfa başlığı:'); if(!t)return; const slug=t.trim().toLowerCase().replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||('sayfa-'+Date.now()); api('page_save',{slug,title:t,blocks:[],in_menu:true,sort:9}).then(async()=>{ ui._pages=await api('pages_list'); pageEdit(slug); }); }
 
 
+/* ---------- MEDYA PLANLAMA TALEPLERİ ---------- */
+async function talepler(c){
+  const st=await api('settings_get'); ui._settings=st; const pl=st.plan||{};
+  const {data:rows,error}=await sb.from('leads').select('*').order('created_at',{ascending:false}).limit(300);
+  if(error){ c.innerHTML='<div class="banner">Talepler okunamadı: '+esc(error.message)+'</div>'; return; }
+  ui._leads=rows||[];
+  const yeni=ui._leads.filter(x=>!x.okundu).length;
+  const list=ui._leads.map(l=>`<div class="list-item" style="${l.okundu?'':'border-left:3px solid var(--c-accent)'}">
+    <div class="nm">${esc(l.ad||'—')}${l.firma?` <span class="muted" style="font-weight:400">· ${esc(l.firma)}</span>`:''}</div>
+    <div class="meta">${esc(String(l.created_at||'').slice(0,16).replace('T',' '))}${l.butce?' · '+esc(l.butce):''}</div>
+    <button class="btn btn-outline btn-sm" onclick="leadView(${l.id})">Aç</button>
+    <button class="btn btn-danger btn-sm" onclick="leadDel(${l.id})">Sil</button></div>`).join('');
+  c.innerHTML=`
+  <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Form Ayarları</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 14px">Sitedeki <b>Medya Planlama</b> sayfasının başlığı, açıklaması ve bildirim adresi. Sayfayı menüye eklemek için Ayarlar &gt; Header Menüsü'nde tür olarak "Medya Planlama"yı seçin.</p>
+    <div class="row2"><div class="field"><label class="flabel">Sayfa başlığı</label><input class="inp" id="plT" value="${esc(pl.title||'Medya Planlama')}"></div>
+    <div class="field"><label class="flabel">Bildirim e-postası</label><input class="inp" id="plM" value="${esc(st.leadMail||'')}" placeholder="talep@medyaparkadana.com"></div></div>
+    <div class="field"><label class="flabel">Form üstü açıklama</label><textarea class="inp" id="plD">${esc(pl.desc||'Kampanya hedefinizi paylaşın; ekibimiz bütçenize en uygun mecra karmasını ücretsiz planlasın.')}</textarea></div>
+    <div class="field"><label class="flabel">Teşekkür mesajı (gönderim sonrası)</label><textarea class="inp" id="plTk">${esc(pl.thanks||'')}</textarea>
+      <p class="muted" style="font-size:11.5px;margin:4px 0 0">Boş bırakılırsa kişiye adıyla hitap eden hazır bir karşılama gösterilir.</p></div>
+    <button class="btn btn-primary btn-sm" onclick="planAyarKaydet()">Kaydet</button>
+    <p class="muted" style="font-size:12px;margin:12px 0 0"><b>E-posta bildirimi hakkında:</b> Ücretsiz FormSubmit servisi kullanılır. Adresi ilk kez kaydedip siteden bir deneme talebi gönderdiğinizde FormSubmit size tek seferlik bir <b>onay e-postası</b> yollar — içindeki bağlantıya tıklayın, sonrası otomatiktir. Talepler her durumda bu panele düşer.</p></div>
+  <div class="sec-card"><div class="sec-head"><h3>Gelen Talepler ${yeni?`<span class="nav-badge" style="position:static;display:inline-flex;margin-left:8px">${yeni}</span>`:''}</h3></div>
+    ${list||'<p class="muted">Henüz talep yok.</p>'}</div>`;
+}
+async function planAyarKaydet(){
+  await api('settings_save',{leadMail:gv('plM').trim(),plan:{title:gv('plT'),desc:gv('plD'),thanks:gv('plTk')}});
+  toast('Kaydedildi. Sitede Ctrl+F5 ile görünür.');
+}
+async function leadView(id){
+  const l=(ui._leads||[]).find(x=>x.id===id); if(!l)return;
+  if(!l.okundu){ await sb.from('leads').update({okundu:true}).eq('id',id); l.okundu=true; }
+  const mecs=Array.isArray(l.mecralar)?l.mecralar.join(', '):'';
+  modal(`<h3 style="margin:0 0 4px">${esc(l.ad||'—')}</h3>
+    <div class="muted" style="font-size:12.5px;margin-bottom:14px">${esc(String(l.created_at||'').slice(0,16).replace('T',' '))}</div>
+    <div class="nv-body" style="line-height:1.9">
+      ${l.firma?`<b>Firma:</b> ${esc(l.firma)}<br>`:''}
+      <b>Telefon:</b> ${l.telefon?`<a href="tel:${esc(String(l.telefon).replace(/\s/g,''))}">${esc(l.telefon)}</a>`:'—'}<br>
+      <b>E-posta:</b> ${l.eposta?`<a href="mailto:${esc(l.eposta)}">${esc(l.eposta)}</a>`:'—'}<br>
+      <b>Bütçe:</b> ${esc(l.butce||'—')}<br>
+      <b>İlgilenilen mecralar:</b> ${esc(mecs||'—')}<br>
+      <b>Hedef kitle:</b> ${esc(l.hedef_kitle||'—')}</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Kapat</button>
+      <button class="btn btn-outline btn-sm" onclick="leadMusteri(${l.id})">Müşteri olarak ekle</button></div>`);
+  renderSection();
+}
+async function leadMusteri(id){
+  const l=(ui._leads||[]).find(x=>x.id===id); if(!l)return;
+  await api('customer_save',{firma:l.firma||l.ad,ilgili_kisi:l.ad,telefon:l.telefon,eposta:l.eposta,not:'Medya planlama talebinden: '+[l.butce,(Array.isArray(l.mecralar)?l.mecralar.join(', '):'')].filter(Boolean).join(' · ')});
+  closeModal(); toast('Müşteri kaydı oluşturuldu.');
+}
+async function leadDel(id){ if(!confirm('Talep silinsin mi?'))return; await sb.from('leads').delete().eq('id',id); renderSection(); }
+
 /* ---------- NOTLAR ---------- */
 async function notlar(c){
   const list=await api('notes_list'); ui._notes=list;
@@ -2453,11 +2518,46 @@ async function ayarlar(c){
     <button class="btn btn-primary btn-sm" onclick="saveSettings()">Kaydet</button></div>
 
   <div class="sec-card"><h3 style="margin:0 0 12px;font-size:16px">Sosyal Medya Linkleri</h3>
-    <div class="row2"><div class="field"><label class="flabel">WhatsApp</label><input class="inp" id="soWa" value="${esc(st.social_whatsapp||'')}"></div>
+    <p class="muted" style="font-size:12.5px;margin:0 0 12px">Doldurduklarınız sitenin üst çubuğunda ikon olarak görünür; WhatsApp ayrıca mecra sayfalarındaki teklif kutusunda çıkar.</p>
+    <div class="row2"><div class="field"><label class="flabel">WhatsApp</label><input class="inp" id="soWa" value="${esc(st.social_whatsapp||'')}" placeholder="https://wa.me/90..."></div>
     <div class="field"><label class="flabel">Instagram</label><input class="inp" id="soIg" value="${esc(st.social_instagram||'')}"></div></div>
     <div class="row2"><div class="field"><label class="flabel">LinkedIn</label><input class="inp" id="soLi" value="${esc(st.social_linkedin||'')}"></div>
     <div class="field"><label class="flabel">Facebook</label><input class="inp" id="soFb" value="${esc(st.social_facebook||'')}"></div></div>
+    <div class="row2"><div class="field"><label class="flabel">X (Twitter)</label><input class="inp" id="soTw" value="${esc(st.social_x||'')}"></div>
+    <div class="field"><label class="flabel">YouTube</label><input class="inp" id="soYt" value="${esc(st.social_youtube||'')}"></div></div>
     <button class="btn btn-primary btn-sm" onclick="saveSocial()">Kaydet</button></div>
+
+  <div class="sec-card"><h3 style="margin:0 0 12px;font-size:16px">Site Görünümü — Logo & Favicon</h3>
+    <div class="row2">
+      <div class="field"><label class="flabel">Logo metni</label><input class="inp" id="gLogoT" value="${esc(st.logoText||'')}" placeholder="medyapark"></div>
+      <div class="field"><label class="flabel">Logo görseli (yüklenirse metin yerine geçer)</label>
+        <div style="display:flex;gap:8px"><input class="inp" id="gLogoI" value="${esc(st.logoImage||'')}">
+        <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('gLogoI').value=u;})">Yükle</button></div></div></div>
+    <div class="field"><label class="flabel">Favicon (sekme simgesi — kare PNG/ICO, 64×64 önerilir)</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${st.favicon?`<img src="${esc(st.favicon)}" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--c-line)">`:''}
+        <input class="inp" id="gFav" value="${esc(st.favicon||'')}">
+        <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('gFav').value=u;})">Yükle</button></div></div>
+    <button class="btn btn-primary btn-sm" onclick="saveGorunum()">Kaydet</button></div>
+
+  <div class="sec-card"><h3 style="margin:0 0 12px;font-size:16px">Panel Görünümü</h3>
+    <p class="muted" style="font-size:12.5px;margin:0 0 12px">Yalnızca bu yönetim panelini etkiler; siteye dokunmaz.</p>
+    <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+      <div class="field" style="margin:0"><label class="flabel">Vurgu rengi</label>
+        <input id="pTColor" type="color" value="${esc((st.panelTheme||{}).accent||'#3455e6')}" style="width:64px;height:38px;border:1px solid var(--c-line);border-radius:10px;background:#fff;padding:3px"></div>
+      <div class="field" style="margin:0;flex:1;min-width:240px"><label class="flabel">Panel logosu (sol üst)</label>
+        <div style="display:flex;gap:8px"><input class="inp" id="pTLogo" value="${esc((st.panelTheme||{}).logo||'')}">
+        <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('pTLogo').value=u;})">Yükle</button></div></div>
+      <button class="btn btn-primary btn-sm" onclick="savePanelTheme()">Kaydet</button>
+      <button class="btn btn-ghost btn-sm" onclick="savePanelTheme(true)">Varsayılana dön</button></div></div>
+
+  <div class="sec-card"><h3 style="margin:0 0 6px;font-size:16px">Referans Logoları</h3>
+    <p class="muted" style="font-size:12.5px;margin:0 0 12px">Anasayfada mecra kartlarının altında "Referanslar" başlığıyla sağa doğru akan logo şeridi. Şeffaf zeminli PNG önerilir. Logo eklenmezse bölüm hiç görünmez.</p>
+    <div class="field" style="max-width:340px"><label class="flabel">Bölüm başlığı</label><input class="inp" id="refT" value="${esc(st.refTitle||'Referanslar')}"></div>
+    <div id="refBox">${(Array.isArray(st.refLogos)?st.refLogos:[]).map((u,i)=>`<div class="list-item" style="padding:8px 10px"><img src="${esc(u)}" style="height:30px;max-width:110px;object-fit:contain"><div class="nm" style="font-size:11.5px;word-break:break-all">${esc(u)}</div><button class="btn btn-danger btn-sm" onclick="refDel(${i})">Sil</button></div>`).join('')||'<p class="muted" style="font-size:12px">Henüz logo yok.</p>'}</div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-outline btn-sm" onclick="pickUpload('image/*',u=>refAdd(u))">+ Logo yükle</button>
+      <button class="btn btn-primary btn-sm" onclick="refSave()">Kaydet</button></div></div>
 
   <div class="sec-card"><h3 style="margin:0 0 12px;font-size:16px">SEO Meta Etiketleri</h3>
     <div class="field"><label class="flabel">Başlık (title)</label><input class="inp" id="seoT" value="${esc(st.seoTitle||'')}"></div>
@@ -2541,7 +2641,27 @@ async function ayarlar(c){
 }
 async function savePrices(){ await api('settings_save',{showPrices:document.getElementById('showPrices').checked}); alert('Kaydedildi. Siteyi yenileyin.'); }
 async function saveSettings(){ await api('settings_save',{siteName:gv('sName'),phone:gv('sPhone'),email:gv('sMail'),address:gv('sAddr'),catalogPdf:gv('sPdf')}); alert('Kaydedildi.'); }
-async function saveSocial(){ await api('settings_save',{social_whatsapp:gv('soWa'),social_instagram:gv('soIg'),social_linkedin:gv('soLi'),social_facebook:gv('soFb')}); alert('Kaydedildi.'); }
+async function saveGorunum(){ await api('settings_save',{logoText:gv('gLogoT'),logoImage:gv('gLogoI'),favicon:gv('gFav')}); toast('Kaydedildi. Sitede Ctrl+F5 ile görünür.'); }
+async function savePanelTheme(reset){
+  const t=reset?null:{accent:gv('pTColor'),logo:gv('pTLogo')};
+  await api('settings_save',{panelTheme:t}); applyPanelTheme(t||{}); if(reset)renderSection();
+  toast(reset?'Panel varsayılana döndü.':'Panel görünümü kaydedildi.');
+}
+function _shade(hex,f){ const m=String(hex||'').match(/^#([0-9a-f]{6})$/i); if(!m)return hex;
+  const n=parseInt(m[1],16); const r=Math.round(((n>>16)&255)*f), g=Math.round(((n>>8)&255)*f), b=Math.round((n&255)*f);
+  return '#'+[r,g,b].map(x=>Math.max(0,Math.min(255,x)).toString(16).padStart(2,'0')).join(''); }
+function applyPanelTheme(t){
+  t=t||{}; const r=document.documentElement.style;
+  if(t.accent){ r.setProperty('--c-accent',t.accent); r.setProperty('--c-accent-d',_shade(t.accent,.8));
+    r.setProperty('--c-brand',t.accent); r.setProperty('--c-brand-d',_shade(t.accent,.72)); r.setProperty('--c-brand-dk',_shade(t.accent,.4)); }
+  else ['--c-accent','--c-accent-d','--c-brand','--c-brand-d','--c-brand-dk'].forEach(k=>r.removeProperty(k));
+  const br=document.querySelector('.side .brand');
+  if(br){ if(t.logo) br.innerHTML=`<img src="${esc(t.logo)}" alt="" style="max-height:34px;max-width:160px;object-fit:contain"><span class="brand-sub">Yönetim Paneli</span>`; }
+}
+function refAdd(u){ ui._settings.refLogos=Array.isArray(ui._settings.refLogos)?ui._settings.refLogos:[]; ui._settings.refLogos.push(u); refSave(true); }
+function refDel(i){ (ui._settings.refLogos||[]).splice(i,1); refSave(true); }
+async function refSave(sessiz){ await api('settings_save',{refTitle:gv('refT')||'Referanslar',refLogos:ui._settings.refLogos||[]}); if(sessiz){renderSection();} else toast('Kaydedildi. Sitede Ctrl+F5 ile görünür.'); }
+async function saveSocial(){ await api('settings_save',{social_whatsapp:gv('soWa'),social_instagram:gv('soIg'),social_linkedin:gv('soLi'),social_facebook:gv('soFb'),social_x:gv('soTw'),social_youtube:gv('soYt')}); alert('Kaydedildi.'); }
 async function saveSeo(){ await api('settings_save',{seoTitle:gv('seoT'),seoDesc:gv('seoD'),seoKeywords:gv('seoK')}); alert('Kaydedildi.'); }
 async function saveFooter(){ await api('settings_save',{footer_about:gv('fAbout'),footer_news:gv('fNews'),footer_note:gv('fNote')}); alert('Kaydedildi.'); }
 async function exportBackup(){ const tables=['settings','pages','products','mecralar','alt_mecralar','units','bookings','customers','quotes','quote_items','jobs','team','notes','suppliers'];

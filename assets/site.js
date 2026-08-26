@@ -79,6 +79,22 @@ async function load(){
   document.getElementById('brand').innerHTML = s.logoImage?`<img class="brandimg" src="${esc(s.logoImage)}" alt="logo">`:logo(s.logoText);
   if(s.seoTitle) document.title=s.seoTitle; if(s.seoDesc){ const md=document.getElementById('metaDesc'); if(md)md.setAttribute('content',s.seoDesc); }
   if(s.catalogPdf){ const b=document.getElementById('pdfBtn'); b.href=s.catalogPdf; b.style.display='flex'; }
+  /* favicon (panelden yüklenir) */
+  if(s.favicon){ let l=document.head.querySelector("link[rel~='icon']");
+    if(!l){ l=document.createElement('link'); l.rel='icon'; document.head.appendChild(l); } l.href=s.favicon; }
+  /* header: whatsapp + sosyal ikonlar */
+  if(s.social_whatsapp){ const w=document.getElementById('waBtn'); if(w){ w.href=s.social_whatsapp; w.style.display='flex'; } }
+  const sbx=document.getElementById('socialBtns');
+  if(sbx){ const ic={
+    instagram:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>',
+    facebook:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 21v-7h2.4l.4-3h-2.8V9.1c0-.9.3-1.5 1.6-1.5h1.3V4.9c-.2 0-1-.1-1.9-.1-1.9 0-3.2 1.2-3.2 3.3V11H9v3h2.3v7h2.2z"/></svg>',
+    linkedin:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.4 8.6H3.7V20h2.7V8.6zM5 7.4a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2zM20.3 20h-2.7v-5.6c0-1.4-.5-2.3-1.7-2.3-.9 0-1.5.6-1.7 1.2-.1.2-.1.5-.1.8V20h-2.7V8.6h2.7v1.2c.4-.6 1.1-1.5 2.8-1.5 2 0 3.4 1.3 3.4 4.1V20z"/></svg>',
+    x:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.3 3H20l-6.6 7.6L21 21h-5.9l-4.6-6-5.3 6H2.5l7.1-8.1L3 3h6l4.1 5.5L17.3 3zm-1 16.2h1.6L7.7 4.7H6l10.3 14.5z"/></svg>',
+    youtube:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 7.2a2.8 2.8 0 0 0-2-2C17.9 4.8 12 4.8 12 4.8s-5.9 0-7.6.4a2.8 2.8 0 0 0-2 2A29 29 0 0 0 2 12a29 29 0 0 0 .4 4.8 2.8 2.8 0 0 0 2 2c1.7.4 7.6.4 7.6.4s5.9 0 7.6-.4a2.8 2.8 0 0 0 2-2A29 29 0 0 0 22 12a29 29 0 0 0-.4-4.8zM10 15.2V8.8L15.5 12 10 15.2z"/></svg>'};
+    const links=[[s.social_instagram,'instagram','Instagram'],[s.social_facebook,'facebook','Facebook'],
+      [s.social_linkedin,'linkedin','LinkedIn'],[s.social_x,'x','X'],[s.social_youtube,'youtube','YouTube']]
+      .filter(x=>x[0]);
+    sbx.innerHTML=links.map(x=>`<a class="iconbtn soc" href="${esc(x[0])}" target="_blank" rel="noopener" title="${x[2]}">${ic[x[1]]}</a>`).join(''); }
   buildFilter(); renderFooter(); renderMenu(); initAnalytics();
   view=pathToView(location.pathname);
   render(); pushRoute(true);
@@ -88,6 +104,7 @@ function logo(t){ t=t||'medyapark'; return String(t).toLowerCase().startsWith('m
 function render(fromHistory){
   if(view.type==='home')renderHome(); else if(view.type==='mec')renderMec();
   else if(view.type==='alt')renderAlt(); else if(view.type==='map')renderMap();
+  else if(view.type==='plan')renderPlan();
   else renderPage(view.slug);
   badge();
   if(!fromHistory) pushRoute();
@@ -99,8 +116,9 @@ function openAlt(mecId,altId){ view={type:'alt',mecId,altId,gidx:0}; roll=0; ren
 function gPick(i){ view.gidx=i; renderAlt(); }
 function gMove(d){ const a=D.altById[view.altId]; const n=(a&&Array.isArray(a.galeri)?a.galeri.length:0)||1; view.gidx=((view.gidx||0)+d+n)%n; renderAlt(); }
 function openPage(slug){ view={type:'page',slug}; render(); }
+function openPlan(){ view={type:'plan'}; render(); }
 function onSearch(q){ if(view.type==='map'){ mapQuery=q||''; refreshPins(); return; }
-  if(view.type!=='home')view={type:'home',filter:view.filter}; homeQ=q||''; renderHome(); }
+  if(view.type!=='home')view={type:'home',filter:view.filter,filterLoc:view.filterLoc}; homeQ=q||''; renderHome(); }
 
 /* ---- filtre (ürün türüne göre) ---- */
 function buildFilter(){ const m=document.getElementById('filterMenu'); if(!m)return;
@@ -159,6 +177,7 @@ function viewPath(v){
     return (m&&a)?`mecra/${mSlug(m)}/${aSlug(a)}`:''; }
   if(v.type==='map') return 'nerelerdeyiz';
   if(v.type==='page') return `sayfa/${v.slug}`;
+  if(v.type==='plan') return 'medya-planlama';
   return '';
 }
 /* adres -> görünüm */
@@ -170,6 +189,7 @@ function pathToView(pathname){
   const seg=p.split('/');
   if(seg[0]==='nerelerdeyiz'||seg[0]==='harita') return {type:'map'};
   if(seg[0]==='sayfa'&&seg[1]) return {type:'page',slug:seg[1]};
+  if(seg[0]==='medya-planlama') return {type:'plan'};
   if(seg[0]==='mecra'&&seg[1]){
     const m=D.mecralar.find(x=>mSlug(x)===seg[1]);
     if(!m) return {type:'home'};
@@ -203,6 +223,7 @@ function setMeta(){
       d=(a.aciklama||'').slice(0,155)|| `${m.name} ${pn} reklam alanları: ölçü, teknik özellik ve aylık doluluk durumu.`;
       img=a.image||a.kapak||m.image||img; } }
   else if(view.type==='map'){ t=`Reklam Alanları Haritası — ${site}`; d='Adana genelindeki tüm açık hava reklam alanlarımızı harita üzerinde inceleyin.'; }
+  else if(view.type==='plan'){ const pl=(D.settings||{}).plan||{}; t=`${pl.title||'Medya Planlama'} — ${site}`; d=(pl.desc||'Kampanyanız için ücretsiz medya planlama talebi bırakın.').slice(0,155); }
   else if(view.type==='page'){ const pg=(D.pages||[]).find(p=>p.slug===view.slug);
     if(pg){ t=`${pg.title} — ${site}`; d=String(pg.body||'').replace(/<[^>]*>/g,'').slice(0,155); } }
   document.title=t;
@@ -243,6 +264,7 @@ function homeListe(){
   const q=(homeQ||'').trim().toLowerCase();
   let list=D.mecralar.slice();
   if(view.filter) list=list.filter(m=>(m.alts||[]).some(a=>String(a.product_id)===String(view.filter)));
+  if(view.filterLoc) list=list.filter(m=>String(m.id)===String(view.filterLoc));
   if(q) list=list.filter(m=>{
     const havuz=[m.name,...(m.alts||[]).flatMap(a=>[a.name,(a.product||{}).name,(a.product||{}).etiketler])].filter(Boolean).join(' ');
     return havuz.toLocaleLowerCase('tr').includes(q) || esAnlamEslesti(q,havuz); });
@@ -273,12 +295,21 @@ function renderHome(q){
         ${k.alt?`<p>${esc(k.alt)}</p>`:''}
       </section>
       <div class="grid3" id="cardGrid" style="--cols:${sut}">${cards}</div>
-      ${daha?`<div class="tumu"><a href="${BASE}nerelerdeyiz" onclick="openMapPage();return false;">TÜMÜNÜ GÖR <span>›</span></a></div>`:''}
+      <div class="tumu"><a href="${BASE}nerelerdeyiz" onclick="openMapPage();return false;">TÜMÜNÜ GÖR <span>›</span></a></div>
+      ${refsBlock()}
     </div>`;
   if(homeMapAktif(H)) initHomeMap(H);
   sayacBaslat();
 }
 
+/* ---- referans logoları şeridi (sağa akan) ---- */
+function refsBlock(){
+  const st=D.settings||{}; const logos=Array.isArray(st.refLogos)?st.refLogos.filter(Boolean):[];
+  if(!logos.length) return '';
+  const grup=logos.map(u=>`<span class="ref-l"><img loading="lazy" src="${esc(u)}" alt=""></span>`).join('');
+  return `<section class="refs"><h2>${esc(st.refTitle||'Referanslar')}</h2>
+    <div class="refs-mask"><div class="refs-track">${grup}${grup}${grup}</div></div></section>`;
+}
 /* ---- harita bloğu ---- */
 function homeMapAktif(H){
   return !(H.map && H.map.enabled===false);   /* panelden kapatılmadıysa her zaman göster */
@@ -288,7 +319,8 @@ function homeMapBlock(H){
   const s=H.search||{};
   const adim=(s.adimlar||'Reklam Alanı Seç - Sepete At - Teklif Al').split('-').map(x=>x.trim()).filter(Boolean);
   const yuk=parseInt((H.map||{}).height||800,10);
-  const secili=view.filter?(D.products.find(p=>String(p.id)===String(view.filter))||{}).name:'';
+  const secili=view.filterLoc?(mec(view.filterLoc)||{}).name
+    :(view.filter?(D.products.find(p=>String(p.id)===String(view.filter))||{}).name:'');
   return `<section class="homemap" style="--mh:${yuk}px">
       <div id="homeMap" class="hm-canvas"></div>
     </section>
@@ -315,9 +347,15 @@ function homeFiltSecenek(){
   const kullanilan=new Set();
   D.mecralar.forEach(m=>(m.alts||[]).forEach(a=>{ if(a.product_id)kullanilan.add(String(a.product_id)); }));
   const urunler=D.products.filter(p=>kullanilan.has(String(p.id)));
-  return `<button class="${view.filter?'':'on'}" onclick="homeFiltre('')">Tümü</button>`
-    + urunler.map(p=>`<button class="${String(view.filter)===String(p.id)?'on':''}" onclick="homeFiltre('${p.id}')">${esc(p.name)}</button>`).join('');
+  return `<button class="${(view.filter||view.filterLoc)?'':'on'}" onclick="homeFiltre('');homeFiltreLoc('')">Tümü</button>
+    <div class="fm-h">ÜRÜN TİPİ</div>`
+    + urunler.map(p=>`<button class="${String(view.filter)===String(p.id)?'on':''}" onclick="homeFiltre('${p.id}')">${esc(p.name)}</button>`).join('')
+    + `<div class="fm-h">LOKASYON</div>`
+    + D.mecralar.map(m=>`<button class="${String(view.filterLoc)===String(m.id)?'on':''}" onclick="homeFiltreLoc('${m.id}')">${esc(m.name)}</button>`).join('');
 }
+function homeFiltreLoc(id){ view.filterLoc=id||null;
+  const m=document.getElementById('homeFMenu'); if(m)m.classList.remove('open');
+  if(document.getElementById('homeMap')) homeTazele(); else renderHome(); }
 function homeFiltMenu(e){ e.stopPropagation();
   const m=document.getElementById('homeFMenu'); if(m)m.classList.toggle('open'); }
 let homeQ='', homeMapObj=null, homeCluster=null;
@@ -346,6 +384,7 @@ function homePinler(){
   const q=(homeQ||'').trim().toLowerCase();
   return allPins().filter(p=>{
     if(view.filter && String(p.productId)!==String(view.filter)) return false;
+    if(view.filterLoc && String(p.mecId)!==String(view.filterLoc)) return false;
     if(!q) return true;
     const havuz=[p.mec,p.alt,p.product,p.unit,p.konum,p.etiket].filter(Boolean).join(' ');
     return havuz.toLocaleLowerCase('tr').includes(q) || esAnlamEslesti(q,havuz); });
@@ -546,10 +585,12 @@ function renderMec(){
         <button class="hs-mapall" onclick="openMapPage()">Haritada gör →</button></div>` : '';
 
   const st=D.settings||{};
+  const katalogUrl=m.katalog||st.catalogPdf||'';
   const cta=`<div class="hs-sec hs-cta">
       <div class="hs-ct">Bu lokasyon için teklif alın</div>
       ${st.phone?`<a class="hs-btn" href="tel:${esc(String(st.phone).replace(/\s/g,''))}">${esc(st.phone)}</a>`:''}
       ${st.social_whatsapp?`<a class="hs-btn wa" href="${esc(st.social_whatsapp)}" target="_blank" rel="noopener">WhatsApp</a>`:''}
+      ${katalogUrl?`<a class="hs-btn pdfk" href="${esc(katalogUrl)}" target="_blank" rel="noopener" download><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:6px"><path d="M12 3v11m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>PDF Katalog</a>`:''}
     </div>`;
 
   const logoHTML = vis(m,'logo',!!m.logo)?`<div class="hs-logo${visCls(m,'logo')}">${picture(m.logo,null,'','logo')}</div>`:'';
@@ -590,6 +631,7 @@ function renderMec(){
     <div class="hub">${side}
       <div class="hub-main">
         ${introBlock(m,true)}
+        ${m.intro_image?`<figure class="hub-introimg" onclick="lightbox('${esc(m.intro_image)}')">${picture(m.intro_image,null,'','Tanıtım görseli')}<span class="kroki-zoom">Büyütmek için tıklayın</span></figure>`:''}
         ${kroki}${advHTML}
         <section class="hub-alts">
           <h2>Reklam Alanları</h2>
@@ -769,6 +811,65 @@ function renderSepetInline(){ const box=document.getElementById('sepetInner'); i
   box.innerHTML=cart.map((c,i)=>`<div class="si-item"><div><b>${esc(c.mecra)}</b><br><span class="muted" style="font-size:12.5px">${esc(c.product)}${c.unit?' › '+esc(c.unit):''} · ${esc(c.monthLabel)}</span></div><div style="text-align:right;white-space:nowrap">${showPrices()?c.priceLabel+'<br>':''}<span class="x" onclick="removeItem(${i})">kaldır ×</span></div></div>`).join('')
     +`${showPrices()?`<div class="tot"><span>Toplam</span><span>${money(cartTotal())}</span></div>`:'<div style="height:10px"></div>'}<button class="btn btn-primary" style="width:100%" onclick="toggleCart()">Teklif Al</button>`; }
 
+/* ---- medya planlama ---- */
+function renderPlan(){
+  const st=D.settings||{}, pl=st.plan||{};
+  const nav=`<a onclick="goHome()">Medyapark Adana</a> / ${esc(pl.title||'Medya Planlama')}`;
+  const mecs=(D.mecralar||[]);
+  const butceler=['50.000 TL altı','50.000 – 150.000 TL','150.000 – 500.000 TL','500.000 TL üzeri','Henüz belirlemedim'];
+  app().innerHTML=`<div class="pg-top"><div class="pg-crumb">${nav}</div><h1 class="pg-title">${esc(pl.title||'Medya Planlama')}</h1></div>
+  <div class="plan-wrap">
+    ${pl.desc?`<p class="plan-desc">${esc(pl.desc)}</p>`:''}
+    <div class="plan-card" id="planCard">
+      <div class="plan-grid">
+        <div class="field"><label>Ad Soyad *</label><input class="inp" id="plAd" autocomplete="name"></div>
+        <div class="field"><label>Firma Adı</label><input class="inp" id="plFirma" autocomplete="organization"></div>
+        <div class="field"><label>Telefon *</label><input class="inp" id="plTel" type="tel" autocomplete="tel" placeholder="05__ ___ __ __"></div>
+        <div class="field"><label>E-Posta</label><input class="inp" id="plMail" type="email" autocomplete="email"></div>
+      </div>
+      <div class="field"><label>Hedef Kitleniz</label><textarea class="inp" id="plHedef" placeholder="Örn. Adana genelinde 25-45 yaş, AVM ziyaretçileri…"></textarea></div>
+      <div class="field"><label>İlgilendiğiniz Mecralar</label>
+        <div class="plan-mecs">${mecs.map(m=>`<label><input type="checkbox" class="plMec" value="${esc(m.name)}"> ${esc(m.name)}</label>`).join('')}</div></div>
+      <div class="field" style="max-width:320px"><label>Ortalama Bütçe</label>
+        <select class="inp" id="plButce"><option value="">— Seçin —</option>${butceler.map(b=>`<option>${b}</option>`).join('')}</select></div>
+      <div id="planErr" class="plan-err" style="display:none"></div>
+      <button class="btn btn-primary" id="planBtn" onclick="planSubmit()">Talebi Gönder</button>
+      <p class="muted" style="font-size:12px;margin:10px 0 0">Bilgileriniz yalnızca size dönüş yapmak için kullanılır.</p>
+    </div>
+  </div>`;
+}
+async function planSubmit(){
+  const g=id=>((document.getElementById(id)||{}).value||'').trim();
+  const ad=g('plAd'), tel=g('plTel'), mail=g('plMail'), firma=g('plFirma'), hedef=g('plHedef'), butce=g('plButce');
+  const secilen=[...document.querySelectorAll('.plMec:checked')].map(e=>e.value);
+  const err=document.getElementById('planErr');
+  if(!ad || !tel){ err.textContent='Lütfen ad soyad ve telefon alanlarını doldurun.'; err.style.display='block'; return; }
+  err.style.display='none';
+  const btn=document.getElementById('planBtn'); btn.disabled=true; btn.textContent='Gönderiliyor…';
+  try{
+    const {error}=await sb.from('leads').insert({ad,telefon:tel,eposta:mail||null,firma:firma||null,
+      hedef_kitle:hedef||null,mecralar:secilen,butce:butce||null});
+    if(error) throw error;
+    const st=D.settings||{};
+    if(st.leadMail){ /* e-posta bildirimi (FormSubmit) — başarısız olsa da talep kayıtlıdır */
+      try{ await fetch('https://formsubmit.co/ajax/'+encodeURIComponent(st.leadMail),{method:'POST',
+        headers:{'Content-Type':'application/json','Accept':'application/json'},
+        body:JSON.stringify({_subject:'Yeni Medya Planlama Talebi — '+ad,
+          'Ad Soyad':ad,'Telefon':tel,'E-Posta':mail||'-','Firma':firma||'-',
+          'Hedef Kitle':hedef||'-','İlgilenilen Mecralar':secilen.join(', ')||'-','Bütçe':butce||'-'})}); }catch(e){}
+    }
+    const pl=st.plan||{};
+    document.getElementById('planCard').innerHTML=`<div class="plan-ok">
+      <div class="plan-ok-i">✓</div>
+      <h3>${esc(pl.thanks_title||'Talebiniz bize ulaştı!')}</h3>
+      <p>${esc(pl.thanks||('Teşekkürler '+ad.split(' ')[0]+'! Medya planlama ekibimiz hedefinize en uygun mecra karmasını hazırlayıp en kısa sürede sizinle iletişime geçecek.'))}</p>
+      <a class="btn btn-outline" href="${BASE}" onclick="goHome();return false;">Reklam Alanlarını İncele</a></div>`;
+  }catch(e){
+    btn.disabled=false; btn.textContent='Talebi Gönder';
+    err.textContent='Gönderilemedi: '+(e.message||e)+' — lütfen tekrar deneyin ya da bizi arayın.'; err.style.display='block';
+  }
+}
+
 /* ---- sayfalar ---- */
 function ytId(u){ const m=String(u||'').match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([\w-]{6,})/); return m?m[1]:null; }
 function mapSrc(code){ code=String(code||'').trim(); const m=code.match(/src="([^"]+)"/); if(m)return m[1]; if(/^https?:\/\//.test(code))return code; return null; }
@@ -849,6 +950,7 @@ function menuLink(it,kapat){
   if(t==='mecra'){ const m=mec(v); if(!m)return '';
     return `<a href="${BASE}mecra/${mSlug(m)}" onclick="openMec('${m.id}');${kp}return false;">${lbl||esc(m.name)}</a>`; }
   if(t==='pdf'){ const u=(D.settings||{}).catalogPdf; return u?`<a href="${esc(u)}" download>${lbl||'PDF Katalog'}</a>`:''; }
+  if(t==='plan') return `<a href="${BASE}medya-planlama" onclick="openPlan();${kp}return false;">${lbl||'Medya Planlama'}</a>`;
   if(!v) return '';
   return `<a href="${esc(v)}" target="_blank" rel="noopener">${lbl||esc(v)}</a>`;
 }
@@ -858,7 +960,8 @@ function renderMenu(){
     ? cfg.items.filter(i=>i&&i.show!==false)
     : (D.pages||[]).filter(p=>p.in_menu!==false).map(p=>({label:p.title||p.slug,type:'sayfa',value:p.slug}));
   const ust=document.getElementById('navMenu');
-  if(ust) ust.innerHTML=items.map(i=>menuLink(i,false)).join('');
+  if(ust) ust.innerHTML=items.map(i=>menuLink(i,false)).join('')
+    +`<a class="nav-admin" href="admin.html" title="Yönetim Paneli">⚙</a>`;
   const el=document.getElementById('menuPages');
   if(el) el.innerHTML=items.map(i=>menuLink(i,true)).join('');
 }
@@ -1176,6 +1279,7 @@ function ndListe(){
   const q=(mapQuery||'').trim().toLowerCase();
   let list=D.mecralar.slice();
   if(view.filter) list=list.filter(m=>(m.alts||[]).some(a=>String(a.product_id)===String(view.filter)));
+  if(view.filterLoc) list=list.filter(m=>String(m.id)===String(view.filterLoc));
   if(mapF.urun.length) list=list.filter(m=>(m.alts||[]).some(a=>mapF.urun.includes(String(a.product_id))));
   if(mapF.mecra.length) list=list.filter(m=>mapF.mecra.includes(String(m.id)));
   if(q) list=list.filter(m=>{
