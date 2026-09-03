@@ -1477,8 +1477,12 @@ async function mecralar(c){
 }
 
 function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_color:'#0071e3'};
+  const T=(i,ad)=>`<button type="button" class="mtab-btn${i===0?' on':''}" data-mt="${i}" onclick="mecTab(${i})">${ad} <span class="mtab-badge" id="mtb${i}">–</span></button>`;
   document.getElementById('mecEd').innerHTML=`<div class="sec-card" style="margin-top:16px"><h3 style="margin:0 0 14px;font-size:16px">${id?'Mecrayı Düzenle':'Yeni Mecra'}</h3>
     <input type="hidden" id="mid" value="${id||0}">
+    <div class="mtabs">${T(0,'Genel')}${T(1,'Görseller')}${T(2,'Tanıtım')}${T(3,'Ayarlar')}</div>
+
+    <div class="mtab-p on" data-mp="0">
     <div class="fld-box"><label class="flabel" style="font-weight:700">Temel Bilgiler</label>
     <div class="row2"><div class="field"><label class="flabel">İsim (kart başlığı)</label><input class="inp" id="mname" value="${esc(m.name)}" oninput="slugHint('mname','mslug')"></div>
     <div class="field"><label class="flabel">Tema rengi</label><div class="colorwrap"><input type="color" id="mcolor" value="${esc(m.theme_color||'#0071e3')}" oninput="document.getElementById('mcolor2').value=this.value"><input class="inp" id="mcolor2" value="${esc(m.theme_color)}" oninput="document.getElementById('mcolor').value=this.value"></div></div></div>
@@ -1487,7 +1491,14 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
       <p class="muted" style="font-size:11.5px;margin:5px 0 0">Boş bırakırsan isimden otomatik üretilir. Sonradan değiştirirsen eski linkler kırılır.</p></div>
     <div class="row2"><div class="field"><label class="flabel">Günlük gösterim</label><input class="inp" id="mgg" value="${esc(m.gunluk_gosterim)}" placeholder="≈ 250.000 gösterim"></div>
     <div class="field"><label class="flabel">Toplam reklam alanı</label><input class="inp" id="mta" value="${esc(m.toplam_alan)}" placeholder="3 alt mecra"></div></div>
+    <div class="field" style="margin-top:4px"><label class="flabel">Rozet (kart üzerinde küçük etiket)</label><input class="inp" id="mbadge" value="${esc(m.badge)}"></div>
     </div>
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Yayın durumu</label>
+      <label class="switch"><input type="checkbox" id="mpub" ${m.hidden===true?'':'checked'}><span class="sl"></span><span class="txt">Sitede yayında</span></label>
+      <p class="muted" style="font-size:12px;margin:6px 0 0">Kapalıyken bu mecra ve tüm alanları sitede hiç görünmez (taslak). Panelde çalışmaya devam edebilirsiniz.</p></div>
+    </div>
+
+    <div class="mtab-p" data-mp="1">
     <div class="fld-box"><label class="flabel" style="font-weight:700">Görseller ve Kapak</label>
     <div class="field"><label class="flabel">Kart görseli (yükle veya URL)</label><div style="display:flex;gap:8px"><input class="inp" id="mimage" value="${esc(m.image)}" placeholder="https://..."><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mimage').value=u;})">Yükle</button></div></div>
     <div class="field"><label class="flabel">Kapak görseli (1920×400 — mecra sayfası üstü)</label><div style="display:flex;gap:8px"><input class="inp" id="mkapak" value="${esc(m.kapak)}"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mkapak').value=u;})">Yükle</button></div></div>
@@ -1497,52 +1508,66 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
     ${imgField('mimagem', m.image_mobil, 'Kart görseli — MOBİL sürüm (opsiyonel)', 'boş = masaüstü görseli kullanılır')}
     ${visSel('m',m,'kapak','Kapak görünürlüğü')}
     </div>
-
-    <div class="fld-box"><label class="flabel" style="font-weight:700">Kapak altı tanıtım (mecra sayfasında kapağın hemen altında görünür)</label>
-      <input class="inp" id="mintro" value="${esc(m.intro_baslik)}" placeholder="Başlık — ör. Adana'nın Kalbinde Reklam" style="margin-bottom:8px">
-      <textarea class="inp" id="macik" placeholder="Açıklama metni…" style="min-height:90px">${esc(m.aciklama)}</textarea>
-      ${visSel('m',m,'aciklama','Bu bölüm')}</div>
-
     <div class="fld-box"><label class="flabel" style="font-weight:700">Yerleşim krokisi</label>
       <p class="muted" style="font-size:12px;margin:0 0 10px">Kendi hazırladığınız kroki. Kırpılmaz, kutuya sığdırılır; ziyaretçi tıklayınca tam ekran büyür.</p>
       ${imgField('mkroki', m.yerlesim_plani, 'Kroki görseli', 'https://...')}
       ${imgField('mkrokim', m.kroki_mobil, 'Kroki — MOBİL sürüm (opsiyonel)', 'boş = masaüstü krokisi kullanılır')}
       ${visSel('m',m,'kroki','Kroki')}</div>
+    </div>
 
+    <div class="mtab-p" data-mp="2">
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Kapak altı tanıtım (mecra sayfasında kapağın hemen altında görünür)</label>
+      <input class="inp" id="mintro" value="${esc(m.intro_baslik)}" placeholder="Başlık — ör. Adana'nın Kalbinde Reklam" style="margin-bottom:8px">
+      <textarea class="inp" id="macik" placeholder="Açıklama metni…" style="min-height:90px">${esc(m.aciklama)}</textarea>
+      ${visSel('m',m,'aciklama','Bu bölüm')}</div>
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Tanıtım görseli ve katalog</label>
+      ${imgField('mintroimg', m.intro_image, 'Tanıtım görseli (başlık + açıklamanın altında, tıklayınca büyür)', 'https://...')}
+      <div class="field" style="margin-top:12px"><label class="flabel">PDF Katalog (sidebar\'daki buton — boşsa genel katalog kullanılır)</label>
+        <div style="display:flex;gap:8px"><input class="inp" id="mkatalog" value="${esc(m.katalog||'')}" placeholder="uploads/katalog.pdf">
+        <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('application/pdf',u=>{document.getElementById('mkatalog').value=u;})">Yükle</button></div></div></div>
     <div class="fld-box"><label class="flabel" style="font-weight:700">Avantajlar (mecra sayfasında kutucuklar)</label>
       ${[0,1,2,3].map(i=>{const a=(Array.isArray(m.avantajlar)?m.avantajlar:[])[i]||{};
         return `<div class="row2" style="margin-bottom:8px">
           <input class="inp" id="mav_t${i}" value="${esc(a.t||a.title||'')}" placeholder="Başlık ${i+1}">
           <input class="inp" id="mav_d${i}" value="${esc(a.d||a.desc||'')}" placeholder="Kısa açıklama"></div>`;}).join('')}
       ${visSel('m',m,'avantajlar','Avantajlar')}</div>
+    </div>
 
-    <div class="fld-box"><label class="flabel" style="font-weight:700">Tanıtım içeriği</label>
-      ${imgField('mintro', m.intro_image, 'Tanıtım görseli (başlık + açıklamanın altında, tıklayınca büyür)', 'https://...')}
-      <div class="field" style="margin-top:12px"><label class="flabel">PDF Katalog (sidebar'daki buton — boşsa genel katalog kullanılır)</label>
-        <div style="display:flex;gap:8px"><input class="inp" id="mkatalog" value="${esc(m.katalog||'')}" placeholder="uploads/katalog.pdf">
-        <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('application/pdf',u=>{document.getElementById('mkatalog').value=u;})">Yükle</button></div></div></div>
-
-    <div class="fld-box"><label class="flabel" style="font-weight:700">Diğer</label>
+    <div class="mtab-p" data-mp="3">
+    <div class="fld-box"><label class="flabel" style="font-weight:700">Logo ve bloklar</label>
       ${imgField('mlogo', m.logo, 'Logo (sidebar üstünde)', 'https://...')}
       ${visSel('m',m,'logo','Logo')}
-      <div class="field" style="margin-top:12px"><label class="flabel">Rozet (kart üzerinde küçük etiket)</label><input class="inp" id="mbadge" value="${esc(m.badge)}"></div>
       ${visSel('m',m,'gosterim','İstatistik bloğu')}
       ${visSel('m',m,'maps','Mini harita')}</div>
-
-    <div class="fld-box"><label class="flabel" style="font-weight:700">Yayın durumu</label>
-      <label class="switch"><input type="checkbox" id="mpub" ${m.hidden===true?'':'checked'}><span class="sl"></span><span class="txt">Sitede yayında</span></label>
-      <p class="muted" style="font-size:12px;margin:6px 0 0">Kapalıyken bu mecra ve tüm alanları sitede hiç görünmez (taslak). Panelde çalışmaya devam edebilirsiniz.</p></div>
-
     <div class="fld-box"><label class="flabel" style="font-weight:700">Tanıtım sayfası</label>
       <p class="muted" style="font-size:12px;margin:0 0 10px">Kapalıyken ve bu mecrada tek bir alan varsa, ziyaretçi karta tıklayınca doğrudan o alanın detayına gider (duvar reklamı gibi tekil satılan yerler için).</p>
       <label class="switch"><input type="checkbox" id="mhub" ${m.hub===false?'':'checked'}><span class="sl"></span><span class="txt">Tanıtım sayfasını göster</span></label></div>
+    </div>
 
     <button class="btn btn-primary btn-sm" onclick="mecSave()">Mecrayı Kaydet</button>
     ${id?`<hr style="border:0;border-top:1px solid var(--line2);margin:18px 0"><div class="sec-head"><h3 style="font-size:15px">Alt Mecralar</h3><button class="btn btn-primary btn-sm" onclick="altAdd(${id})">+ Alt Mecra</button></div><div id="altList">Yükleniyor…</div>`:'<p class="muted" style="margin-top:12px">Alt mecraları, mecrayı kaydettikten sonra ekleyebilirsiniz.</p>'}
     </div>`;
   collapsify(document.getElementById('mecEd'),'form');
-  document.getElementById('mecEd').scrollIntoView({behavior:'smooth'});
+  const kok=document.getElementById('mecEd');
+  kok.addEventListener('input', mecTabSay);
+  kok.addEventListener('change', mecTabSay);
+  mecTabSay();
+  kok.scrollIntoView({behavior:'smooth'});
   if(id) loadAltList(id);
+}
+function mecTab(i){
+  document.querySelectorAll('#mecEd .mtab-btn').forEach(b=>b.classList.toggle('on',+b.dataset.mt===i));
+  document.querySelectorAll('#mecEd .mtab-p').forEach(p=>p.classList.toggle('on',+p.dataset.mp===i));
+}
+/* Sekme rozetleri: her panelde dolu alan / toplam alan (renk seçiciler ve anahtarlar sayılmaz) */
+function mecTabSay(){
+  document.querySelectorAll('#mecEd .mtab-p').forEach(p=>{
+    const alanlar=[...p.querySelectorAll('input.inp,textarea.inp')].filter(e=>e.type!=='color');
+    const dolu=alanlar.filter(e=>String(e.value||'').trim()!=='').length;
+    const b=document.getElementById('mtb'+p.dataset.mp); if(!b)return;
+    b.textContent=dolu+'/'+alanlar.length;
+    b.classList.toggle('tam', dolu===alanlar.length && alanlar.length>0);
+  });
 }
 async function mecSave(){ const id=+gv('mid');
   const prev=((ui._mecralar||[]).find(x=>x.id===id)||{}).visible||{};
@@ -1550,7 +1575,7 @@ async function mecSave(){ const id=+gv('mid');
   const avantajlar=[]; for(let i=0;i<4;i++){ const t=(gv('mav_t'+i)||'').trim(), d=(gv('mav_d'+i)||'').trim(); if(t||d)avantajlar.push({t,d}); }
   const r=await api('mecra_save',{id,name:gv('mname'),theme_color:gv('mcolor'),badge:gv('mbadge'),
     hidden:!(document.getElementById('mpub')||{checked:true}).checked,
-    intro_image:gv('mintro'),katalog:gv('mkatalog'),
+    intro_image:gv('mintroimg'),katalog:gv('mkatalog'),
     gunluk_gosterim:gv('mgg'),toplam_alan:gv('mta'),slug:(gv('mslug').trim()||pslug(gv('mname'))),
     image:gv('mimage'),image_mobil:gv('mimagem'),
     kapak:gv('mkapak'),kapak_mobil:gv('mkapakm'),
@@ -2106,30 +2131,10 @@ async function listeler(c){
   const altByMec={}; alts.forEach(a=>(altByMec[a.mecra_id]=altByMec[a.mecra_id]||[]).push(a));
   const bmap={}; bks.forEach(b=>{(bmap[b.unit_id]=bmap[b.unit_id]||{})[b.ym]={s:b.status,c:b.customer_id,n:b.note};}); window.__lbmap=bmap;
   const umap={}; mlist.forEach(m=>(m.units||[]).forEach(u=>umap[u.id]=u)); window.__lumap=umap;
-  const monHead=MONTHS_SHORT.map(mo=>`<div class="rg-m rg-mh"><span>${mo}</span></div>`).join('');
-  let html='';
-  for(const m of mlist){ const as=altByMec[m.id]||[];
-    const _n=as.reduce((k,a)=>k+((uByAlt[a.id]||[]).length),0);
-    html+=`<details class="sec-card lgrp"><summary><span class="grp-t">${esc(m.name)}</span>
-      <span class="lgrp-m">${as.length} alan · ${_n} pozisyon</span><i class="chev"></i></summary>`;
-    if(!as.length){ html+='<p class="muted">Alt mecra yok.</p></details>'; continue; }
-    for(const a of as){ const us=uByAlt[a.id]||[];
-      html+=`<div class="sec-head" style="margin-top:10px"><h4 style="font-size:14px;margin:0">${esc(a.name)} <span class="muted">· ${esc(pmap[a.product_id]||'')}</span></h4><button class="btn btn-outline btn-sm" onclick="lAddPos(${a.id},${m.id},${a.product_id})">+ Pozisyon</button></div>`;
-      if(!us.length){ html+='<p class="muted" style="font-size:12px">Pozisyon yok.</p>'; continue; }
-      const groups=groupUnits(us);
-      const rows=groups.map(g=>{
-        const cells=MONTHS_SHORT.map((mo,i)=>{ const ym=y+'-'+pad(i+1);
-          return `<div class="rg-m">${lCell(g.A,ym,cmap,bmap)}${lCell(g.B,ym,cmap,bmap)}</div>`; }).join('');
-        return `<div class="rg-row"><div class="rg-lbl" title="${esc(g.base)}">${esc(g.base)}</div>${cells}</div>`; }).join('');
-      html+=`<div class="rtwrap"><div class="rgrid">
-        <div class="rg-row rg-head"><div class="rg-lbl">Pozisyon</div>${monHead}</div>${rows}</div></div>`;
-    }
-    html+=`<div class="rg-legend">
-      <span class="lg-surf"><b>A</b> Ön yüz</span><span class="lg-surf"><b>B</b> Arka yüz</span><span class="lg-sep"></span>
-      <span><i class="sw bos"></i>Boş</span><span><i class="sw dolu"></i>Dolu</span><span><i class="sw rezerve"></i>Rezerve</span>
-      </div></details>`;
-  }
+  ui._L={mlist,altByMec,uByAlt,pmap,cmap,custs,y};
+
   const custOpts=custs.map(x=>`<option value="${x.id}">${esc(x.firma||x.ilgili_kisi||('#'+x.id))}</option>`).join('');
+  const mecOpts=mlist.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
   c.innerHTML=`<div class="sec-head"><h3>Doluluk / Kiralama</h3>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="bookExport()">${ic('download',15)} Excel'e Aktar</button>
@@ -2137,9 +2142,93 @@ async function listeler(c){
       <div class="year-nav" style="margin:0"><button onclick="lYear(-1)">‹</button><span class="yr">${y}</span><button onclick="lYear(1)">›</button></div>
     </div></div>
     <div class="banner">Her ayın altında iki kutu vardır: <b>soldaki A (ön yüz)</b>, <b>sağdaki B (arka yüz)</b>. Kutuya tıkla: Boş → Dolu → Rezerve → Boş. Dolu/Rezerve yaparken aşağıda seçili müşteri atanır ve anında kaydedilir. Kutunun üzerine gelince kiralayan firma bilgi kartında görünür. Ziyaretçi firma adını görmez, yalnızca durumu görür.</div>
+    <div class="sec-card fbar">
+      <div class="fbar-row">
+        <input class="inp" id="lQ" placeholder="Ara: pozisyon, alan, mecra veya kiralayan firma…" oninput="lFiltre()">
+        <select class="inp" id="lFm" onchange="lFiltre()"><option value="">Tüm mecralar</option>${mecOpts}</select>
+        <select class="inp" id="lFd" onchange="lFiltre()">
+          <option value="">Tüm durumlar</option>
+          <option value="dolu">Dolu ayı olanlar</option>
+          <option value="rezerve">Rezerve ayı olanlar</option>
+          <option value="doluveya">Dolu veya rezerve</option>
+          <option value="bos">Tamamen boş (${y})</option></select>
+        <select class="inp" id="lFc" onchange="lFiltre()"><option value="">Tüm müşteriler</option>${custOpts}</select>
+        <button class="btn btn-ghost btn-sm" onclick="lTemizle()">Temizle</button>
+      </div>
+      <p class="muted" id="lSayi" style="font-size:12px;margin:8px 2px 0"></p>
+    </div>
     <div class="field" style="max-width:380px"><label class="flabel">Atanacak müşteri (dolu/rezerve için)</label><select class="inp" id="lcust"><option value="">— müşteri atama —</option>${custOpts}</select></div>
     <div class="grp-all"><button type="button" onclick="grpAll(this,true)">Tümünü aç</button><span>·</span><button type="button" onclick="grpAll(this,false)">Tümünü kapat</button></div>
-    ${html||'<p class="muted">Mecra yok.</p>'}`;
+    <div id="lWrap"></div>`;
+  if(ui._lfSakla){ const f=ui._lfSakla; ui._lfSakla=null;
+    const e=id=>document.getElementById(id);
+    if(e('lQ'))e('lQ').value=f.q||''; if(e('lFm'))e('lFm').value=f.m||'';
+    if(e('lFd'))e('lFd').value=f.d||''; if(e('lFc'))e('lFc').value=f.c||''; }
+  lFiltre();
+}
+function lTemizle(){ const e=id=>document.getElementById(id); if(e('lQ'))e('lQ').value='';
+  ['lFm','lFd','lFc'].forEach(id=>{ if(e(id))e(id).value=''; }); lFiltre(); }
+/* Bir A/B grubunun yıl içindeki durum kümesi ve kiralayan müşteri kümesi */
+function lGrupBilgi(g,y,bmap){
+  const st=new Set(), cs=new Set();
+  for(const u of [g.A,g.B]){ if(!u)continue; const b=bmap[u.id]||{};
+    for(let i=1;i<=12;i++){ const cell=b[y+'-'+pad(i)];
+      if(cell){ st.add(cell.s); if(cell.c!=null)cs.add(String(cell.c)); } } }
+  return {st,cs};
+}
+function lFiltre(){
+  const L=ui._L, box=document.getElementById('lWrap'); if(!L||!box)return;
+  const y=L.y, bmap=window.__lbmap;
+  const q=(gv('lQ')||'').trim().toLocaleLowerCase('tr');
+  const fm=gv('lFm')||'', fd=gv('lFd')||'', fc=gv('lFc')||'';
+  const aktif=!!(q||fm||fd||fc);
+  const monHead=MONTHS_SHORT.map(mo=>`<div class="rg-m rg-mh"><span>${mo}</span></div>`).join('');
+  let html='', topPoz=0, topMecra=0;
+  for(const m of L.mlist){
+    if(fm && String(m.id)!==fm) continue;
+    const as=L.altByMec[m.id]||[];
+    let inner=''; let mecPoz=0;
+    for(const a of as){
+      const us=L.uByAlt[a.id]||[];
+      const groups=groupUnits(us).filter(g=>{
+        const {st,cs}=lGrupBilgi(g,y,bmap);
+        if(q){
+          const kiralayan=[...cs].map(id=>L.cmap[id]||'').join(' ');
+          const hay=(g.base+' '+a.name+' '+m.name+' '+kiralayan).toLocaleLowerCase('tr');
+          if(!hay.includes(q)) return false;
+        }
+        if(fd==='dolu' && !st.has('dolu')) return false;
+        if(fd==='rezerve' && !st.has('rezerve')) return false;
+        if(fd==='doluveya' && !st.has('dolu') && !st.has('rezerve')) return false;
+        if(fd==='bos' && st.size) return false;
+        if(fc && !cs.has(fc)) return false;
+        return true;
+      });
+      if(!groups.length && aktif) continue;    /* filtre varken boş alanları gizle */
+      mecPoz+=groups.length;
+      inner+=`<div class="sec-head" style="margin-top:10px"><h4 style="font-size:14px;margin:0">${esc(a.name)} <span class="muted">· ${esc(L.pmap[a.product_id]||'')}</span></h4><button class="btn btn-outline btn-sm" onclick="lAddPos(${a.id},${m.id},${a.product_id})">+ Pozisyon</button></div>`;
+      if(!us.length){ inner+='<p class="muted" style="font-size:12px">Pozisyon yok.</p>'; continue; }
+      if(!groups.length){ inner+='<p class="muted" style="font-size:12px">Filtreyle eşleşen pozisyon yok.</p>'; continue; }
+      const rows=groups.map(g=>{
+        const cells=MONTHS_SHORT.map((mo,i)=>{ const ym=y+'-'+pad(i+1);
+          return `<div class="rg-m">${lCell(g.A,ym,L.cmap,bmap)}${lCell(g.B,ym,L.cmap,bmap)}</div>`; }).join('');
+        return `<div class="rg-row"><div class="rg-lbl" title="${esc(g.base)}">${esc(g.base)}</div>${cells}</div>`; }).join('');
+      inner+=`<div class="rtwrap"><div class="rgrid">
+        <div class="rg-row rg-head"><div class="rg-lbl">Pozisyon</div>${monHead}</div>${rows}</div></div>`;
+    }
+    if(!inner && aktif) continue;              /* mecrada hiç eşleşme yoksa grubu gizle */
+    topMecra++; topPoz+=mecPoz;
+    html+=`<details class="sec-card lgrp" ${aktif?'open':''}><summary><span class="grp-t">${esc(m.name)}</span>
+      <span class="lgrp-m">${aktif?mecPoz+' eşleşen pozisyon':((as.length)+' alan · '+((L.uByAlt&&as.reduce((k,x)=>k+((L.uByAlt[x.id]||[]).length),0))+' pozisyon'))}</span><i class="chev"></i></summary>`;
+    html+=inner||'<p class="muted">Alt mecra yok.</p>';
+    html+=`<div class="rg-legend">
+      <span class="lg-surf"><b>A</b> Ön yüz</span><span class="lg-surf"><b>B</b> Arka yüz</span><span class="lg-sep"></span>
+      <span><i class="sw bos"></i>Boş</span><span><i class="sw dolu"></i>Dolu</span><span><i class="sw rezerve"></i>Rezerve</span>
+      </div></details>`;
+  }
+  const say=document.getElementById('lSayi');
+  if(say) say.textContent=aktif?`${topPoz} pozisyon (${topMecra} mecrada) gösteriliyor — filtre etkin`:'';
+  box.innerHTML=html||'<div class="sec-card"><p class="muted" style="margin:0">Filtrelerle eşleşen kayıt bulunamadı.</p></div>';
 }
 function lCycle(uid,ym){ const cur=(window.__lbmap[uid]||{})[ym]; const s=cur?cur.s:'bos'; const next=s==='bos'?'dolu':(s==='dolu'?'rezerve':'bos');
   const sel=document.getElementById('lcust'); const cid= next==='bos'? null : (sel&&sel.value?+sel.value:null);
@@ -2153,20 +2242,69 @@ function lCycle(uid,ym){ const cur=(window.__lbmap[uid]||{})[ym]; const s=cur?cu
   api('booking_toggle',{unit_id:uid,ym,status:next,customer_id:cid});
 }
 async function lAddPos(altId,mid,pid){ const nm=prompt('Pozisyon adı (ör. P1-A):','P'); if(nm===null)return; await api('unit_save',{alt_mecra_id:altId,mecra_id:mid,product_id:pid,name:(nm||'Yeni Pozisyon')}); renderSection(); }
-function lYear(d){ ui._lyear=(ui._lyear||new Date().getFullYear())+d; renderSection(); }
+function lYear(d){ ui._lyear=(ui._lyear||new Date().getFullYear())+d;
+  ui._lfSakla={q:gv('lQ'),m:gv('lFm'),d:gv('lFd'),c:gv('lFc')};   /* yıl değişince filtreler korunur */
+  renderSection(); }
 
 /* ---------- MÜŞTERİLER ---------- */
 async function musteriler(c){
   const list=await api('customers_list'); ui._cust=list;
-  const rows=list.map(x=>`<div class="list-item"><div class="nm">${esc(x.firma)}</div><div class="meta">${esc(x.ilgili_kisi||'')} · ${esc(x.telefon||'')}${x.eposta?' · '+esc(x.eposta):''}</div>
-    <button class="btn btn-outline btn-sm" onclick="custForm(${x.id})">Düzenle</button><button class="btn btn-danger btn-sm" onclick="custDel(${x.id})">Sil</button></div>`).join('');
   c.innerHTML=`<div class="sec-head">
       <div><h3>Müşteriler</h3><p class="sub">${list.length} kayıt</p></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="custExport()">${ic('download',15)} Excel'e Aktar</button>
         <button class="btn btn-outline btn-sm" onclick="custImport()">${ic('upload',15)} Excel'den Al</button>
         <button class="btn btn-primary btn-sm" onclick="custForm(0)">${ic('plus',15)} Müşteri</button></div>
-    </div>${rows||'<p class="empty">Müşteri yok.</p>'}`;
+    </div>
+    <div class="sec-card fbar">
+      <div class="fbar-row">
+        <input class="inp" id="cQ" placeholder="Ara: firma, kişi, telefon, e-posta, vergi no, adres…" oninput="custListe()">
+        <select class="inp" id="cSort" onchange="custListe()">
+          <option value="ad">Ada göre (A→Z)</option>
+          <option value="adz">Ada göre (Z→A)</option>
+          <option value="yeni">Önce en yeni</option>
+          <option value="eski">Önce en eski</option>
+          <option value="puan">Puana göre</option></select>
+        <select class="inp" id="cFiltre" onchange="custListe()">
+          <option value="">Filtre yok</option>
+          <option value="tel">Telefonu olanlar</option>
+          <option value="mail">E-postası olanlar</option>
+          <option value="eksik">İletişim bilgisi eksik</option>
+          <option value="fatura">Fatura bilgisi tam</option>
+          <option value="fatura-eksik">Fatura bilgisi eksik</option></select>
+        <button class="btn btn-ghost btn-sm" onclick="custTemizle()">Temizle</button>
+      </div>
+      <p class="muted" id="cSayi" style="font-size:12px;margin:8px 2px 0"></p>
+    </div>
+    <div id="cRows"></div>`;
+  custListe();
+}
+function custTemizle(){ ['cQ'].forEach(i=>{const e=document.getElementById(i);if(e)e.value='';});
+  document.getElementById('cSort').value='ad'; document.getElementById('cFiltre').value=''; custListe(); }
+function custListe(){
+  const box=document.getElementById('cRows'); if(!box)return;
+  const q=(gv('cQ')||'').trim().toLocaleLowerCase('tr');
+  const srt=gv('cSort')||'ad', flt=gv('cFiltre')||'';
+  let list=(ui._cust||[]).slice();
+  if(q) list=list.filter(x=>[x.firma,x.ilgili_kisi,x.telefon,x.eposta,x.vergi_no,x.vergi_dairesi,x.adres,x.birim,x.fatura_basligi]
+    .some(v=>String(v||'').toLocaleLowerCase('tr').includes(q)));
+  if(flt==='tel') list=list.filter(x=>x.telefon);
+  else if(flt==='mail') list=list.filter(x=>x.eposta);
+  else if(flt==='eksik') list=list.filter(x=>!x.telefon&&!x.eposta);
+  else if(flt==='fatura') list=list.filter(x=>x.vergi_no&&x.vergi_dairesi);
+  else if(flt==='fatura-eksik') list=list.filter(x=>!x.vergi_no||!x.vergi_dairesi);
+  const ad=x=>String(x.firma||x.ilgili_kisi||'').toLocaleLowerCase('tr');
+  if(srt==='ad') list.sort((a,b)=>ad(a).localeCompare(ad(b),'tr'));
+  else if(srt==='adz') list.sort((a,b)=>ad(b).localeCompare(ad(a),'tr'));
+  else if(srt==='yeni') list.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+  else if(srt==='eski') list.sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')));
+  else if(srt==='puan') list.sort((a,b)=>(b.puan||0)-(a.puan||0));
+  const say=document.getElementById('cSayi');
+  if(say) say.textContent=(q||flt)?`${list.length} / ${(ui._cust||[]).length} müşteri gösteriliyor`:`${list.length} müşteri`;
+  box.innerHTML=list.map(x=>`<div class="list-item"><div class="nm">${esc(x.firma||x.ilgili_kisi||('#'+x.id))}${x.puan?` <span class="pill" title="Puan">${'★'.repeat(Math.min(5,+x.puan||0))}</span>`:''}</div>
+    <div class="meta">${esc(x.ilgili_kisi||'')}${x.telefon?' · '+esc(x.telefon):''}${x.eposta?' · '+esc(x.eposta):''}${(!x.telefon&&!x.eposta)?' · <span style="color:#b3261e">iletişim yok</span>':''}</div>
+    <button class="btn btn-outline btn-sm" onclick="custForm(${x.id})">Düzenle</button><button class="btn btn-danger btn-sm" onclick="custDel(${x.id})">Sil</button></div>`).join('')
+    ||'<p class="empty">Eşleşen müşteri yok.</p>';
 }
 const CUST_COLS=[
   {key:'firma',label:'Firma',w:28},{key:'ilgili_kisi',label:'İlgili Kişi',w:20},
@@ -2811,7 +2949,7 @@ async function ayarlar(c){
     <p class="muted" style="font-size:12.5px;margin:0 0 12px">Yalnızca bu yönetim panelini etkiler; siteye dokunmaz.</p>
     <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
       <div class="field" style="margin:0"><label class="flabel">Vurgu rengi</label>
-        <input id="pTColor" type="color" value="${esc((st.panelTheme||{}).accent||'#3455e6')}" style="width:64px;height:38px;border:1px solid var(--c-line);border-radius:10px;background:#fff;padding:3px"></div>
+        <input id="pTColor" type="color" value="${esc((st.panelTheme||{}).accent||'#e11d48')}" style="width:64px;height:38px;border:1px solid var(--c-line);border-radius:10px;background:#fff;padding:3px"></div>
       <div class="field" style="margin:0;flex:1;min-width:240px"><label class="flabel">Panel logosu (sol üst)</label>
         <div style="display:flex;gap:8px"><input class="inp" id="pTLogo" value="${esc((st.panelTheme||{}).logo||'')}">
         <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('pTLogo').value=u;})">Yükle</button></div></div>
