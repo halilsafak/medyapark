@@ -709,13 +709,14 @@ function renderAlt(){
   const groups=groupUnits(uList);
 
   const monHead=months.map(mo=>`<div class="rg-m rg-mh"><span>${esc(mo.label.slice(0,3))}</span></div>`).join('');
-  const surfCell=(u,ym,past)=>{
+  const hasAB=groups.some(g=>!!g.B);      /* bu alanda çift yüzlü pozisyon var mı? */
+  const surfCell=(u,ym,past,solo)=>{
     if(!u) return `<span class="rcell yok" title="Bu pozisyonda bu yüzey tanımlı değil">–</span>`;
     const mp={}; (u.booked||[]).forEach(b=>mp[b.ym]=b.status);
     const st=mp[ym], sel=cart.some(c=>String(c.unitId)===String(u.id)&&c.ym===ym);
     const {surf}=posParts(u.name);
     const ay=MONTHS_LONG[+ym.slice(5,7)-1]+' '+ym.slice(0,4);
-    const yz=surf==='A'?'A yüzey (ön yüz)':'B yüzey (arka yüz)';
+    const yz=solo?'':(surf==='A'?' · A yüzey (ön yüz)':' · B yüzey (arka yüz)');
     let cls='rcell', durum;
     if(sel){cls+=' sel';durum='Sepette';}
     else if(st==='dolu'){cls+=' dolu';durum='Dolu';}
@@ -723,24 +724,28 @@ function renderAlt(){
     else if(past){cls+=' past';durum='Geçmiş';}
     else {cls+=' bos';durum='Müsait';}
     const tik=(!st&&!past)||sel ? ` onclick="pick('${u.id}','${ym}')"` : '';
-    return `<span class="${cls}" data-u="${u.id}" data-ym="${ym}"${tik} title="${esc(u.name)} · ${esc(yz)} · ${esc(ay)} — ${durum}"><i>${surf}</i></span>`;
+    return `<span class="${cls}" data-u="${u.id}" data-ym="${ym}"${tik} title="${esc(u.name)}${esc(yz)} · ${esc(ay)} — ${durum}"><i>${solo?'':surf}</i></span>`;
   };
   const rows=groups.map(g=>{
-    const cells=months.map(mo=>`<div class="rg-m">${surfCell(g.A,mo.ym,mo.ym<now)}${surfCell(g.B,mo.ym,mo.ym<now)}</div>`).join('');
+    const cells=months.map(mo=>`<div class="rg-m">${g.B
+      ? surfCell(g.A,mo.ym,mo.ym<now)+surfCell(g.B,mo.ym,mo.ym<now)
+      : surfCell(g.A,mo.ym,mo.ym<now,true)}</div>`).join('');
     return `<div class="rg-row"><div class="rg-lbl" title="${esc(g.base)}">${esc(g.base)}</div>${cells}</div>`;
   }).join('');
+  /* bu ayın müsaitlik özeti */
+  let musait=0; uList.forEach(u=>{ const mp={}; (u.booked||[]).forEach(b=>mp[b.ym]=b.status); if(!mp[now])musait++; });
+  const availPill=musait>0?`<span class="rt-avail">Bu ay ${musait} ${hasAB?'yüzey':'pozisyon'} müsait</span>`:'';
 
   const table=`<div class="restable"><div class="rh">
-      <div><span class="t">Rezervasyon Tablosu</span>
-        <span class="rt-help">Panonun <b>ön (A)</b> veya <b>arka (B)</b> yüzünü ve kiralamak istediğiniz ayı seçin</span></div>
+      <div><span class="t">Rezervasyon Tablosu</span>${availPill}
+        <span class="rt-help">${hasAB?'Panonun <b>ön (A)</b> veya <b>arka (B)</b> yüzünü ve kiralamak istediğiniz ayı seçin':'Kiralamak istediğiniz ayı seçmek için kutuya tıklayın'}</span></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="yr">${yr}</span><div class="nav"><button onclick="rollNav(-1)" title="Önceki yıl">‹</button><button onclick="rollNav(1)" title="Sonraki yıl">›</button></div></div></div>
     <div class="rtwrap"><div class="rgrid">
       <div class="rg-row rg-head"><div class="rg-lbl">Pozisyon</div>${monHead}</div>
       ${rows||'<div class="rg-row"><div class="rg-lbl muted">Pozisyon yok</div></div>'}
     </div></div>
     <div class="rg-legend">
-      <span class="lg-surf"><b>A</b> Ön yüz</span><span class="lg-surf"><b>B</b> Arka yüz</span>
-      <span class="lg-sep"></span>
+      ${hasAB?'<span class="lg-surf"><b>A</b> Ön yüz</span><span class="lg-surf"><b>B</b> Arka yüz</span><span class="lg-sep"></span>':''}
       <span><i class="sw bos"></i>Müsait</span><span><i class="sw dolu"></i>Dolu</span>
       <span><i class="sw rezerve"></i>Rezerve</span><span><i class="sw sel"></i>Seçili</span>
     </div></div>`;

@@ -657,3 +657,6 @@ details.grp>summary:hover .chev{color:var(--c-accent);}
 @media(max-width:860px){
   .side{background:#fff;border-right:0;border-bottom:1px solid var(--c-line);}
 }
+
+/* tek yüzeyli pozisyon: hücre tam genişlik (2 kutu + boşluk = 64px) */
+.rg-m .rcell:only-child{width:64px;}

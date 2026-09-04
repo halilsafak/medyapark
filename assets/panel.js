@@ -1974,12 +1974,12 @@ function groupUnits(list){ const map=new Map();
     if(!g[p.surf]) g[p.surf]=u; else if(!g.B) g.B=u; });
   return [...map.values()]; }
 
-function lCell(u,ym,cmap,bmap){
+function lCell(u,ym,cmap,bmap,solo){
   if(!u) return `<span class="rcell yok" title="Bu yüzey tanımlı değil">–</span>`;
   const rec=(bmap[u.id]||{})[ym]; const st=rec?rec.s:'bos';
   const who=rec&&rec.c?(cmap[rec.c]||''):'';
   const surf=posParts(u.name).surf;
-  const kod = who? String(who).trim().slice(0,3).toLocaleUpperCase('tr') : surf;
+  const kod = who? String(who).trim().slice(0,3).toLocaleUpperCase('tr') : (solo?'':surf);
   return `<span class="rcell ${st}" data-u="${u.id}" data-ym="${ym}" data-surf="${surf}"
     onclick="lCycle(${u.id},'${ym}')"
     onmouseenter="lTip(this)" onmouseleave="lTipHide()"><i>${esc(kod)}</i></span>`;
@@ -2141,7 +2141,7 @@ async function listeler(c){
       <button class="btn btn-outline btn-sm" onclick="bookImport()">${ic('upload',15)} Excel'den Al</button>
       <div class="year-nav" style="margin:0"><button onclick="lYear(-1)">‹</button><span class="yr">${y}</span><button onclick="lYear(1)">›</button></div>
     </div></div>
-    <div class="banner">Her ayın altında iki kutu vardır: <b>soldaki A (ön yüz)</b>, <b>sağdaki B (arka yüz)</b>. Kutuya tıkla: Boş → Dolu → Rezerve → Boş. Dolu/Rezerve yaparken aşağıda seçili müşteri atanır ve anında kaydedilir. Kutunun üzerine gelince kiralayan firma bilgi kartında görünür. Ziyaretçi firma adını görmez, yalnızca durumu görür.</div>
+    <div class="banner">Kutuya tıkla: Boş → Dolu → Rezerve → Boş. Çift yüzlü pozisyonlarda (M1 megalight ve raketleri) her ayın altında iki kutu vardır: <b>soldaki A (ön yüz)</b>, <b>sağdaki B (arka yüz)</b>; tek yüzeyli mecralarda tek geniş kutu görürsünüz. Dolu/Rezerve yaparken aşağıda seçili müşteri atanır ve anında kaydedilir. Kutunun üzerine gelince kiralayan firma bilgi kartında görünür. Ziyaretçi firma adını görmez, yalnızca durumu görür.</div>
     <div class="sec-card fbar">
       <div class="fbar-row">
         <input class="inp" id="lQ" placeholder="Ara: pozisyon, alan, mecra veya kiralayan firma…" oninput="lFiltre()">
@@ -2187,10 +2187,12 @@ function lFiltre(){
   for(const m of L.mlist){
     if(fm && String(m.id)!==fm) continue;
     const as=L.altByMec[m.id]||[];
-    let inner=''; let mecPoz=0;
+    let inner=''; let mecPoz=0; let mecAB=false;
     for(const a of as){
       const us=L.uByAlt[a.id]||[];
-      const groups=groupUnits(us).filter(g=>{
+      const tumGruplar=groupUnits(us);
+      if(tumGruplar.some(g=>!!g.B)) mecAB=true;
+      const groups=tumGruplar.filter(g=>{
         const {st,cs}=lGrupBilgi(g,y,bmap);
         if(q){
           const kiralayan=[...cs].map(id=>L.cmap[id]||'').join(' ');
@@ -2211,7 +2213,9 @@ function lFiltre(){
       if(!groups.length){ inner+='<p class="muted" style="font-size:12px">Filtreyle eşleşen pozisyon yok.</p>'; continue; }
       const rows=groups.map(g=>{
         const cells=MONTHS_SHORT.map((mo,i)=>{ const ym=y+'-'+pad(i+1);
-          return `<div class="rg-m">${lCell(g.A,ym,L.cmap,bmap)}${lCell(g.B,ym,L.cmap,bmap)}</div>`; }).join('');
+          return `<div class="rg-m">${g.B
+            ? lCell(g.A,ym,L.cmap,bmap)+lCell(g.B,ym,L.cmap,bmap)
+            : lCell(g.A,ym,L.cmap,bmap,true)}</div>`; }).join('');
         return `<div class="rg-row"><div class="rg-lbl" title="${esc(g.base)}">${esc(g.base)}</div>${cells}</div>`; }).join('');
       inner+=`<div class="rtwrap"><div class="rgrid">
         <div class="rg-row rg-head"><div class="rg-lbl">Pozisyon</div>${monHead}</div>${rows}</div></div>`;
@@ -2222,7 +2226,7 @@ function lFiltre(){
       <span class="lgrp-m">${aktif?mecPoz+' eşleşen pozisyon':((as.length)+' alan · '+((L.uByAlt&&as.reduce((k,x)=>k+((L.uByAlt[x.id]||[]).length),0))+' pozisyon'))}</span><i class="chev"></i></summary>`;
     html+=inner||'<p class="muted">Alt mecra yok.</p>';
     html+=`<div class="rg-legend">
-      <span class="lg-surf"><b>A</b> Ön yüz</span><span class="lg-surf"><b>B</b> Arka yüz</span><span class="lg-sep"></span>
+      ${mecAB?'<span class="lg-surf"><b>A</b> Ön yüz</span><span class="lg-surf"><b>B</b> Arka yüz</span><span class="lg-sep"></span>':''}
       <span><i class="sw bos"></i>Boş</span><span><i class="sw dolu"></i>Dolu</span><span><i class="sw rezerve"></i>Rezerve</span>
       </div></details>`;
   }

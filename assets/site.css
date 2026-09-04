@@ -879,3 +879,8 @@ body{overflow-x:hidden;}
 @media(max-width:640px){ .plan-grid{grid-template-columns:1fr;} .plan-card{padding:18px;} }
 
 .nav-admin{opacity:.35;font-size:15px;} .nav-admin:hover{opacity:.8;} .nav-admin::after{display:none !important;}
+
+/* tek yüzeyli pozisyon: hücre tam genişlik (2 kutu + boşluk = 64px) */
+.rg-m .rcell:only-child{width:64px;}
+.rt-avail{display:inline-block;margin-left:10px;background:var(--teal,#0e7c66);color:#fff;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;vertical-align:2px;}
+@media(max-width:640px){.rt-avail{display:block;margin:6px 0 0;width:max-content;}}
