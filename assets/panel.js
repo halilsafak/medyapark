@@ -500,7 +500,8 @@ async function yeniTeklifKontrol(){
     if(lb && !lr.error){ const k=(lr.data||[]).length; lb.textContent=k||''; lb.style.display=k?'inline-flex':'none'; }
   }catch(e){}
 }
-function go(s){ ui.section=s;
+function go(s){ if(typeof dirtyGuard==='function' && !dirtyGuard()) return;
+  ui.section=s;
   const g=navGrupOf(s);                        /* kapali gruptaki bolume gidilirse grubu ac */
   if(g){ const set=navAcikGruplar(); if(!set.has(g)){ set.add(g); try{localStorage.setItem('mp_nav_acik',JSON.stringify([...set]));}catch(e){} } }
   navCiz();
@@ -887,8 +888,16 @@ function collectVis(idPrefix,keys,prev){
 function imgField(id,val,label,hint,opt){
   const o=JSON.stringify(opt||upOpt(id)).replace(/"/g,'&quot;');
   return `<div class="field"><label class="flabel">${esc(label)}</label>
-    <div style="display:flex;gap:8px"><input class="inp" id="${id}" value="${esc(val)}" placeholder="${esc(hint||'https://...')}">
-    <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('${id}').value=u;},${o})">Yükle</button></div></div>`; }
+    <div class="imgf">
+    <span class="imgf-pv${val?'':' bos'}" id="${id}_pv" onclick="imgAc('${id}')" title="Önizleme — tıklayınca tam boyut açılır">${val?`<img src="${esc(val)}" alt="">`:''}</span>
+    <input class="inp" id="${id}" value="${esc(val)}" placeholder="${esc(hint||'https://...')}" oninput="imgPv('${id}')">
+    <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('${id}').value=u;imgPv('${id}');},${o})">Yükle</button>
+    <button class="btn btn-ghost btn-sm imgf-x" title="Görseli kaldır" onclick="imgSil('${id}')">✕</button></div></div>`; }
+function imgPv(id){ const v=(gv(id)||'').trim(), pv=document.getElementById(id+'_pv'); if(!pv)return;
+  pv.innerHTML=v?`<img src="${esc(v)}" alt="">`:''; pv.classList.toggle('bos',!v); }
+function imgAc(id){ const v=(gv(id)||'').trim(); if(v)window.open(v,'_blank'); }
+function imgSil(id){ const e=document.getElementById(id); if(!e)return; e.value=''; imgPv(id);
+  e.dispatchEvent(new Event('input',{bubbles:true})); }
 /* alan tipine göre en uzun kenar sınırı */
 function upOpt(id){
   const s=String(id||'').toLowerCase();
@@ -1476,9 +1485,17 @@ async function mecralar(c){
   c.innerHTML=`<div class="sec-head"><h3>Mecralar</h3><button class="btn btn-primary btn-sm" onclick="mecEdit(0)">+ Mecra ekle</button></div>${rows||'<p class="muted">Mecra yok.</p>'}<div id="mecEd"></div>`;
 }
 
-function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_color:'#0071e3'};
+function mecEdit(id){ if(ui._dirty && !dirtyGuard()) return;
+  const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_color:'#0071e3'};
   const T=(i,ad)=>`<button type="button" class="mtab-btn${i===0?' on':''}" data-mt="${i}" onclick="mecTab(${i})">${ad} <span class="mtab-badge" id="mtb${i}">–</span></button>`;
-  document.getElementById('mecEd').innerHTML=`<div class="sec-card" style="margin-top:16px"><h3 style="margin:0 0 14px;font-size:16px">${id?'Mecrayı Düzenle':'Yeni Mecra'}</h3>
+  const slug=m.slug||pslug(m.name||'');
+  document.getElementById('mecEd').innerHTML=`<div class="sec-card" style="margin-top:16px">
+    <div class="mec-head">
+      <h3 style="margin:0;font-size:16px">${id?'Mecrayı Düzenle':'Yeni Mecra'}</h3>
+      ${id?`<span class="pill ${m.hidden?'':'pil-on'}">${m.hidden?'○ Taslak':'● Yayında'}</span>
+      <a class="btn btn-ghost btn-sm" href="mecra/${esc(slug)}" target="_blank" rel="noopener" style="margin-left:auto">Sayfayı Gör ↗</a>`:''}
+    </div>
+    ${id?`<div class="hazir" id="mecHazirBar"></div>`:''}
     <input type="hidden" id="mid" value="${id||0}">
     <div class="mtabs">${T(0,'Genel')}${T(1,'Görseller')}${T(2,'Tanıtım')}${T(3,'Ayarlar')}</div>
 
@@ -1500,8 +1517,8 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
 
     <div class="mtab-p" data-mp="1">
     <div class="fld-box"><label class="flabel" style="font-weight:700">Görseller ve Kapak</label>
-    <div class="field"><label class="flabel">Kart görseli (yükle veya URL)</label><div style="display:flex;gap:8px"><input class="inp" id="mimage" value="${esc(m.image)}" placeholder="https://..."><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mimage').value=u;})">Yükle</button></div></div>
-    <div class="field"><label class="flabel">Kapak görseli (1920×400 — mecra sayfası üstü)</label><div style="display:flex;gap:8px"><input class="inp" id="mkapak" value="${esc(m.kapak)}"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('mkapak').value=u;})">Yükle</button></div></div>
+    ${imgField('mimage', m.image, 'Kart görseli (yükle veya URL)', 'https://...')}
+    ${imgField('mkapak', m.kapak, 'Kapak görseli (1920×400 — mecra sayfası üstü)', 'https://...')}
     <div class="row2"><div class="field"><label class="flabel">Kapak kaplama rengi</label><input type="color" id="mkcolor" value="${esc(m.kapak_color||'#101014')}"></div><div class="field"><label class="flabel">Kapak opasite (0–1)</label><input class="inp" type="number" min="0" max="1" step="0.05" id="mkop" value="${m.kapak_opacity!=null?m.kapak_opacity:0.4}"></div></div>
     <div class="field"><label class="flabel">Kapak yüksekliği (px)</label><input class="inp" type="number" id="mkh" value="${m.kapak_height!=null?m.kapak_height:600}"></div>
     ${imgField('mkapakm', m.kapak_mobil, 'Kapak görseli — MOBİL sürüm (opsiyonel, 760px altı)', 'boş = masaüstü görseli kullanılır')}
@@ -1544,16 +1561,44 @@ function mecEdit(id){ const m=(ui._mecralar||[]).find(x=>x.id===id)||{theme_colo
       <label class="switch"><input type="checkbox" id="mhub" ${m.hub===false?'':'checked'}><span class="sl"></span><span class="txt">Tanıtım sayfasını göster</span></label></div>
     </div>
 
-    <button class="btn btn-primary btn-sm" onclick="mecSave()">Mecrayı Kaydet</button>
+    <div class="stickybar"><span class="dirty-msg" id="mecDirtyMsg"></span>
+      <button class="btn btn-ghost btn-sm" onclick="mecVazgec(${id||0})">Vazgeç</button>
+      <button class="btn btn-primary btn-sm" onclick="mecSave()">Mecrayı Kaydet</button></div>
     ${id?`<hr style="border:0;border-top:1px solid var(--line2);margin:18px 0"><div class="sec-head"><h3 style="font-size:15px">Alt Mecralar</h3><button class="btn btn-primary btn-sm" onclick="altAdd(${id})">+ Alt Mecra</button></div><div id="altList">Yükleniyor…</div>`:'<p class="muted" style="margin-top:12px">Alt mecraları, mecrayı kaydettikten sonra ekleyebilirsiniz.</p>'}
     </div>`;
   collapsify(document.getElementById('mecEd'),'form');
   const kok=document.getElementById('mecEd');
-  kok.addEventListener('input', mecTabSay);
-  kok.addEventListener('change', mecTabSay);
-  mecTabSay();
+  ui._dirty=false;
+  const tazele=()=>{ mecTabSay(); mecHazir(m); };
+  kok.oninput=()=>{ mecKirlet(); tazele(); };
+  kok.onchange=()=>{ mecKirlet(); tazele(); };
+  tazele();
   kok.scrollIntoView({behavior:'smooth'});
   if(id) loadAltList(id);
+}
+function mecKirlet(){ ui._dirty=true;
+  const m=document.getElementById('mecDirtyMsg'); if(m)m.textContent='Kaydedilmemiş değişiklik var'; }
+function mecTemizle(){ ui._dirty=false;
+  const m=document.getElementById('mecDirtyMsg'); if(m)m.textContent=''; }
+function mecVazgec(id){ if(ui._dirty && !confirm('Değişiklikler kaydedilmedi. Vazgeçilsin mi?'))return;
+  ui._dirty=false; mecEdit(id); }
+function dirtyGuard(){ if(!ui._dirty) return true;
+  if(confirm('Kaydedilmemiş değişiklikler var. Kaydetmeden ayrılmak istiyor musunuz?')){ ui._dirty=false; return true; }
+  return false; }
+/* Yayına hazırlık şeridi — kritik alanlar + koordinat sayısı */
+function mecHazir(m){
+  const bar=document.getElementById('mecHazirBar'); if(!bar)return;
+  const dolu=id=>String(gv(id)||'').trim()!=='';
+  const units=(m&&m.units)||[];
+  const koorD=units.filter(u=>u.lat!=null).length, koorT=units.length;
+  const items=[
+    ['Kapak', dolu('mkapak'), 1],
+    ['Kart görseli', dolu('mimage'), 1],
+    ['Açıklama', dolu('macik'), 2],
+    ['Avantajlar', [0,1,2,3].some(i=>dolu('mav_t'+i)), 2],
+    ['Katalog', dolu('mkatalog'), 2]];
+  bar.innerHTML=items.map(([ad,ok,tab])=>`<button type="button" class="hz ${ok?'ok':'no'}" onclick="mecTab(${tab})">${ok?'✓':'✗'} ${ad}</button>`).join('')
+    + (koorT?`<button type="button" class="hz ${koorD===koorT?'ok':(koorD?'yari':'no')}" onclick="if(dirtyGuard())go('harita')">${koorD===koorT?'✓':'◔'} Koordinat ${koorD}/${koorT}</button>`:'');
 }
 function mecTab(i){
   document.querySelectorAll('#mecEd .mtab-btn').forEach(b=>b.classList.toggle('on',+b.dataset.mt===i));
@@ -1573,7 +1618,7 @@ async function mecSave(){ const id=+gv('mid');
   const prev=((ui._mecralar||[]).find(x=>x.id===id)||{}).visible||{};
   const visible=collectVis('m',['kapak','aciklama','kroki','avantajlar','logo','gosterim','maps'],prev);
   const avantajlar=[]; for(let i=0;i<4;i++){ const t=(gv('mav_t'+i)||'').trim(), d=(gv('mav_d'+i)||'').trim(); if(t||d)avantajlar.push({t,d}); }
-  const r=await api('mecra_save',{id,name:gv('mname'),theme_color:gv('mcolor'),badge:gv('mbadge'),
+  const r=await guard(()=>api('mecra_save',{id,name:gv('mname'),theme_color:gv('mcolor'),badge:gv('mbadge'),
     hidden:!(document.getElementById('mpub')||{checked:true}).checked,
     intro_image:gv('mintroimg'),katalog:gv('mkatalog'),
     gunluk_gosterim:gv('mgg'),toplam_alan:gv('mta'),slug:(gv('mslug').trim()||pslug(gv('mname'))),
@@ -1584,7 +1629,9 @@ async function mecSave(){ const id=+gv('mid');
     yerlesim_plani:gv('mkroki'),kroki_mobil:gv('mkrokim'),
     logo:gv('mlogo'),avantajlar,
     hub:document.getElementById('mhub').checked,
-    visible});
+    visible}),'Mecra kaydedilemedi');
+  if(r===null) return;
+  mecTemizle(); toast('Mecra kaydedildi.');
   ui._mecralar=await api('mecra_list'); mecEdit(id||(r&&r.id)||0); }
 async function mecDel(id){ if(confirm('Mecra, alt mecraları ve üniteleri silinsin mi?')){ await api('mecra_delete&id='+id); renderSection(); } }
 async function mecReorder(id,dir){ let list=(ui._mecralar||[]).slice(); const idx=list.findIndex(x=>x.id===id); const j=idx+dir; if(idx<0||j<0||j>=list.length)return; [list[idx],list[j]]=[list[j],list[idx]]; for(let k=0;k<list.length;k++){ if((list[k].sort||0)!==k) await api('mecra_save',{id:list[k].id,sort:k}); } ui._mecralar=await api('mecra_list'); renderSection(); }
@@ -1597,7 +1644,7 @@ async function loadAltList(mid){ const alts=await api('alt_list&mecra_id='+mid);
 async function altAdd(mid){ const pid=(ui._products[0]||{}).id||null; const r=await api('alt_save',{mecra_id:mid,product_id:pid,name:'Yeni Alt Mecra'}); ui._alts=await api('alt_list&mecra_id='+mid); altEdit(r.id,mid); }
 async function altDel(id,mid){ if(confirm('Alt mecra ve üniteleri silinsin mi?')){ await api('alt_delete&id='+id); loadAltList(mid); } }
 
-async function altEdit(id,mid){
+async function altEdit(id,mid){ if(ui._dirty && !dirtyGuard()) return;
   const alts=await api('alt_list&mecra_id='+mid); ui._alts=alts; const a=alts.find(x=>x.id===id)||{visible:{},avantajlar:[],galeri:[]};
   const vis=a.visible||{}; const adv=Array.isArray(a.avantajlar)?a.avantajlar:[]; const gal=Array.isArray(a.galeri)?a.galeri:[];
   const advInputs=[0,1,2,3].map(i=>{const x=adv[i]||{};return `<div class="row2"><div class="field"><input class="inp" id="av${i}t" value="${esc(x.t||x.title||'')}" placeholder="Avantaj ${i+1} başlık"></div><div class="field"><input class="inp" id="av${i}d" value="${esc(x.d||x.desc||'')}" placeholder="Açıklama"></div></div>`;}).join('');
@@ -1617,12 +1664,9 @@ async function altEdit(id,mid){
       <input class="inp" id="aintro" value="${esc(a.intro_baslik)}" placeholder="Başlık — ör. M1 AVM Megalight Alanları" style="margin-bottom:8px">
       <textarea class="inp" id="aacik" placeholder="Açıklama metni…" style="min-height:90px">${esc(a.aciklama)}</textarea>
       ${visSel('',a,'aciklama','Bu bölüm')}</div>
-    <div class="field"><label class="flabel">Sayfa adresi</label>
-      <div class="slug-row"><span>/mecra/</span><input class="inp" id="mslug" value="${esc(m.slug)}" placeholder="otomatik: ${esc(pslug(m.name))}"></div>
-      <p class="muted" style="font-size:11.5px;margin:5px 0 0">Boş bırakırsan isimden otomatik üretilir. Sonradan değiştirirsen eski linkler kırılır.</p></div>
     <div class="row2"><div class="field"><label class="flabel">Günlük gösterim</label><input class="inp" id="agg" value="${esc(a.gunluk_gosterim)}"></div>
       <div class="field"><label class="flabel">Toplam alan</label><input class="inp" id="ata" value="${esc(a.toplam_alan)}"></div></div>
-    <div class="field"><label class="flabel">Kart görseli</label><div style="display:flex;gap:8px"><input class="inp" id="aimage" value="${esc(a.image)}"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('aimage').value=u;})">Yükle</button></div></div>
+    ${imgField('aimage', a.image, 'Kart görseli', 'https://...')}
     <div class="field"><label class="flabel">Kapak görseli (1920×400 — detay üstü)</label><div style="display:flex;gap:8px"><input class="inp" id="akapak" value="${esc(a.kapak)}"><button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('akapak').value=u;})">Yükle</button></div></div>
     ${imgField('akapakm', a.kapak_mobil, 'Kapak — MOBİL sürüm (opsiyonel)', 'boş = masaüstü görseli kullanılır')}
     ${imgField('aimagem', a.image_mobil, 'Kart görseli — MOBİL sürüm (opsiyonel)', 'boş = masaüstü görseli kullanılır')}
@@ -1643,7 +1687,7 @@ async function altEdit(id,mid){
   collapsify(document.getElementById('mecEd'),'form');
   document.getElementById('mecEd').scrollIntoView({behavior:'smooth'});
 }
-async function altSave(){ const id=+gv('aid'), mid=+gv('amid');
+async function altSave(){ const id=+gv('aid'), mid=+gv('amid'); mecTemizle();
   const a0=(ui._alts||[]).find(x=>x.id===id)||{};
   const adv=[0,1,2,3].map(i=>({t:gv('av'+i+'t'),d:gv('av'+i+'d')})).filter(x=>x.t||x.d);
   const visible=collectVis('',['baslik','aciklama','maps','avantajlar','galeri'],a0.visible||{});

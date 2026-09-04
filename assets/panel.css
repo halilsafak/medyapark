@@ -660,3 +660,28 @@ details.grp>summary:hover .chev{color:var(--c-accent);}
 
 /* tek yüzeyli pozisyon: hücre tam genişlik (2 kutu + boşluk = 64px) */
 .rg-m .rcell:only-child{width:64px;}
+
+/* --- v52: mecra düzenleme ergonomisi --- */
+.mec-head{display:flex;align-items:center;gap:10px;margin:0 0 12px;flex-wrap:wrap;}
+.pil-on{background:var(--c-green-soft);color:var(--c-green);}
+.hazir{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;padding:10px;background:var(--c-alt);border-radius:12px;}
+.hz{font:inherit;font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;cursor:pointer;transition:.13s;border:1px solid transparent;}
+.hz.ok{background:var(--c-green-soft);color:var(--c-green);}
+.hz.no{background:#fff;color:var(--c-ink3);border-color:var(--c-line);}
+.hz.yari{background:var(--c-amber-soft);color:var(--c-amber);}
+.hz:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.imgf{display:flex;gap:8px;align-items:center;}
+.imgf .inp{flex:1;min-width:0;}
+.imgf-pv{flex:0 0 46px;width:46px;height:46px;border-radius:10px;border:1px solid var(--c-line);background:var(--c-alt);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:zoom-in;}
+.imgf-pv img{width:100%;height:100%;object-fit:cover;display:block;}
+.imgf-pv.bos{cursor:default;}
+.imgf-pv.bos::after{content:'—';color:var(--c-ink3);font-size:12px;}
+.imgf-x{flex:0 0 auto;padding:6px 9px;color:var(--c-ink3);}
+.imgf-x:hover{color:var(--c-red);background:var(--c-red-soft);}
+.stickybar{position:sticky;bottom:0;display:flex;align-items:center;gap:10px;justify-content:flex-end;
+  margin:18px -18px -18px;padding:12px 18px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+  border-top:1px solid var(--c-line);border-radius:0 0 var(--r) var(--r);z-index:5;}
+.dirty-msg{margin-right:auto;font-size:12.5px;font-weight:600;color:var(--c-amber);}
+.dirty-msg:empty{display:none;}
+@media(max-width:760px){ .imgf{flex-wrap:wrap;} .imgf .inp{flex:1 1 100%;order:2;} }
