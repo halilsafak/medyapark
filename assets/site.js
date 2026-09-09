@@ -640,13 +640,14 @@ function renderMecPage(m,aktifAltId){
   const band=!vis(m,'bant',true)?'':`<section class="mp-band" id="mp-teklif"><div class="mp-band-in">
       ${bandImg?`<div class="mp-band-img"><img src="${esc(bandImg)}" alt=""></div>`:''}
       <div class="mp-band-b">
-        <h2>${esc(m.name)} için teklif alın</h2>
-        <p>Tabloda ayları seçip teklif isteyin ya da bize bırakın, sizin için planlayalım.</p>
+        <span class="mp-band-k">Teklif &amp; Planlama</span>
+        <h2>${esc(m.name)} için hemen teklif alın</h2>
+        <p>Rezervasyon tablosundan istediğiniz ayları seçin, sepete ekleyin; teklif talebiniz anında ekibimize düşer ve aynı gün içinde size dönüş yaparız. Kararsızsanız hedef kitlenizi ve bütçenizi paylaşın, mecra karmasını biz planlayalım — ücretsiz, bağlayıcılığı yok.</p>
         <div class="mp-band-btn">
           <a class="btn btn-primary" onclick="mpTeklif()">Teklif Al</a>
           ${st.social_whatsapp?`<a class="btn btn-wa" href="${esc(st.social_whatsapp)}" target="_blank" rel="noopener">WhatsApp</a>`:''}
-          ${katalogUrl?`<a class="btn btn-outline" href="${esc(katalogUrl)}" target="_blank" rel="noopener" download>PDF Katalog</a>`:''}
-          <a class="btn btn-outline" href="${BASE}medya-planlama" onclick="openPlan();return false;">Biz Planlayalım</a>
+          ${katalogUrl?`<a class="btn btn-red" href="${esc(katalogUrl)}" target="_blank" rel="noopener" download>PDF Katalog</a>`:''}
+          <a class="btn btn-glow" href="${BASE}medya-planlama" onclick="openPlan();return false;"><span>Biz Planlayalım</span></a>
         </div></div></div></section>`;
 
   /* diğer lokasyonlar */
@@ -657,7 +658,7 @@ function renderMecPage(m,aktifAltId){
       <span class="mp-dc-top">${esc(ozet)}</span>
       ${x.image?`<img src="${esc(x.image)}" alt="" loading="lazy">`:''}
       <span class="mp-dc-b"><small>${esc(x.badge||'')}</small><b>${esc(x.name)}</b><em>Keşfet</em></span></a></div>`;}).join('');
-  const diger = (digerler.length && vis(m,'diger',true)) ? `<section class="mp-sec" id="mp-diger"><h2 class="mp-h2">Diğer Mecralara Göz Atın</h2>
+  const diger = (digerler.length && vis(m,'diger',true)) ? `<section class="mp-sec" id="mp-diger"><h2 class="mp-h2">Diğer Mecralarımıza Göz Atın</h2>
       <div class="carousel"><div class="cnav l" onclick="carScroll(-1)">‹</div><div class="cartrack" id="cartrack">${relCards}</div><div class="cnav r" onclick="carScroll(1)">›</div></div></section>` : '';
 
   const sticky=!vis(m,'sticky',true)?'':`<div class="mp-sticky" id="mpSticky"><div class="mp-sticky-in">
