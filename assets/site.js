@@ -602,15 +602,15 @@ function renderMecPage(m,aktifAltId){
   const nowYm=curYm();
   const yuzBilgi=(u,a)=>{ if(!u)return null; const mp={}; (u.booked||[]).forEach(b=>mp[b.ym]=b.status);
     return {id:u.id,name:u.name||'',konum:u.konum||'',img:u.image||a.image||m.image||'',st:mp[nowYm]||'bos',surf:posParts(u.name).surf}; };
-  const pts=[]; alts.forEach(a=>groupUnits(a.units||[]).forEach(g=>{
+  const pts=[]; window.__mpPts=pts; window.__mpSonPin=null; alts.forEach(a=>groupUnits(a.units||[]).forEach(g=>{
     const ref=g.A||g.B; const la=parseFloat((g.A||{}).lat!=null?g.A.lat:(g.B||{}).lat), ln=parseFloat((g.A||{}).lng!=null?g.A.lng:(g.B||{}).lng);
     if(!ref||!isFinite(la)||!isFinite(ln))return;
     pts.push({lat:la,lng:ln,name:g.base,alt:a.id,urun:((a.product||{}).name||a.name),A:yuzBilgi(g.A,a),B:yuzBilgi(g.B,a),konum:ref.konum||''});}));
   const haritaVar = pts.length>0 && visMode(m,'maps')!=='off';
   const krokiVar = vis(m,'kroki',!!m.yerlesim_plani);
   const konumSol = (haritaVar||krokiVar) ? `<div class="mp-map-wrap">
-      ${(haritaVar&&krokiVar)?`<div class="mp-swi"><button class="on" onclick="mpGorunum('harita',this)">Harita</button><button onclick="mpGorunum('kroki',this)">Kroki</button></div>`:''}
-      ${haritaVar?`<div class="mp-map" id="mpHarita"><div id="hubMap"></div></div>`:''}
+      ${haritaVar?`<div class="mp-swi"><button class="on" onclick="mpGorunum('harita',this)">Harita</button><button onclick="mpGorunum('uydu',this)">Uydu</button><button class="gm-only" onclick="mpGorunum('sokak',this)">Sokak</button>${krokiVar?`<button onclick="mpGorunum('kroki',this)">Kroki</button>`:''}</div>`:''}
+      ${haritaVar?`<div class="mp-map" id="mpHarita"><div id="hubMap"></div></div><div class="mp-sokak" id="mpSokak" style="display:none"><div id="mpPano"></div><div class="mp-sokak-not" id="mpSokakNot"></div></div>`:''}
       ${krokiVar?`<div class="mp-kroki" id="mpKroki" ${haritaVar?'style="display:none"':''}><div class="kroki-box" onclick="lightbox('${esc(m.yerlesim_plani)}')">${picture(m.yerlesim_plani,m.kroki_mobil,'kroki-img','Yerleşim krokisi')}<span class="kroki-zoom">Büyütmek için tıklayın</span></div></div>`:''}
     </div>` : `<div class="mp-map-wrap mp-map-bos">${m.intro_image?`<img src="${esc(m.intro_image)}" alt="">`:'<span>Konum bilgisi yakında</span>'}</div>`;
   const konum=!vis(m,'konum',true)?'':`<section class="mp-sec" id="mp-konum"><h2 class="mp-h2">Konum Bilgisi</h2>
@@ -687,10 +687,38 @@ function renderMecPage(m,aktifAltId){
   if(haritaVar){ if(gKey()) initHubMapG(pts, m.theme_color||'#0071e3'); else initHubMap(pts, m.theme_color||'#0071e3', true); }
   mpStickyKur();
 }
-function mpGorunum(k,btn){ const h=document.getElementById('mpHarita'), kr=document.getElementById('mpKroki');
-  if(h)h.style.display=k==='harita'?'':'none'; if(kr)kr.style.display=k==='kroki'?'':'none';
-  document.querySelectorAll('.mp-swi button').forEach(b=>b.classList.toggle('on',b===btn));
-  if(k==='harita'){ setTimeout(()=>{ if(hubMapObj)hubMapObj.invalidateSize(); if(gHub&&window.google)google.maps.event.trigger(gHub,'resize'); },50); } }
+let mpPano=null, hubSatLayer=null, hubOsmLayer=null;
+function mpGorunum(k,btn){
+  const h=document.getElementById('mpHarita'), kr=document.getElementById('mpKroki'), sk=document.getElementById('mpSokak');
+  const haritaGoster=(k==='harita'||k==='uydu');
+  if(h)h.style.display=haritaGoster?'':'none'; if(kr)kr.style.display=k==='kroki'?'':'none'; if(sk)sk.style.display=k==='sokak'?'':'none';
+  document.querySelectorAll('.mp-swi button').forEach(b=>b.classList.toggle('on',btn?b===btn:b.textContent.trim().toLocaleLowerCase('tr')===k));
+  if(haritaGoster){
+    if(gHub&&window.google){ gHub.setMapTypeId(k==='uydu'?'hybrid':'roadmap'); setTimeout(()=>google.maps.event.trigger(gHub,'resize'),50); }
+    else if(hubMapObj){ if(k==='uydu'){ if(!hubSatLayer)hubSatLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
+        if(hubOsmLayer)hubMapObj.removeLayer(hubOsmLayer); hubSatLayer.addTo(hubMapObj); }
+      else { if(hubSatLayer)hubMapObj.removeLayer(hubSatLayer); if(hubOsmLayer)hubOsmLayer.addTo(hubMapObj); }
+      setTimeout(()=>hubMapObj.invalidateSize(),50); }
+  }
+  if(k==='sokak') mpSokakAc(window.__mpSonPin||(window.__mpPts||[])[0]);
+}
+/* Sokak görünümü: seçili (ya da ilk) pinin konumunda en yakın panorama */
+function mpSokakAc(p){
+  const el=document.getElementById('mpPano'), not=document.getElementById('mpSokakNot'); if(!el||!p)return;
+  if(!window.google||!google.maps.StreetViewService){ if(not)not.textContent='Sokak görünümü için Google haritası gerekli.'; return; }
+  if(not)not.textContent='Sokak görüntüsü aranıyor…';
+  const sv=new google.maps.StreetViewService();
+  sv.getPanorama({location:{lat:p.lat,lng:p.lng},radius:90,source:google.maps.StreetViewSource.OUTDOOR},(data,status)=>{
+    if(status!=='OK'||!data||!data.location){ if(not)not.textContent=`${p.name} için sokak görüntüsü bulunamadı.`; el.innerHTML=''; mpPano=null; return; }
+    const heading=google.maps.geometry?google.maps.geometry.spherical.computeHeading(data.location.latLng,new google.maps.LatLng(p.lat,p.lng)):0;
+    if(!mpPano) mpPano=new google.maps.StreetViewPanorama(el,{addressControl:false,fullscreenControl:true,motionTracking:false,linksControl:true,panControl:true,enableCloseButton:false});
+    mpPano.setPano(data.location.pano); mpPano.setPov({heading:heading||0,pitch:0}); mpPano.setVisible(true);
+    if(not)not.textContent=`${p.urun||''} · ${p.name} — sokak görünümü`;
+  });
+}
+/* pin kartından sokak görünümü */
+function mpSokakPin(altId,base){ const p=(window.__mpPts||[]).find(x=>String(x.alt)===String(altId)&&x.name===base); if(!p)return;
+  window.__mpSonPin=p; const b=[...document.querySelectorAll('.mp-swi button')].find(x=>x.textContent.trim()==='Sokak'); mpGorunum('sokak',b); }
 function mpSl(btn,d){ const sl=btn.closest('.mp-sl'); const imgs=sl.querySelectorAll('img'); let i=+sl.dataset.i||0;
   i=(i+d+imgs.length)%imgs.length; imgs.forEach((im,k)=>im.classList.toggle('on',k===i)); sl.dataset.i=i; }
 function mpTeklif(){ if(typeof cart!=='undefined'&&cart.length){ toggleCart(); } else { mpScroll('mp-tablo'); } }
@@ -705,11 +733,12 @@ function mpPinKart(p){
   const yuz=(y,etiket)=>`<div class="pp-y"><div class="pp-img">${y.img?`<img src="${esc(y.img)}" alt="">`:'<span>Fotoğraf yok</span>'}</div>
       <b>${esc(etiket)}</b>${y.konum?`<span>${esc(y.konum)}</span>`:''}${durum(y)}
       <button class="btn btn-primary btn-sm" onclick="mpPinGit('${p.alt}',${y.id})">${esc(etiket.split(' ')[0])} yüzünü seç</button></div>`;
-  if(p.B) return `<div class="mp-pop cift"><div class="pp-h"><b>${esc(p.urun)} · ${esc(p.name)}</b><span>Çift yüzlü pano — yüzü seçin</span></div>
+  const sokak=(window.google&&gHub)?`<button class="pp-sv" onclick="mpSokakPin('${p.alt}','${esc(p.name)}')">Sokak görünümü ↗</button>`:'';
+  if(p.B) return `<div class="mp-pop cift"><div class="pp-h"><b>${esc(p.urun)} · ${esc(p.name)}</b><span>Çift yüzlü pano — yüzü seçin</span>${sokak}</div>
     <div class="pp-2">${yuz(p.A,'A yüzü (ön)')}${yuz(p.B,'B yüzü (arka)')}</div></div>`;
   const y=p.A; return `<div class="mp-pop"><div class="pp-img">${y.img?`<img src="${esc(y.img)}" alt="">`:''}</div>
     <b>${esc(p.urun)} · ${esc(p.name)}</b>${y.konum?`<span>${esc(y.konum)}</span>`:''}${durum(y)}
-    <button class="btn btn-primary btn-sm" onclick="mpPinGit('${p.alt}',${y.id})">Müsaitliğe bak</button></div>`;
+    <button class="btn btn-primary btn-sm" onclick="mpPinGit('${p.alt}',${y.id})">Müsaitliğe bak</button>${sokak}</div>`;
 }
 /* sekmeyi aç, tabloya in, seçilen yüzeyin satırını vurgula */
 function mpPinGit(altId,unitId){
@@ -734,8 +763,9 @@ function initHubMapG(pts,color){
     const b=new google.maps.LatLngBounds();
     pts.forEach(p=>{ const mk=new google.maps.Marker({map:gHub,position:{lat:p.lat,lng:p.lng},title:p.name,
         icon:{url:gPinSvg(color),scaledSize:new google.maps.Size(32,42),anchor:new google.maps.Point(16,41)}});
-      mk.addListener('click',()=>{ info.setOptions({maxWidth:p.B?420:250}); info.setContent(mpPinKart(p)); info.open(gHub,mk); });
+      mk.addListener('click',()=>{ window.__mpSonPin=p; info.setOptions({maxWidth:p.B?420:250}); info.setContent(mpPinKart(p)); info.open(gHub,mk); });
       b.extend(mk.getPosition()); });
+    document.querySelectorAll('.mp-swi .gm-only').forEach(x=>x.style.display='');
     if(pts.length===1) { gHub.setCenter(b.getCenter()); gHub.setZoom(16); }
     else { gHub.fitBounds(b,60); google.maps.event.addListenerOnce(gHub,'idle',()=>{ if(gHub.getZoom()>17)gHub.setZoom(17); }); }
   }).catch(()=>{ initHubMap(pts,color,true); });   /* anahtar yok/reddedildi → Leaflet */
@@ -819,7 +849,7 @@ function initHubMap(pts,color,buyuk){
     const el=document.getElementById('hubMap'); if(!el||typeof L==='undefined')return;
     if(hubMapObj){ try{hubMapObj.remove();}catch(e){} hubMapObj=null; }
     hubMapObj=L.map('hubMap',{scrollWheelZoom:!!buyuk,zoomControl:!!buyuk,dragging:!!buyuk,attributionControl:false});
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(hubMapObj);
+    hubOsmLayer=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(hubMapObj); hubSatLayer=null;
     const ms=pts.map(p=>{ const mk=L.marker([p.lat,p.lng],{icon:pinIcon(color)});
       if(buyuk) mk.bindPopup(mpPinKart(p),{maxWidth:p.B?420:250});
       return mk; });
@@ -1233,7 +1263,7 @@ function loadGoogle(){
     };
     const g=document.createElement('script');
     g.async=true;
-    g.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&callback=__gmReady&language=tr&region=TR';
+    g.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(key)+'&libraries=geometry&callback=__gmReady&language=tr&region=TR';
     g.onerror=()=>{ clearTimeout(t); rej(new Error('google maps yuklenemedi')); };
     document.head.appendChild(g);
   });

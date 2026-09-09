@@ -1172,3 +1172,12 @@ body{overflow-x:clip;}
 @keyframes cellhl{0%,100%{box-shadow:0 0 0 2px var(--teal);}50%{box-shadow:0 0 0 5px rgba(0,113,227,.35);}}
 .gm-style .gm-style-iw-c{border-radius:14px;padding:12px !important;}
 @media(max-width:640px){ .mp-pop.cift{min-width:0;} .pp-2{grid-template-columns:1fr;} }
+
+/* v63: uydu + sokak görünümü */
+.mp-swi .gm-only{display:none;}
+.mp-sokak{position:relative;min-height:500px;background:#111;}
+#mpPano{position:absolute;inset:0;}
+.mp-sokak-not{position:absolute;left:12px;bottom:12px;z-index:2;background:rgba(255,255,255,.94);color:var(--ink);font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px;box-shadow:var(--sh);}
+.pp-sv{display:block;margin-top:6px;font-size:12px;font-weight:600;color:var(--teal);background:none;padding:0;cursor:pointer;text-align:left;}
+.pp-sv:hover{text-decoration:underline;}
+@media(max-width:900px){ .mp-sokak{min-height:340px;} }
