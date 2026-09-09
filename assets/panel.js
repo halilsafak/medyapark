@@ -1996,6 +1996,7 @@ async function harita(c){
   const mecById={}; mecs.forEach(m=>mecById[m.id]=m);
   hRows=(un.data||[]).map(u=>{ const a=altById[u.alt_mecra_id]||{}; const m=mecById[a.mecra_id||u.mecra_id]||{};
     return {id:u.id,unit:u.name||'(pozisyon)',alt:a.name||'—',mec:m.name||'—',theme:m.theme_color||'#0071e3',
+            mecId:a.mecra_id||u.mecra_id||0,altId:u.alt_mecra_id||0,mecSort:m.sort||0,altSort:a.sort||0,
             lat:u.lat,lng:u.lng,konum:u.konum||''}; });
   const yes=hRows.filter(r=>r.lat!=null&&r.lng!=null).length;
 
@@ -2073,15 +2074,36 @@ async function saveGa(){
 }
 async function saveMapTexts(){ await api('settings_save',{mapTitle:gv('mapTitle'),mapDesc:gv('mapDesc'),mapKapak:gv('mapKapak')}); mpAlert('Kaydedildi.'); }
 function hFilter(q){ hQ=(q||'').toLowerCase(); hRenderList(); }
+function hGrupAcik(){ if(!ui._hOpen) ui._hOpen={}; return ui._hOpen; }
+function hGrupTog(k){ const o=hGrupAcik(); o[k]=!(o[k]!==false); if(o[k]===true)delete o[k]; else o[k]=false; hRenderList(); }
+function hGrupHepsi(ac){ const o=hGrupAcik(); Object.keys(o).forEach(k=>delete o[k]); if(!ac){ hRows.forEach(r=>{ o['m'+r.mecId]=false; }); } hRenderList(); }
 function hRenderList(){ const box=document.getElementById('hList'); if(!box)return;
   const cn=document.getElementById('hCount');
   if(cn) cn.textContent=hRows.filter(r=>r.lat!=null&&r.lng!=null).length;
   const list=hRows.filter(r=>!hQ||[r.unit,r.alt,r.mec,r.konum].some(x=>String(x||'').toLowerCase().includes(hQ)));
-  box.innerHTML=list.length?list.map(r=>{ const ok=r.lat!=null&&r.lng!=null;
-    return `<div class="hrow ${hSel===r.id?'on':''}" onclick="hPick(${r.id})">
-      <span class="hdot" style="background:${ok?r.theme:'#d2d2d7'}"></span>
-      <div class="hnm"><b>${esc(r.unit)}</b><span>${esc(r.mec)} › ${esc(r.alt)}</span></div>
-      <span class="hst">${ok?'✓':'—'}</span></div>`;}).join(''):'<p class="muted" style="font-size:13px;padding:8px">Sonuç yok.</p>';
+  if(!list.length){ box.innerHTML='<p class="muted" style="font-size:13px;padding:8px">Sonuç yok.</p>'; return; }
+  const acik=hGrupAcik(); const aramaVar=!!hQ;
+  /* mecra → alan → pozisyon */
+  const mecs=new Map();
+  list.forEach(r=>{ if(!mecs.has(r.mecId)) mecs.set(r.mecId,{ad:r.mec,theme:r.theme,sort:r.mecSort,alts:new Map()});
+    const M=mecs.get(r.mecId); if(!M.alts.has(r.altId)) M.alts.set(r.altId,{ad:r.alt,sort:r.altSort,rows:[]}); M.alts.get(r.altId).rows.push(r); });
+  const sayac=rows=>{ const ok=rows.filter(r=>r.lat!=null&&r.lng!=null).length; return `<span class="hsay ${ok===rows.length?'tam':(ok?'yari':'')}">${ok}/${rows.length}</span>`; };
+  let html='';
+  [...mecs.entries()].sort((x,y)=>(x[1].sort-y[1].sort)||x[1].ad.localeCompare(y[1].ad,'tr')).forEach(([mid,M])=>{
+    const tum=[...M.alts.values()].flatMap(A=>A.rows);
+    const mOpen=aramaVar||acik['m'+mid]!==false;
+    html+=`<div class="hg ${mOpen?'open':''}"><button class="hg-h" onclick="hGrupTog('m${mid}')"><i class="hdot" style="background:${M.theme}"></i><b>${esc(M.ad)}</b>${sayac(tum)}<em class="chev"></em></button>`;
+    if(mOpen){
+      [...M.alts.entries()].sort((x,y)=>(x[1].sort-y[1].sort)||x[1].ad.localeCompare(y[1].ad,'tr')).forEach(([aid,A])=>{
+        const aOpen=aramaVar||acik['a'+aid]!==false;
+        html+=`<div class="hga ${aOpen?'open':''}"><button class="hga-h" onclick="hGrupTog('a${aid}')"><span>${esc(A.ad)}</span>${sayac(A.rows)}<em class="chev"></em></button>`;
+        if(aOpen) html+=A.rows.map(r=>{ const ok=r.lat!=null&&r.lng!=null;
+          return `<div class="hrow ${hSel===r.id?'on':''}" onclick="hPick(${r.id})"><span class="hdot" style="background:${ok?r.theme:'#d2d2d7'}"></span>
+            <div class="hnm"><b>${esc(r.unit)}</b>${r.konum?`<span>${esc(r.konum)}</span>`:''}</div><span class="hst">${ok?'✓':'—'}</span></div>`;}).join('');
+        html+=`</div>`; });
+    }
+    html+=`</div>`; });
+  box.innerHTML=`<div class="hg-tools"><button onclick="hGrupHepsi(true)">Tümünü aç</button><span>·</span><button onclick="hGrupHepsi(false)">Tümünü kapat</button></div>`+html;
 }
 /* Google Maps yükleyici (anahtar Ayarlar > Harita bölümünden) */
 let hGoogleLoading=null, hEngine='leaflet', hgMap=null, hgMarkers=[], hgSel=null;
