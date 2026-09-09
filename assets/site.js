@@ -418,7 +418,7 @@ function initHomeGoogle(){
   hgHome=new google.maps.Map(document.getElementById('homeMap'),{
     center:{lat:ADANA[0],lng:ADANA[1]}, zoom:13,
     mapTypeControl:false, streetViewControl:false, fullscreenControl:true,
-    scrollwheel:false, gestureHandling:'cooperative',
+    scrollwheel:true, gestureHandling:'greedy',
     styles:[{featureType:'poi.business',stylers:[{visibility:'off'}]},
             {featureType:'transit',elementType:'labels.icon',stylers:[{visibility:'off'}]}]});
   hgHomeInfo=new google.maps.InfoWindow({maxWidth:270});
@@ -433,7 +433,7 @@ function initHomeLeaflet(){
   const el=document.getElementById('homeMap'); if(!el||typeof L==='undefined')return;
   homeEngine='leaflet';
   if(homeMapObj){ try{homeMapObj.remove();}catch(e){} homeMapObj=null; }
-  homeMapObj=L.map('homeMap',{scrollWheelZoom:false,zoomControl:true,attributionControl:false}).setView(ADANA,13);
+  homeMapObj=L.map('homeMap',{scrollWheelZoom:true,zoomControl:true,attributionControl:false}).setView(ADANA,13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(homeMapObj);
   homeCluster=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:52,
     iconCreateFunction:c=>{ const n=c.getChildCount(); const sz=n<10?36:(n<50?44:52);
@@ -692,7 +692,7 @@ function initHubMapG(pts,color){
   loadGoogle().then(()=>{
     const el=document.getElementById('hubMap'); if(!el)return;
     gHub=new google.maps.Map(el,{mapTypeControl:false,streetViewControl:false,fullscreenControl:false,zoomControl:true,
-      gestureHandling:'cooperative',clickableIcons:false,styles:[{featureType:'poi',stylers:[{visibility:'off'}]}]});
+      scrollwheel:true,gestureHandling:'greedy',clickableIcons:false,styles:[{featureType:'poi',stylers:[{visibility:'off'}]}]});
     const info=new google.maps.InfoWindow({maxWidth:250});
     const b=new google.maps.LatLngBounds();
     pts.forEach(p=>{ const mk=new google.maps.Marker({map:gHub,position:{lat:p.lat,lng:p.lng},title:p.name,
@@ -782,7 +782,7 @@ function initHubMap(pts,color,buyuk){
   setTimeout(()=>{
     const el=document.getElementById('hubMap'); if(!el||typeof L==='undefined')return;
     if(hubMapObj){ try{hubMapObj.remove();}catch(e){} hubMapObj=null; }
-    hubMapObj=L.map('hubMap',{scrollWheelZoom:false,zoomControl:!!buyuk,dragging:!!buyuk,attributionControl:false});
+    hubMapObj=L.map('hubMap',{scrollWheelZoom:!!buyuk,zoomControl:!!buyuk,dragging:!!buyuk,attributionControl:false});
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(hubMapObj);
     const ms=pts.map(p=>{ const mk=L.marker([p.lat,p.lng],{icon:pinIcon(color)});
       if(buyuk) mk.bindPopup(`<div class="mp-pop">${p.img?`<img src="${esc(p.img)}" alt="">`:''}<b>${esc(p.urun||'')} · ${esc(p.name)}</b>${p.konum?`<span>${esc(p.konum)}</span>`:''}
