@@ -1731,7 +1731,7 @@ async function mecEdit(id){ if(ui._dirty && !(await dirtyGuard())) return;
     <div class="field"><label class="flabel">Sayfa adresi</label>
       <div class="slug-row"><span>/mecra/</span><input class="inp" id="mslug" value="${esc(m.slug)}" placeholder="otomatik: ${esc(pslug(m.name))}"></div>
       <p class="muted" style="font-size:11.5px;margin:5px 0 0">Boş bırakırsan isimden otomatik üretilir. Sonradan değiştirirsen eski linkler kırılır.</p></div>
-    <div class="row2"><div class="field"><label class="flabel">Günlük gösterim</label><input class="inp" id="mgg" value="${esc(m.gunluk_gosterim)}" placeholder="≈ 250.000 gösterim"></div>
+    <div class="row2"><div class="field"><label class="flabel">Ziyaretçi / gösterim rakamı (künye kartında başlığın altında)</label><input class="inp" id="mgg" value="${esc(m.gunluk_gosterim)}" placeholder="Yıllık 15 Milyon Ziyaretçi"></div>
     <div class="field"><label class="flabel">Toplam reklam alanı</label><input class="inp" id="mta" value="${esc(m.toplam_alan)}" placeholder="3 alt mecra"></div></div>
     <div class="field" style="margin-top:4px"><label class="flabel">Rozet (kart üzerinde küçük etiket)</label><input class="inp" id="mbadge" value="${esc(m.badge)}"></div>
     </div>
