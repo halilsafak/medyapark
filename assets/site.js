@@ -690,7 +690,7 @@ let gHub=null;
 function initHubMapG(pts,color){
   loadGoogle().then(()=>{
     const el=document.getElementById('hubMap'); if(!el)return;
-    gHub=new google.maps.Map(el,{mapTypeControl:false,streetViewControl:false,fullscreenControl:true,zoomControl:true,
+    gHub=new google.maps.Map(el,{mapTypeControl:false,streetViewControl:false,fullscreenControl:false,zoomControl:true,
       gestureHandling:'cooperative',clickableIcons:false,styles:[{featureType:'poi',stylers:[{visibility:'off'}]}]});
     const info=new google.maps.InfoWindow({maxWidth:250});
     const b=new google.maps.LatLngBounds();
