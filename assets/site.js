@@ -591,8 +591,10 @@ function renderMecPage(m,aktifAltId){
   const units=alts.reduce((n,a)=>n+(a.units||[]).length,0);
   const kunye=!vis(m,'bar',true)?'':`<div class="mp-bar"><div class="mp-bar-in">
       ${m.logo?`<div class="mp-logo">${picture(m.logo,null,'','logo')}</div>`:''}
-      ${m.gunluk_gosterim?`<div class="mp-k2">${uIkon('diger',26)}<b>${esc(m.gunluk_gosterim)}</b></div>`:''}
-      <div class="mp-k2">${uIkon((alts[0]&&alts[0].product||{}).ikon,26)}<b>${units} Pozisyon</b></div>
+      ${m.gunluk_gosterim?`<div class="mp-k2">${uIkon(st.barIkon||'diger',26)}<b>${esc(m.gunluk_gosterim)}</b></div>`:''}
+      ${alts.map(a=>{ const p=a.product||{}; const ad=p.name||a.name; const bir=birimAdi(a);
+        const ek=new RegExp(bir,'i').test(ad)?'':` <small>/ ${esc(bir)}</small>`;
+        return `<div class="mp-k2">${uIkon(p.ikon,26)}<b>${birimSay(a)} ${esc(ad)}${ek}</b></div>`; }).join('')}
       <div class="mp-bar-btn">
         ${alts.length?`<a class="mp-lnk" onclick="mpScroll('mp-alanlar')">Müsait Alanları Gör ↓</a>`:''}
         <a class="btn btn-primary btn-sm" onclick="mpTeklif()">Teklif İste</a></div>

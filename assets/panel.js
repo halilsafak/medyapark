@@ -3524,6 +3524,9 @@ async function ayarlar(c){
         ${st.favicon?`<img src="${esc(st.favicon)}" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--c-line)">`:''}
         <input class="inp" id="gFav" value="${esc(st.favicon||'')}">
         <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('gFav').value=u;})">Yükle</button></div></div>
+    <div class="field" style="max-width:360px"><label class="flabel">Künye şeridi — ziyaretçi/gösterim ikonu (lokasyon sayfası kapak altı)</label>
+      ${ikonSecici('gBarIk',st.barIkon||'diger')}
+      <p class="muted" style="font-size:11.5px;margin:4px 0 0">Aynı şeritteki alan rozetlerinin ikonları (Megalight, Raket, LED…) <b>Envanter › Ürünler</b>'de her ürünün kendi ikon seçiminden gelir; kendi SVG'lerinizi <b>Site İçeriği › İkonlar</b>'dan yükleyin.</p></div>
     <div class="field"><label class="flabel">Teklif bandı görseli (lokasyon sayfalarının altındaki siyah bant — genel açıkhava fotoğrafı, yatay, min. 1600px)</label>
       <div class="imgf">
         <span class="imgf-pv${st.bantImage?'':' bos'}" id="gBant_pv" onclick="imgAc('gBant')">${st.bantImage?`<img src="${esc(st.bantImage)}" alt="">`:''}</span>
@@ -3634,7 +3637,7 @@ async function ayarlar(c){
 }
 async function savePrices(){ await api('settings_save',{showPrices:document.getElementById('showPrices').checked}); mpAlert('Kaydedildi. Siteyi yenileyin.'); }
 async function saveSettings(){ await api('settings_save',{siteName:gv('sName'),phone:gv('sPhone'),email:gv('sMail'),address:gv('sAddr'),catalogPdf:gv('sPdf')}); mpAlert('Kaydedildi.'); }
-async function saveGorunum(){ await api('settings_save',{logoText:gv('gLogoT'),logoImage:gv('gLogoI'),favicon:gv('gFav'),bantImage:gv('gBant')}); toast('Kaydedildi. Sitede Ctrl+F5 ile görünür.'); }
+async function saveGorunum(){ await api('settings_save',{logoText:gv('gLogoT'),logoImage:gv('gLogoI'),favicon:gv('gFav'),bantImage:gv('gBant'),barIkon:gv('gBarIk')}); toast('Kaydedildi. Sitede Ctrl+F5 ile görünür.'); }
 async function savePanelTheme(reset){
   const t=reset?null:{accent:gv('pTColor'),logo:gv('pTLogo')};
   await api('settings_save',{panelTheme:t}); applyPanelTheme(t||{}); if(reset)renderSection();

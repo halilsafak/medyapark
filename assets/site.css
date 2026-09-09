@@ -1181,3 +1181,8 @@ body{overflow-x:clip;}
 .pp-sv{display:block;margin-top:6px;font-size:12px;font-weight:600;color:var(--teal);background:none;padding:0;cursor:pointer;text-align:left;}
 .pp-sv:hover{text-decoration:underline;}
 @media(max-width:900px){ .mp-sokak{min-height:340px;} }
+
+/* v64: künye şeridi alan rozetleri */
+.mp-k2 small{font-size:12.5px;font-weight:600;color:var(--ink3);margin-left:2px;}
+.mp-kanit,.mp-bar-in{row-gap:10px;}
+@media(max-width:900px){ .mp-k2{font-size:15px;} .mp-k2 .ui-ic{width:30px;height:30px;padding:5px;} }
