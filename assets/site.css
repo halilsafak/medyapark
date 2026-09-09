@@ -1203,3 +1203,16 @@ body{overflow-x:clip;}
 /* v66: ziyaretçi rakamı künye kartında başlık altı */
 .mp-ziy{display:inline-flex;align-items:center;gap:7px;margin:-2px 22px 12px;padding:6px 12px;border-radius:999px;background:var(--teal-soft);color:var(--teal);font-size:13px;font-weight:700;}
 .mp-ziy .ui-ic{color:var(--teal);}
+
+/* v67: künye kartı — başlıkla hizalı madde listesi, ferah aralık */
+.mp-ziy{display:none;}
+.mp-kunye h3{margin:22px 22px 14px;}
+.mp-avl{margin:0 22px 18px;gap:11px;}
+.mp-avl li{font-size:14px;align-items:center;}
+.mp-avl li i,.mp-avl li .ui-ic{top:0;}
+.mp-avl li i{width:20px;height:20px;}
+.mp-avl li.ziy .ui-ic{color:var(--teal);}
+.mp-avl li span::before{content:'';}
+.mp-avl li span{display:block;width:100%;padding-left:29px;margin-top:-6px;}
+.mp-avl li{flex-wrap:wrap;}
+.mp-kunye p{margin:0 22px 22px;padding-top:14px;border-top:1px solid var(--line2);}
