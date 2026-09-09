@@ -1896,6 +1896,7 @@ async function altEdit(id,mid){ if(ui._dirty && !(await dirtyGuard())) return;
       <td><input class="inp inp-sm" value="${esc(u.name)}" onchange="unitSave(${u.id},'name',this.value)"></td>
       <td><input class="inp inp-sm" value="${esc(u.olcu||'')}" placeholder="120×185 cm" onchange="unitSave(${u.id},'olcu',this.value)"></td>
       <td><input class="inp inp-sm" value="${esc(u.konum||'')}" placeholder="Ana giriş" onchange="unitSave(${u.id},'konum',this.value)"></td>
+      <td><span class="uf ${u.image?'':'bos'}" onclick="unitFoto(${u.id},${id},${mid})" title="${u.image?'Fotoğrafı değiştir':'Fotoğraf yükle'}">${u.image?`<img src="${esc(u.image)}" alt="">`:'+'}</span></td>
       <td class="muted" style="font-size:11.5px">${u.lat!=null?'📍':'—'}</td>
       <td><button class="btn btn-danger btn-sm" onclick="unitDel(${u.id},${id},${mid})">×</button></td></tr>`).join('');
   document.getElementById('mecEd').innerHTML=`<div class="sec-card" style="margin-top:16px">
@@ -1925,7 +1926,8 @@ async function altEdit(id,mid){ if(ui._dirty && !(await dirtyGuard())) return;
 
     <div class="fld-box"><label class="flabel" style="font-weight:700">Pozisyonlar <span class="muted" style="font-weight:400">· ${units.length}</span></label>
       <p class="muted" style="font-size:12px;margin:0 0 10px">Çift yüzlü panolarda ad <b>P1-A / P1-B</b>; tek yüzeylilerde düz <b>P1</b>. Tek yüzeyli adı A veya B harfiyle bitirmeyin. Koordinatlar Harita bölümünden işaretlenir (📍 = işaretli).</p>
-      ${units.length?`<table class="tbl"><thead><tr><th>Ad</th><th>Ölçü</th><th>Konum</th><th></th><th></th></tr></thead><tbody>${unitRows}</tbody></table>`:''}
+      ${units.length?`<table class="tbl"><thead><tr><th>Ad</th><th>Ölçü</th><th>Konum</th><th>Foto</th><th></th><th></th></tr></thead><tbody>${unitRows}</tbody></table>`:''}
+      <p class="muted" style="font-size:11.5px;margin:6px 0 0">Foto: haritadaki pin kartında görünür. Çift yüzlü panolarda A ve B için ayrı fotoğraf yükleyin ki ziyaretçi yüzleri ayırt edebilsin.</p>
       <div class="ub-row">
         <button class="btn btn-outline btn-sm" onclick="unitAdd(${id},${mid})">+ Tek pozisyon</button>
         <span class="ub-sep"></span>
@@ -1967,6 +1969,7 @@ async function altGalDel(id,mid,idx){ const alts=await api('alt_list&mecra_id='+
 async function unitAdd(altId,mid){ const alt=(ui._alts||await api('alt_list&mecra_id='+mid)).find(x=>x.id===altId)||{};
   await api('unit_save',{alt_mecra_id:altId,mecra_id:mid,product_id:alt.product_id,name:'Yeni Pozisyon'}); altEdit(altId,mid); }
 async function unitSave(id,field,value){ const body={id}; body[field]=value; await api('unit_save',body); }
+function unitFoto(uid,altId,mid){ pickUpload('image/*',async u=>{ await api('unit_save',{id:uid,image:u}); altEdit(altId,mid); }); }
 async function unitDel(id,altId,mid){ if(await mpConfirm('Pozisyon ve doluluk geçmişi silinsin mi?','Pozisyonu Sil')){ await api('unit_delete&id='+id); altEdit(altId,mid); } }
 async function loadUnitCal(uid){ try{ const bk=await api('booking_list&unit_id='+uid); const map={}; bk.forEach(b=>map[b.ym]=b.status);
   calData[uid]={map, y:new Date().getFullYear()}; drawUnitCal(uid); }catch(e){} }

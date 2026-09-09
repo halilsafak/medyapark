@@ -599,8 +599,13 @@ function renderMecPage(m,aktifAltId){
     </div></div>`;
 
   /* konum bilgisi: harita (+kroki geçişi) | künye kartı */
-  const pts=[]; alts.forEach(a=>(a.units||[]).forEach(u=>{const la=parseFloat(u.lat),ln=parseFloat(u.lng);
-    if(isFinite(la)&&isFinite(ln))pts.push({lat:la,lng:ln,name:u.name||'',konum:u.konum||'',alt:a.id,img:(a.image||m.image||''),urun:((a.product||{}).name||a.name)});}));
+  const nowYm=curYm();
+  const yuzBilgi=(u,a)=>{ if(!u)return null; const mp={}; (u.booked||[]).forEach(b=>mp[b.ym]=b.status);
+    return {id:u.id,name:u.name||'',konum:u.konum||'',img:u.image||a.image||m.image||'',st:mp[nowYm]||'bos',surf:posParts(u.name).surf}; };
+  const pts=[]; alts.forEach(a=>groupUnits(a.units||[]).forEach(g=>{
+    const ref=g.A||g.B; const la=parseFloat((g.A||{}).lat!=null?g.A.lat:(g.B||{}).lat), ln=parseFloat((g.A||{}).lng!=null?g.A.lng:(g.B||{}).lng);
+    if(!ref||!isFinite(la)||!isFinite(ln))return;
+    pts.push({lat:la,lng:ln,name:g.base,alt:a.id,urun:((a.product||{}).name||a.name),A:yuzBilgi(g.A,a),B:yuzBilgi(g.B,a),konum:ref.konum||''});}));
   const haritaVar = pts.length>0 && visMode(m,'maps')!=='off';
   const krokiVar = vis(m,'kroki',!!m.yerlesim_plani);
   const konumSol = (haritaVar||krokiVar) ? `<div class="mp-map-wrap">
@@ -694,8 +699,31 @@ function mpSepetCiz(){ const box=document.getElementById('mpSepet'); if(!box)ret
   const n=(typeof cart!=='undefined'&&cart)?cart.length:0;
   box.innerHTML=n?`<div class="mp-sepet-in"><b>${n} ay seçildi</b>${showPrices()?`<span>Tahmini ${money(cartTotal())}</span>`:''}
     <button class="btn btn-primary btn-sm" onclick="toggleCart()">Sepeti Aç ve Teklif İste</button></div>`:''; }
-/* harita pini: görsel + başlık + tabloya git */
-function mpPinGit(altId){ mpTab(altId); setTimeout(()=>mpScroll('mp-tablo'),80); }
+/* harita pini kartı: tek yüzeyde görsel+buton; çift yüzeyde A/B yan yana, yüz seçilir */
+function mpPinKart(p){
+  const durum=y=>y.st==='dolu'?'<em class="pp-d dolu">Bu ay dolu</em>':(y.st==='rezerve'?'<em class="pp-d rez">Bu ay rezerve</em>':'<em class="pp-d bos">Bu ay müsait</em>');
+  const yuz=(y,etiket)=>`<div class="pp-y"><div class="pp-img">${y.img?`<img src="${esc(y.img)}" alt="">`:'<span>Fotoğraf yok</span>'}</div>
+      <b>${esc(etiket)}</b>${y.konum?`<span>${esc(y.konum)}</span>`:''}${durum(y)}
+      <button class="btn btn-primary btn-sm" onclick="mpPinGit('${p.alt}',${y.id})">${esc(etiket.split(' ')[0])} yüzünü seç</button></div>`;
+  if(p.B) return `<div class="mp-pop cift"><div class="pp-h"><b>${esc(p.urun)} · ${esc(p.name)}</b><span>Çift yüzlü pano — yüzü seçin</span></div>
+    <div class="pp-2">${yuz(p.A,'A yüzü (ön)')}${yuz(p.B,'B yüzü (arka)')}</div></div>`;
+  const y=p.A; return `<div class="mp-pop"><div class="pp-img">${y.img?`<img src="${esc(y.img)}" alt="">`:''}</div>
+    <b>${esc(p.urun)} · ${esc(p.name)}</b>${y.konum?`<span>${esc(y.konum)}</span>`:''}${durum(y)}
+    <button class="btn btn-primary btn-sm" onclick="mpPinGit('${p.alt}',${y.id})">Müsaitliğe bak</button></div>`;
+}
+/* sekmeyi aç, tabloya in, seçilen yüzeyin satırını vurgula */
+function mpPinGit(altId,unitId){
+  mpTab(altId);
+  setTimeout(()=>{ mpScroll('mp-tablo');
+    if(unitId==null)return;
+    document.querySelectorAll('.rcell.hl').forEach(e=>e.classList.remove('hl'));
+    document.querySelectorAll('.rg-row.hl').forEach(e=>e.classList.remove('hl'));
+    const cells=document.querySelectorAll(`.mp-tbl.on .rcell[data-u='${unitId}']`);
+    cells.forEach(c=>c.classList.add('hl'));
+    const row=cells[0]&&cells[0].closest('.rg-row'); if(row){ row.classList.add('hl'); setTimeout(()=>row.scrollIntoView({behavior:'smooth',block:'center'}),350); }
+    setTimeout(()=>{ cells.forEach(c=>c.classList.remove('hl')); if(row)row.classList.remove('hl'); },6000);
+  },80);
+}
 let gHub=null;
 function initHubMapG(pts,color){
   loadGoogle().then(()=>{
@@ -706,8 +734,7 @@ function initHubMapG(pts,color){
     const b=new google.maps.LatLngBounds();
     pts.forEach(p=>{ const mk=new google.maps.Marker({map:gHub,position:{lat:p.lat,lng:p.lng},title:p.name,
         icon:{url:gPinSvg(color),scaledSize:new google.maps.Size(32,42),anchor:new google.maps.Point(16,41)}});
-      mk.addListener('click',()=>{ info.setContent(`<div class="mp-pop">${p.img?`<img src="${esc(p.img)}" alt="">`:''}<b>${esc(p.urun||'')} · ${esc(p.name)}</b>${p.konum?`<span>${esc(p.konum)}</span>`:''}
-        <button class="btn btn-primary btn-sm" onclick="mpPinGit('${p.alt}')">Müsaitliğe bak</button></div>`); info.open(gHub,mk); });
+      mk.addListener('click',()=>{ info.setOptions({maxWidth:p.B?420:250}); info.setContent(mpPinKart(p)); info.open(gHub,mk); });
       b.extend(mk.getPosition()); });
     if(pts.length===1) { gHub.setCenter(b.getCenter()); gHub.setZoom(16); }
     else { gHub.fitBounds(b,60); google.maps.event.addListenerOnce(gHub,'idle',()=>{ if(gHub.getZoom()>17)gHub.setZoom(17); }); }
@@ -794,8 +821,7 @@ function initHubMap(pts,color,buyuk){
     hubMapObj=L.map('hubMap',{scrollWheelZoom:!!buyuk,zoomControl:!!buyuk,dragging:!!buyuk,attributionControl:false});
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(hubMapObj);
     const ms=pts.map(p=>{ const mk=L.marker([p.lat,p.lng],{icon:pinIcon(color)});
-      if(buyuk) mk.bindPopup(`<div class="mp-pop">${p.img?`<img src="${esc(p.img)}" alt="">`:''}<b>${esc(p.urun||'')} · ${esc(p.name)}</b>${p.konum?`<span>${esc(p.konum)}</span>`:''}
-        <button class="btn btn-primary btn-sm" onclick="mpPinGit('${p.alt}')">Müsaitliğe bak</button></div>`,{maxWidth:240});
+      if(buyuk) mk.bindPopup(mpPinKart(p),{maxWidth:p.B?420:250});
       return mk; });
     const grp=L.featureGroup(ms).addTo(hubMapObj);
     try{ hubMapObj.fitBounds(grp.getBounds().pad(buyuk?0.25:0.5),{maxZoom:buyuk?17:15}); }

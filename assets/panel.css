@@ -871,3 +871,5 @@ details.grp>summary:hover .chev{color:var(--c-accent);}
 .ub-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;}
 .ub-sep{width:1px;height:22px;background:var(--c-line);margin:0 4px;}
 .ub-chk{display:flex;align-items:center;gap:6px;font-size:12.5px;}
+.uf{display:inline-flex;width:38px;height:30px;border-radius:7px;overflow:hidden;border:1px solid var(--c-line);background:var(--c-alt);align-items:center;justify-content:center;cursor:pointer;color:var(--c-ink3);font-weight:700;}
+.uf img{width:100%;height:100%;object-fit:cover;} .uf:hover{border-color:var(--c-accent);}
