@@ -848,8 +848,9 @@ function initAltMap(pts,color){
 function rollNav(d){ roll+=d; render(); }
 function carScroll(d){ const t=document.getElementById('cartrack'); if(t)t.scrollBy({left:d*340,behavior:'smooth'}); }
 function pick(uid,ym){ toggleMonth(uid,ym); }
+function altOfUnit(uid){ for(const mm of (D.mecralar||[])) for(const a of (mm.alts||[])) if((a.units||[]).some(x=>String(x.id)===String(uid))) return {alt:a,m:mm}; return null; }
 function toggleMonth(uid,ym){
-  const alt=D.altById[view.altId]; if(!alt)return; const m=mec(view.mecId);
+  const bul=altOfUnit(uid); if(!bul)return; const alt=bul.alt, m=bul.m;
   const u=(alt.units||[]).find(x=>String(x.id)===String(uid)); if(!u)return; const p=alt.product||{};
   const i=cart.findIndex(c=>String(c.unitId)===String(uid)&&c.ym===ym);
   if(i>-1){ cart.splice(i,1); }
@@ -857,7 +858,8 @@ function toggleMonth(uid,ym){
     const donem=MONTHS_LONG[+mm-1]+' '+y;
     cart.push({unitId:Number(uid),mecra:m.name,alt:alt.name,unit:u.name,product:p.name,olcu:u.olcu||p.olcu||'',ym,monthLabel:donem,price,priceLabel:money(price)});
     bildir(`<b>Sepete eklendi</b><span>${esc(m.name)} · ${esc(u.name)} · ${esc(donem)}</span>`,'ok');
-    sepetCanlan(); }
+    sepetCanlan();
+    const dr=document.getElementById('drawer'); if(dr&&!dr.classList.contains('open')&&window.innerWidth>900) toggleCart(); }
   badge(); renderCart(); updateCell(uid,ym); renderSepetInline();
 }
 function updateCell(uid,ym){ const el=document.querySelector(`.rcell[data-u='${uid}'][data-ym='${ym}']`); if(!el)return;
@@ -1017,10 +1019,9 @@ function renderMenu(){
   const cfg=(D.settings||{}).menu;
   const items=(cfg&&Array.isArray(cfg.items)&&cfg.items.length)
     ? cfg.items.filter(i=>i&&i.show!==false)
-    : (D.pages||[]).filter(p=>p.in_menu!==false).map(p=>({label:p.title||p.slug,type:'sayfa',value:p.slug}));
+    : [];                                     /* panelden seçilene kadar header menüsü boş */
   const ust=document.getElementById('navMenu');
-  if(ust) ust.innerHTML=items.map(i=>menuLink(i,false)).join('')
-    +`<a class="nav-admin" href="admin.html" title="Yönetim Paneli">⚙</a>`;
+  if(ust) ust.innerHTML=items.map(i=>menuLink(i,false)).join('');
   const el=document.getElementById('menuPages');
   if(el) el.innerHTML=items.map(i=>menuLink(i,true)).join('');
 }

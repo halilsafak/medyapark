@@ -1135,3 +1135,11 @@ body{overflow-x:clip;}
 .mp-sl{border-radius:0;aspect-ratio:auto;height:500px;min-height:0;}
 .mp-prod2-b{padding:22px 22px 22px 0;}
 @media(max-width:900px){ .mp-konum,.mp-prod2{grid-template-columns:1fr;} .mp-sl{height:auto;aspect-ratio:16/10;} .mp-prod2-b{padding:16px 18px 18px;} }
+
+/* v60: bölümler arası nefes; çekmece sepeti üstte */
+.mp-sec{padding:56px 0 8px;}
+.mp-band{margin-top:64px;}
+.mp-h2{margin-bottom:20px;}
+@media(max-width:640px){ .mp-sec{padding:40px 0 6px;} .mp-band{margin-top:44px;} }
+.cbadge{animation:cb-pop .25s ease-out;}
+@keyframes cb-pop{from{transform:scale(.5);}to{transform:scale(1);}}
