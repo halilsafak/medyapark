@@ -603,8 +603,9 @@ function renderMecPage(m,aktifAltId){
   const konum=!vis(m,'konum',true)?'':`<section class="mp-sec" id="mp-konum"><h2 class="mp-h2">Konum Bilgisi</h2>
     <div class="mp-konum${!vis(m,'kunye',true)?' solo':''}">${konumSol}
       ${!vis(m,'kunye',true)?'':`<div class="mp-kunye"><h3>${esc(m.baslik||m.name)}</h3>
+        ${(()=>{ const av=(Array.isArray(m.avantajlar)?m.avantajlar.filter(a=>a&&(a.t||a.title)):[]);
+          return av.length?`<ul class="mp-avl">${av.map(a=>`<li>${a.i?uIkon(a.i,16):'<i>✓</i>'}<b>${esc(a.t||a.title)}</b>${(a.d||a.desc)?`<span>${esc(a.d||a.desc)}</span>`:''}</li>`).join('')}</ul>`:''; })()}
         ${m.aciklama?`<p>${esc(m.aciklama)}</p>`:''}
-        ${(Array.isArray(m.avantajlar)?m.avantajlar.filter(a=>a&&(a.t||a.title)):[]).slice(0,4).map(a=>`<div class="mp-avm">${a.i?uIkon(a.i,16):'<i>✓</i>'}<span>${esc(a.t||a.title)}</span></div>`).join('')}
       </div>`}</div></section>`;
 
   /* reklam alanları: sekmeler + slider|metin */
@@ -631,7 +632,7 @@ function renderMecPage(m,aktifAltId){
 
   /* rezervasyon tablosu (aktif sekmenin) */
   const tablolar=alts.map(a=>`<div class="mp-tbl${String(a.id)===String(aktifAltId)?' on':''}" data-alt="${a.id}">${rezTableHTML(a)}</div>`).join('');
-  const tablo = (alts.length && vis(m,'tablo',true)) ? `<section class="mp-sec" id="mp-tablo"><h2 class="mp-h2">Rezervasyon Tablosu</h2>${tablolar}
+  const tablo = (alts.length && vis(m,'tablo',true)) ? `<section class="mp-sec" id="mp-tablo">${tablolar}
       <div class="mp-sepet" id="mpSepet"></div></section>` : '';
 
   /* aksiyon bandı */

@@ -1120,3 +1120,18 @@ body{overflow-x:clip;}
   .mp-band-b{margin-left:0;max-width:none;padding:22px 0 40px;}
 }
 @media(max-width:640px){ .mp-band-img{margin-left:-16px;} }
+
+/* v59: avantaj maddeleri; harita = slider genişliği ve yüksekliği */
+.mp-avl{list-style:none;margin:0 22px 14px;padding:0;display:flex;flex-direction:column;gap:7px;}
+.mp-avl li{display:flex;align-items:baseline;gap:9px;font-size:14px;line-height:1.45;}
+.mp-avl li i{width:18px;height:18px;border-radius:50%;background:var(--teal-soft);color:var(--teal);font-size:11px;font-style:normal;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;position:relative;top:2px;}
+.mp-avl li .ui-ic{color:var(--teal);flex:0 0 auto;position:relative;top:3px;}
+.mp-avl li b{font-weight:700;color:var(--ink);}
+.mp-avl li span{color:var(--ink2);font-size:13px;}
+.mp-avl li span::before{content:'— ';}
+.mp-avm{display:none;}
+.mp-konum,.mp-prod2{grid-template-columns:minmax(0,2.3fr) minmax(0,1fr);gap:20px;}
+.mp-prod2{padding:0;overflow:hidden;}
+.mp-sl{border-radius:0;aspect-ratio:auto;height:500px;min-height:0;}
+.mp-prod2-b{padding:22px 22px 22px 0;}
+@media(max-width:900px){ .mp-konum,.mp-prod2{grid-template-columns:1fr;} .mp-sl{height:auto;aspect-ratio:16/10;} .mp-prod2-b{padding:16px 18px 18px;} }
