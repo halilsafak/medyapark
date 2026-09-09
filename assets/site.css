@@ -1143,3 +1143,15 @@ body{overflow-x:clip;}
 @media(max-width:640px){ .mp-sec{padding:40px 0 6px;} .mp-band{margin-top:44px;} }
 .cbadge{animation:cb-pop .25s ease-out;}
 @keyframes cb-pop{from{transform:scale(.5);}to{transform:scale(1);}}
+
+/* v61: header sosyal ikonları — yumuşak yuvarlak zemin, markaya özel hover */
+.nav-actions{display:flex;align-items:center;gap:8px;}
+.iconbtn.soc{width:40px;height:40px;background:var(--bg2);color:var(--ink2);border-radius:50%;display:flex !important;}
+.iconbtn.soc svg{width:18px;height:18px;}
+.iconbtn.soc:hover{color:#fff;transform:translateY(-1px);}
+.iconbtn.soc.whatsapp:hover{background:#25d366;}
+.iconbtn.soc.instagram:hover{background:linear-gradient(45deg,#f58529,#dd2a7b 55%,#8134af);}
+.iconbtn.soc.linkedin:hover{background:#0a66c2;}
+.iconbtn.cart{margin-left:6px;}
+#pdfBtn,#waBtn{display:none !important;}
+@media(max-width:640px){ .iconbtn.soc{display:none !important;} }

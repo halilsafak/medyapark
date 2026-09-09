@@ -87,19 +87,27 @@ async function load(){
   /* favicon (panelden yüklenir) */
   if(s.favicon){ let l=document.head.querySelector("link[rel~='icon']");
     if(!l){ l=document.createElement('link'); l.rel='icon'; document.head.appendChild(l); } l.href=s.favicon; }
+  /* header: yalnız WhatsApp · Instagram · LinkedIn (sepetin solunda) */
+  const pdfB=document.getElementById('pdfBtn'); if(pdfB) pdfB.style.display='none';
+  const waB=document.getElementById('waBtn'); if(waB) waB.style.display='none';
+  const sbx=document.getElementById('socialBtns');
+  if(sbx){ const IC={
+    whatsapp:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.5-.5.3-.5c.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.2-.7.2-1.3.2-1.4-.1-.2-.3-.3-.6-.4zM12 21.8c-1.8 0-3.5-.5-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 1 1 12 21.8zm8.4-18.2A11.8 11.8 0 0 0 12 .2C5.5.2.2 5.5.2 12c0 2.1.5 4.1 1.6 5.9L0 24l6.3-1.7a11.8 11.8 0 0 0 5.7 1.5c6.5 0 11.8-5.3 11.8-11.8 0-3.2-1.2-6.1-3.4-8.4z"/></svg>',
+    instagram:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 1.2.1 1.8.2 2.2.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1 .4 2.2.1 1.3.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 1.2-.2 1.8-.4 2.2-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1 .4-2.2.4-1.3.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-1.2-.1-1.8-.2-2.2-.4-.6-.2-1-.5-1.4-.9-.4-.4-.7-.8-.9-1.4-.2-.4-.4-1-.4-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8c.1-1.2.2-1.8.4-2.2.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1-.4 2.2-.4C8.4 2.2 8.8 2.2 12 2.2M12 0C8.7 0 8.3 0 7.1.1 5.8.1 4.9.3 4.1.6c-.8.3-1.5.7-2.1 1.4C1.3 2.6.9 3.3.6 4.1.3 4.9.1 5.8.1 7.1 0 8.3 0 8.7 0 12s0 3.7.1 4.9c.1 1.3.3 2.2.6 3 .3.8.7 1.5 1.4 2.1.6.7 1.3 1.1 2.1 1.4.8.3 1.7.5 3 .6 1.2.1 1.6.1 4.9.1s3.7 0 4.9-.1c1.3-.1 2.2-.3 3-.6.8-.3 1.5-.7 2.1-1.4.7-.6 1.1-1.3 1.4-2.1.3-.8.5-1.7.6-3 .1-1.2.1-1.6.1-4.9s0-3.7-.1-4.9c-.1-1.3-.3-2.2-.6-3-.3-.8-.7-1.5-1.4-2.1C21.4 1.3 20.7.9 19.9.6c-.8-.3-1.7-.5-3-.6C15.7 0 15.3 0 12 0zm0 5.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.4-11.8a1.4 1.4 0 1 0 0 2.9 1.4 1.4 0 0 0 0-2.9z"/></svg>',
+    linkedin:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 2h-17A1.5 1.5 0 0 0 2 3.5v17A1.5 1.5 0 0 0 3.5 22h17a1.5 1.5 0 0 0 1.5-1.5v-17A1.5 1.5 0 0 0 20.5 2zM8 19H5v-9h3zM6.5 8.3A1.8 1.8 0 1 1 6.5 4.7a1.8 1.8 0 0 1 0 3.6zM19 19h-3v-4.7c0-1.4-.6-2.1-1.6-2.1-1.1 0-1.9.8-1.9 2.1V19h-3v-9h2.9v1.3c.5-.8 1.5-1.5 2.9-1.5 2.1 0 3.7 1.3 3.7 4.1z"/></svg>'};
+    const links=[[s.social_whatsapp,'whatsapp','WhatsApp'],[s.social_instagram,'instagram','Instagram'],[s.social_linkedin,'linkedin','LinkedIn']].filter(x=>x[0]);
+    sbx.innerHTML=links.map(x=>`<a class="iconbtn soc ${x[1]}" href="${esc(x[0])}" target="_blank" rel="noopener" title="${x[2]}" aria-label="${x[2]}">${IC[x[1]]}</a>`).join(''); }
+  /* yukarı git oku */
+  if(!document.getElementById('toTop')){ const t=document.createElement('button'); t.id='toTop'; t.title='Yukarı git';
+    t.innerHTML='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5m0 0l-6 6m6-6l6 6"/></svg>';
+    t.onclick=()=>window.scrollTo({top:0,behavior:'smooth'}); document.body.appendChild(t);
+    window.addEventListener('scroll',()=>t.classList.toggle('on',window.scrollY>500),{passive:true}); }
+  /* favicon (panelden yüklenir) */
+  if(s.favicon){ let l=document.head.querySelector("link[rel~='icon']");
+    if(!l){ l=document.createElement('link'); l.rel='icon'; document.head.appendChild(l); } l.href=s.favicon; }
   /* header: whatsapp + sosyal ikonlar */
   if(s.social_whatsapp){ const w=document.getElementById('waBtn'); if(w){ w.href=s.social_whatsapp; w.style.display='flex'; } }
-  const sbx=document.getElementById('socialBtns');
-  if(sbx){ const ic={
-    instagram:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>',
-    facebook:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 21v-7h2.4l.4-3h-2.8V9.1c0-.9.3-1.5 1.6-1.5h1.3V4.9c-.2 0-1-.1-1.9-.1-1.9 0-3.2 1.2-3.2 3.3V11H9v3h2.3v7h2.2z"/></svg>',
-    linkedin:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.4 8.6H3.7V20h2.7V8.6zM5 7.4a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2zM20.3 20h-2.7v-5.6c0-1.4-.5-2.3-1.7-2.3-.9 0-1.5.6-1.7 1.2-.1.2-.1.5-.1.8V20h-2.7V8.6h2.7v1.2c.4-.6 1.1-1.5 2.8-1.5 2 0 3.4 1.3 3.4 4.1V20z"/></svg>',
-    x:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.3 3H20l-6.6 7.6L21 21h-5.9l-4.6-6-5.3 6H2.5l7.1-8.1L3 3h6l4.1 5.5L17.3 3zm-1 16.2h1.6L7.7 4.7H6l10.3 14.5z"/></svg>',
-    youtube:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 7.2a2.8 2.8 0 0 0-2-2C17.9 4.8 12 4.8 12 4.8s-5.9 0-7.6.4a2.8 2.8 0 0 0-2 2A29 29 0 0 0 2 12a29 29 0 0 0 .4 4.8 2.8 2.8 0 0 0 2 2c1.7.4 7.6.4 7.6.4s5.9 0 7.6-.4a2.8 2.8 0 0 0 2-2A29 29 0 0 0 22 12a29 29 0 0 0-.4-4.8zM10 15.2V8.8L15.5 12 10 15.2z"/></svg>'};
-    const links=[[s.social_instagram,'instagram','Instagram'],[s.social_facebook,'facebook','Facebook'],
-      [s.social_linkedin,'linkedin','LinkedIn'],[s.social_x,'x','X'],[s.social_youtube,'youtube','YouTube']]
-      .filter(x=>x[0]);
-    sbx.innerHTML=links.map(x=>`<a class="iconbtn soc" href="${esc(x[0])}" target="_blank" rel="noopener" title="${x[2]}">${ic[x[1]]}</a>`).join(''); }
+  
   buildFilter(); renderFooter(); renderMenu(); initAnalytics();
   view=pathToView(location.pathname);
   render(); pushRoute(true);
