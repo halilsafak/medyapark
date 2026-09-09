@@ -1055,3 +1055,4 @@ body{overflow-x:hidden;}
   .mp-k2{font-size:15px;} .mp-bar-btn{margin-left:0;width:100%;justify-content:space-between;}
   .mp-kunye h3{font-size:21px;} .mp-prod2-b h3{font-size:22px;} .mp-tab span{font-size:14px;}
 }
+.mp-konum.solo{grid-template-columns:1fr;}

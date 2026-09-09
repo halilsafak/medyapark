@@ -581,7 +581,7 @@ function renderMecPage(m,aktifAltId){
 
   /* künye şeridi */
   const units=alts.reduce((n,a)=>n+(a.units||[]).length,0);
-  const kunye=`<div class="mp-bar"><div class="mp-bar-in">
+  const kunye=!vis(m,'bar',true)?'':`<div class="mp-bar"><div class="mp-bar-in">
       ${m.logo?`<div class="mp-logo">${picture(m.logo,null,'','logo')}</div>`:''}
       ${m.gunluk_gosterim?`<div class="mp-k2">${uIkon('diger',26)}<b>${esc(m.gunluk_gosterim)}</b></div>`:''}
       <div class="mp-k2">${uIkon((alts[0]&&alts[0].product||{}).ikon,26)}<b>${units} Pozisyon</b></div>
@@ -600,12 +600,12 @@ function renderMecPage(m,aktifAltId){
       ${haritaVar?`<div class="mp-map" id="mpHarita"><div id="hubMap"></div></div>`:''}
       ${krokiVar?`<div class="mp-kroki" id="mpKroki" ${haritaVar?'style="display:none"':''}><div class="kroki-box" onclick="lightbox('${esc(m.yerlesim_plani)}')">${picture(m.yerlesim_plani,m.kroki_mobil,'kroki-img','Yerleşim krokisi')}<span class="kroki-zoom">Büyütmek için tıklayın</span></div></div>`:''}
     </div>` : `<div class="mp-map-wrap mp-map-bos">${m.intro_image?`<img src="${esc(m.intro_image)}" alt="">`:'<span>Konum bilgisi yakında</span>'}</div>`;
-  const konum=`<section class="mp-sec" id="mp-konum"><h2 class="mp-h2">Konum Bilgisi</h2>
-    <div class="mp-konum">${konumSol}
-      <div class="mp-kunye"><h3>${esc(m.baslik||m.name)}</h3>
+  const konum=!vis(m,'konum',true)?'':`<section class="mp-sec" id="mp-konum"><h2 class="mp-h2">Konum Bilgisi</h2>
+    <div class="mp-konum${!vis(m,'kunye',true)?' solo':''}">${konumSol}
+      ${!vis(m,'kunye',true)?'':`<div class="mp-kunye"><h3>${esc(m.baslik||m.name)}</h3>
         ${m.aciklama?`<p>${esc(m.aciklama)}</p>`:''}
         ${(Array.isArray(m.avantajlar)?m.avantajlar.filter(a=>a&&(a.t||a.title)):[]).slice(0,4).map(a=>`<div class="mp-avm">${a.i?uIkon(a.i,16):'<i>✓</i>'}<span>${esc(a.t||a.title)}</span></div>`).join('')}
-      </div></div></section>`;
+      </div>`}</div></section>`;
 
   /* reklam alanları: sekmeler + slider|metin */
   const tabs=alts.map((a,i)=>`<button class="mp-tab${String(a.id)===String(aktifAltId)?' on':''}" data-alt="${a.id}" onclick="mpTab('${a.id}')">
@@ -625,18 +625,19 @@ function renderMecPage(m,aktifAltId){
         <div class="mp-prod2-b"><h3>${esc(p.name||a.name)}</h3>
           ${a.aciklama?`<p>${esc(a.aciklama)}</p>`:''}${capa}
           <div class="mp-specs">${spec}</div></div></div></div>`;}).join('');
-  const alanlar = alts.length ? `<section class="mp-sec" id="mp-alanlar"><h2 class="mp-h2">Reklam Alanları</h2>
-      <div class="mp-tabs">${tabs}</div>${paneller}</section>` : '';
+  const tekli=alts.length===1;
+  const alanlar = (alts.length && vis(m,'alanlar',true)) ? `<section class="mp-sec" id="mp-alanlar"><h2 class="mp-h2">${tekli?'Reklam Alanı':'Reklam Alanları'}</h2>
+      ${tekli?'':`<div class="mp-tabs">${tabs}</div>`}${paneller}</section>` : '';
 
   /* rezervasyon tablosu (aktif sekmenin) */
   const tablolar=alts.map(a=>`<div class="mp-tbl${String(a.id)===String(aktifAltId)?' on':''}" data-alt="${a.id}">${rezTableHTML(a)}</div>`).join('');
-  const tablo = alts.length ? `<section class="mp-sec" id="mp-tablo"><h2 class="mp-h2">Rezervasyon Tablosu</h2>${tablolar}
+  const tablo = (alts.length && vis(m,'tablo',true)) ? `<section class="mp-sec" id="mp-tablo"><h2 class="mp-h2">Rezervasyon Tablosu</h2>${tablolar}
       <div class="mp-sepet" id="mpSepet"></div></section>` : '';
 
   /* aksiyon bandı */
   const katalogUrl=m.katalog||st.catalogPdf||'';
   const bandImg=m.intro_image||m.image||'';
-  const band=`<section class="mp-band" id="mp-teklif"><div class="mp-band-in">
+  const band=!vis(m,'bant',true)?'':`<section class="mp-band" id="mp-teklif"><div class="mp-band-in">
       ${bandImg?`<div class="mp-band-img"><img src="${esc(bandImg)}" alt=""></div>`:''}
       <div class="mp-band-b">
         <h2>${esc(m.name)} için teklif alın</h2>
@@ -656,10 +657,10 @@ function renderMecPage(m,aktifAltId){
       <span class="mp-dc-top">${esc(ozet)}</span>
       ${x.image?`<img src="${esc(x.image)}" alt="" loading="lazy">`:''}
       <span class="mp-dc-b"><small>${esc(x.badge||'')}</small><b>${esc(x.name)}</b><em>Keşfet</em></span></a></div>`;}).join('');
-  const diger = digerler.length ? `<section class="mp-sec" id="mp-diger"><h2 class="mp-h2">Diğer Mecralara Göz Atın</h2>
+  const diger = (digerler.length && vis(m,'diger',true)) ? `<section class="mp-sec" id="mp-diger"><h2 class="mp-h2">Diğer Mecralara Göz Atın</h2>
       <div class="carousel"><div class="cnav l" onclick="carScroll(-1)">‹</div><div class="cartrack" id="cartrack">${relCards}</div><div class="cnav r" onclick="carScroll(1)">›</div></div></section>` : '';
 
-  const sticky=`<div class="mp-sticky" id="mpSticky"><div class="mp-sticky-in">
+  const sticky=!vis(m,'sticky',true)?'':`<div class="mp-sticky" id="mpSticky"><div class="mp-sticky-in">
       <b class="mp-sn">${esc(m.name)}</b>
       <nav class="mp-anch"><a onclick="mpScroll('mp-konum')">Konum</a>${alts.length?'<a onclick="mpScroll(\'mp-alanlar\')">Alanlar</a><a onclick="mpScroll(\'mp-tablo\')">Rezervasyon</a>':''}</nav>
       <span class="mp-cart" id="mpCart"></span>
@@ -668,13 +669,13 @@ function renderMecPage(m,aktifAltId){
   app().innerHTML=`${banner(bobj,(m.baslik||m.name),nav)}${kunye}${sticky}
     <div class="mp">${konum}${alanlar}${tablo}</div>${band}<div class="mp">${diger}</div>`;
   mpSepetCiz(); mpCartSay();
-  if(haritaVar) initHubMap(pts, m.theme_color||'#0071e3', true);
+  if(haritaVar){ if(gKey()) initHubMapG(pts, m.theme_color||'#0071e3'); else initHubMap(pts, m.theme_color||'#0071e3', true); }
   mpStickyKur();
 }
 function mpGorunum(k,btn){ const h=document.getElementById('mpHarita'), kr=document.getElementById('mpKroki');
   if(h)h.style.display=k==='harita'?'':'none'; if(kr)kr.style.display=k==='kroki'?'':'none';
   document.querySelectorAll('.mp-swi button').forEach(b=>b.classList.toggle('on',b===btn));
-  if(k==='harita'&&hubMapObj)setTimeout(()=>hubMapObj.invalidateSize(),50); }
+  if(k==='harita'){ setTimeout(()=>{ if(hubMapObj)hubMapObj.invalidateSize(); if(gHub&&window.google)google.maps.event.trigger(gHub,'resize'); },50); } }
 function mpSl(btn,d){ const sl=btn.closest('.mp-sl'); const imgs=sl.querySelectorAll('img'); let i=+sl.dataset.i||0;
   i=(i+d+imgs.length)%imgs.length; imgs.forEach((im,k)=>im.classList.toggle('on',k===i)); sl.dataset.i=i; }
 function mpTeklif(){ if(typeof cart!=='undefined'&&cart.length){ toggleCart(); } else { mpScroll('mp-tablo'); } }
@@ -685,6 +686,23 @@ function mpSepetCiz(){ const box=document.getElementById('mpSepet'); if(!box)ret
     <button class="btn btn-primary btn-sm" onclick="toggleCart()">Sepeti Aç ve Teklif İste</button></div>`:''; }
 /* harita pini: görsel + başlık + tabloya git */
 function mpPinGit(altId){ mpTab(altId); setTimeout(()=>mpScroll('mp-tablo'),80); }
+let gHub=null;
+function initHubMapG(pts,color){
+  loadGoogle().then(()=>{
+    const el=document.getElementById('hubMap'); if(!el)return;
+    gHub=new google.maps.Map(el,{mapTypeControl:false,streetViewControl:false,fullscreenControl:true,zoomControl:true,
+      gestureHandling:'cooperative',clickableIcons:false,styles:[{featureType:'poi',stylers:[{visibility:'off'}]}]});
+    const info=new google.maps.InfoWindow({maxWidth:250});
+    const b=new google.maps.LatLngBounds();
+    pts.forEach(p=>{ const mk=new google.maps.Marker({map:gHub,position:{lat:p.lat,lng:p.lng},title:p.name,
+        icon:{url:gPinSvg(color),scaledSize:new google.maps.Size(32,42),anchor:new google.maps.Point(16,41)}});
+      mk.addListener('click',()=>{ info.setContent(`<div class="mp-pop">${p.img?`<img src="${esc(p.img)}" alt="">`:''}<b>${esc(p.urun||'')} · ${esc(p.name)}</b>${p.konum?`<span>${esc(p.konum)}</span>`:''}
+        <button class="btn btn-primary btn-sm" onclick="mpPinGit('${p.alt}')">Müsaitliğe bak</button></div>`); info.open(gHub,mk); });
+      b.extend(mk.getPosition()); });
+    if(pts.length===1) { gHub.setCenter(b.getCenter()); gHub.setZoom(16); }
+    else { gHub.fitBounds(b,60); google.maps.event.addListenerOnce(gHub,'idle',()=>{ if(gHub.getZoom()>17)gHub.setZoom(17); }); }
+  }).catch(()=>{ initHubMap(pts,color,true); });   /* anahtar yok/reddedildi → Leaflet */
+}
 function altRenk(i){ return ['#0e7c66','#2f6fe4','#c2410c','#7c3aed','#0891b2','#b91c1c'][i%6]; }
 function mpScroll(id){ const el=document.getElementById(id); if(!el)return;
   const y=el.getBoundingClientRect().top+window.scrollY-70; window.scrollTo({top:y,behavior:'smooth'}); }
