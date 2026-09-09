@@ -636,7 +636,7 @@ function renderMecPage(m,aktifAltId){
 
   /* aksiyon bandı */
   const katalogUrl=m.katalog||st.catalogPdf||'';
-  const bandImg=m.intro_image||m.image||'';
+  const bandImg=st.bantImage||m.intro_image||m.image||'';   /* genel açıkhava görseli Ayarlar'dan; yoksa mecranın görseli */
   const band=!vis(m,'bant',true)?'':`<section class="mp-band" id="mp-teklif"><div class="mp-band-in">
       ${bandImg?`<div class="mp-band-img"><img src="${esc(bandImg)}" alt=""></div>`:''}
       <div class="mp-band-b">

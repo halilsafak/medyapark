@@ -3499,6 +3499,13 @@ async function ayarlar(c){
         ${st.favicon?`<img src="${esc(st.favicon)}" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--c-line)">`:''}
         <input class="inp" id="gFav" value="${esc(st.favicon||'')}">
         <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('gFav').value=u;})">Yükle</button></div></div>
+    <div class="field"><label class="flabel">Teklif bandı görseli (lokasyon sayfalarının altındaki siyah bant — genel açıkhava fotoğrafı, yatay, min. 1600px)</label>
+      <div class="imgf">
+        <span class="imgf-pv${st.bantImage?'':' bos'}" id="gBant_pv" onclick="imgAc('gBant')">${st.bantImage?`<img src="${esc(st.bantImage)}" alt="">`:''}</span>
+        <input class="inp" id="gBant" value="${esc(st.bantImage||'')}" placeholder="https://..." oninput="imgPv('gBant')">
+        <button class="btn btn-outline btn-sm" style="flex:0 0 auto" onclick="pickUpload('image/*',u=>{document.getElementById('gBant').value=u;imgPv('gBant');})">Yükle</button>
+        <button class="btn btn-ghost btn-sm imgf-x" onclick="imgSil('gBant')">✕</button></div>
+      <p class="muted" style="font-size:11.5px;margin:4px 0 0">Boşsa her mecranın kendi tanıtım/kart görseli kullanılır.</p></div>
     <button class="btn btn-primary btn-sm" onclick="saveGorunum()">Kaydet</button></div>
 
   <div class="sec-card"><h3 style="margin:0 0 12px;font-size:16px">Panel Görünümü</h3>
@@ -3602,7 +3609,7 @@ async function ayarlar(c){
 }
 async function savePrices(){ await api('settings_save',{showPrices:document.getElementById('showPrices').checked}); mpAlert('Kaydedildi. Siteyi yenileyin.'); }
 async function saveSettings(){ await api('settings_save',{siteName:gv('sName'),phone:gv('sPhone'),email:gv('sMail'),address:gv('sAddr'),catalogPdf:gv('sPdf')}); mpAlert('Kaydedildi.'); }
-async function saveGorunum(){ await api('settings_save',{logoText:gv('gLogoT'),logoImage:gv('gLogoI'),favicon:gv('gFav')}); toast('Kaydedildi. Sitede Ctrl+F5 ile görünür.'); }
+async function saveGorunum(){ await api('settings_save',{logoText:gv('gLogoT'),logoImage:gv('gLogoI'),favicon:gv('gFav'),bantImage:gv('gBant')}); toast('Kaydedildi. Sitede Ctrl+F5 ile görünür.'); }
 async function savePanelTheme(reset){
   const t=reset?null:{accent:gv('pTColor'),logo:gv('pTLogo')};
   await api('settings_save',{panelTheme:t}); applyPanelTheme(t||{}); if(reset)renderSection();
